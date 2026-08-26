@@ -28,6 +28,38 @@ Add new entries at the top of the log so the latest state is easy to find.
 - The next concrete task
 ```
 
+## 2026-08-26 - Language limitations and model roadmap defined
+
+### Completed
+
+- Documented the current deterministic parser limits.
+- Recorded the failure case where a natural expiry phrase becomes part of `item_name`.
+- Defined the hybrid intent, slot extraction, and normalization architecture.
+- Added dataset, evaluation, ONNX deployment, and Raspberry Pi milestones.
+
+### Decisions
+
+- Do not ask the model to calculate calendar dates.
+- Extract raw expiry spans and normalize them with reference date and timezone.
+- Build correction logging before training a custom model.
+- Train separate DistilBERT intent and slot baselines before considering a joint model.
+
+### Validation
+
+- The roadmap uses the existing intent, slot, event, and confirmation contracts.
+- Model and normalizer errors have separate evaluation criteria.
+
+### Blockers
+
+- The application does not yet provide editable interpretation fields.
+- No reviewed command dataset exists yet.
+
+### Next
+
+- Implement the correction UI and correction data schema.
+- Add deterministic English date normalization.
+- Begin collecting reviewed utterances and parser failures.
+
 ## 2026-08-26 - Text MVP scaffold verified
 
 ### Completed

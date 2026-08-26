@@ -14,6 +14,34 @@ The project begins as a text-based product. Raspberry Pi audio and a trained lan
 - Keep every state-changing action reviewable and correctable.
 - Collect high-quality English command data for later model training.
 
+## Current Implementation Status
+
+The text MVP is implemented and deployable:
+
+- Next.js web app on Vercel
+- Cloudflare Worker API with D1
+- Local Node SQLite development API
+- Shared Zod contracts
+- Append-only event storage and inventory projections
+- Command interpretation preview and explicit confirmation
+- Optional expiry date picker
+- Deterministic English parser with unit tests
+
+The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
+
+### Current Parser Limits
+
+- Natural dates such as `tomorrow`, `next Friday`, and `August twenty-eighth` are not parsed.
+- Inline expiry dates only work when written as `YYYY-MM-DD`.
+- Unsupported phrases may be absorbed into `item_name`. For example, `put 12 eggs with expiry date on August twenty-eighth` currently treats `eggs with expiry date on August twenty-eighth` as the item.
+- Supported units are limited to bag, bottle, can, carton, dozen, jar, pack, and piece.
+- Number words are limited to one through ten, plus `a`, `an`, digits, and decimals.
+- Item alias normalization is intentionally small.
+- Pattern confidence scores are constants and are not statistically calibrated.
+- There is no correction interface or labeled utterance store yet.
+
+These limitations are acceptable only while every state-changing action requires user review.
+
 ## MVP Boundary
 
 ### Included
@@ -104,6 +132,14 @@ Derived expiry states:
 
 Dates use `YYYY-MM-DD`. Comparisons use date-only UTC values to prevent timezone shifts.
 
+Natural date handling will be hybrid:
+
+1. A slot model extracts the raw date span, such as `August twenty-eighth`.
+2. A deterministic date library normalizes that span using `reference_date` and `timezone`.
+3. The user confirms the resulting ISO date before an event is stored.
+
+The model must not calculate calendar dates itself.
+
 ## Event Model
 
 The event log is the source of truth. Current views are projections derived from events.
@@ -183,6 +219,127 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - `GET /events`: return recent event history
 - `GET /health`: health check
 
+Future interpretation requests will include date context:
+
+```json
+{
+  "text": "Add eggs expiring next Friday",
+  "reference_date": "2026-08-26",
+  "timezone": "America/New_York"
+}
+```
+
+## Language Understanding Architecture
+
+The target language pipeline is:
+
+```text
+English command
+      |
+      v
+Intent classification
+      |
+      v
+Slot span extraction
+      |
+      v
+Date, quantity, unit, and item normalizers
+      |
+      v
+Zod schema validation
+      |
+      v
+User correction or confirmation
+      |
+      v
+Append-only event
+```
+
+### Intent Model
+
+Start with `distilbert-base-uncased` sequence classification for:
+
+- `add_item`
+- `consume_item`
+- `mark_low`
+- `throw_away`
+- `add_to_buy`
+- `query_inventory`
+- `unknown`
+
+### Slot Model
+
+Use token classification with BIO labels:
+
+- `B-ITEM`, `I-ITEM`
+- `B-QUANTITY`, `I-QUANTITY`
+- `B-UNIT`, `I-UNIT`
+- `B-LOCATION`, `I-LOCATION`
+- `B-EXPIRY_DATE`, `I-EXPIRY_DATE`
+
+Example:
+
+```text
+put             O
+12              B-QUANTITY
+eggs            B-ITEM
+with            O
+expiry          O
+date            O
+on              O
+august          B-EXPIRY_DATE
+twenty-eighth   I-EXPIRY_DATE
+```
+
+### Deterministic Normalizers
+
+The model extracts spans; normalizers convert them into domain values:
+
+- `eggs` -> `egg`
+- `twelve` -> `12`
+- `cartons` -> `carton`
+- `August twenty-eighth` -> `2026-08-28`
+
+Use a date parser such as `chrono-node` with an explicit reference date. Ambiguous results require confirmation.
+
+### Correction Data
+
+Store both the proposed interpretation and the user's corrected interpretation. The minimum training record should include:
+
+```json
+{
+  "text": "put 12 eggs with expiry date on august twenty-eighth",
+  "intent": "add_item",
+  "entities": [
+    {
+      "label": "QUANTITY",
+      "start": 4,
+      "end": 6,
+      "text": "12"
+    },
+    {
+      "label": "ITEM",
+      "start": 7,
+      "end": 11,
+      "text": "eggs"
+    },
+    {
+      "label": "EXPIRY_DATE",
+      "start": 32,
+      "end": 52,
+      "text": "august twenty-eighth"
+    }
+  ],
+  "normalized": {
+    "item_name": "egg",
+    "quantity": 12,
+    "expiration_date": "2026-08-28"
+  }
+}
+```
+
+Raw spans and normalized values remain separate so model errors and normalization errors can be evaluated independently.
+
 ## Milestones
 
 ### M0: Repository Foundation
@@ -222,25 +379,58 @@ Completion: the full flow works on a phone-sized viewport and persists across re
 
 Completion: the Vercel app reads and writes through the Worker, while unrelated origins are rejected.
 
-### M4: Dataset Collection
+### M4: Correction and Normalization
+
+- Add editable interpretation fields before confirmation.
+- Store original predictions and user corrections.
+- Add natural English date-span normalization.
+- Expand quantity, unit, and item alias normalizers.
+- Record parser failures without creating inventory events.
+
+Completion:
+
+- A user can correct intent, item, quantity, unit, location, and expiry.
+- The original utterance, prediction, correction, and parser version are retained.
+- `August twenty-eighth`, `next Friday`, and `tomorrow` normalize against an explicit reference date.
+
+### M5: Dataset Collection
 
 - Save corrected utterances and parser failures
 - Create versioned JSONL data
 - Define train, validation, and test splits
 - Establish intent and slot evaluation scripts
 
-Completion: each intent has at least 80 reviewed examples, with non-template test examples.
+Dataset targets:
 
-### M5: English NLP Model
+- 80 to 150 reviewed examples per intent
+- 800 to 1,500 total utterances
+- At least 200 expiry-date examples
+- Commands with different word orders, units, politeness, and ASR-like errors
+- Train, validation, and test split by phrasing family rather than random template copies
 
-- Fine-tune `distilbert-base-uncased` for intent classification
-- Train token classification for slots
-- Compare against the deterministic baseline
-- Add confidence thresholds and fallback behavior
+Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
+
+### M6: English NLP Model
+
+- Fine-tune `distilbert-base-uncased` for intent classification.
+- Fine-tune token classification for slot spans.
+- Evaluate normalization separately from span extraction.
+- Compare model and hybrid output against the deterministic baseline.
+- Add confidence thresholds, `unknown` fallback, and confirmation policy.
 
 Completion: intent macro-F1, entity-level slot F1, and end-to-end exact match are reported and improve over baseline.
 
-### M6: Raspberry Pi Voice Client
+### M7: Model Deployment
+
+- Export compact models to ONNX.
+- Benchmark latency and memory on Raspberry Pi.
+- Keep Cloudflare responsible for schema validation and event persistence.
+- Version every prediction with model and normalizer versions.
+- Preserve deterministic fallback behavior.
+
+Completion: the deployed pipeline meets accuracy targets without bypassing confirmation.
+
+### M8: Raspberry Pi Voice Client
 
 - Wake-word detection
 - Local English speech-to-text
@@ -261,7 +451,9 @@ Completion: voice input follows the same confirmed event path as web text input.
 ## Initial Success Metrics
 
 - At least 90% intent accuracy on a reviewed MVP test set
-- At least 85% slot exact-match accuracy
+- At least 90% entity-level slot F1
+- At least 95% date-normalization accuracy when the date span is correct
+- At least 85% end-to-end action exact match
 - Zero unconfirmed state-changing actions
 - A typical command can be confirmed in under five seconds
 - Incorrect actions are identifiable in event history
@@ -283,3 +475,11 @@ Multiple batches can have different expiry dates. The MVP preserves expiry on ad
 ### Premature Model Training
 
 Template-generated data can produce misleading results. Training begins after the product flow produces reviewed real-world utterances.
+
+### Date Ambiguity
+
+Expressions without a year depend on reference date and timezone. The system must expose the resolved date for confirmation and must not silently guess when multiple interpretations are plausible.
+
+### Model Deployment Constraints
+
+Cloudflare Worker code should not assume arbitrary custom-model hosting is available. The preferred long-term target is ONNX inference on Raspberry Pi or a dedicated inference service, with the Worker retaining validation and persistence responsibilities.

@@ -63,3 +63,17 @@ Do we have milk
 ```
 
 The initial deterministic parser validates the product workflow and collects corrected English utterances before model training begins.
+
+## Current Limitations
+
+The current language layer is a deterministic regular-expression parser, not a trained model. It works for the documented command patterns but does not yet generalize reliably to unrestricted English.
+
+- Natural-language expiry dates such as `next Friday` or `August twenty-eighth` are not extracted. Use the date picker or an inline ISO date such as `expiring 2026-08-28`.
+- Supported units are `bag`, `bottle`, `can`, `carton`, `dozen`, `jar`, `pack`, and `piece`, including plural forms.
+- Quantities support digits, decimals, `a`, `an`, and English number words from one through ten.
+- Confidence values are fixed per parser pattern; they are not calibrated model probabilities.
+- Item normalization currently contains only a small alias list.
+- Shopping-list removal, event correction, authentication, and multiple households are not implemented.
+- The parser may incorrectly include unsupported date or unit phrases in `item_name`. Always review the interpretation before confirming.
+
+The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.
