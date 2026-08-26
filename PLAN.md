@@ -1,328 +1,285 @@
 # jangoing Plan
 
-## Project Summary
+## Product Summary
 
-jangoing is a Raspberry Pi powered voice assistant for kitchen inventory tracking. The system listens for short spoken commands, converts them into structured actions, stores those actions as events, and shows the resulting fridge and shopping status in a mobile web app.
+jangoing is a voice-first kitchen inventory assistant. It converts short English commands into structured kitchen actions, stores those actions as append-only events, and presents current inventory, expiry, shopping-list, and activity information in a phone-friendly web app.
 
-The core product idea is not just a grocery note taker. It is a voice-first kitchen state tracker that helps users record what they added, used, finished, need to buy, or need to throw away.
+The project begins as a text-based product. Raspberry Pi audio and a trained language-understanding model will be added only after the command, confirmation, storage, and correction workflow has been validated.
 
 ## Product Goals
 
-- Make kitchen logging fast enough to use during cooking or cleanup.
-- Reduce food waste by tracking low-stock and discarded items.
-- Keep a lightweight, shared household view of fridge and grocery status.
-- Build a narrow but reliable spoken-command system before adding broader language support.
-- Create a strong NLP dataset from real usage for future iteration.
+- Make kitchen inventory updates fast enough to use during cooking or cleanup.
+- Track in-stock, low-stock, consumed, discarded, and shopping-list actions.
+- Support an optional expiry date for individual inventory batches.
+- Keep every state-changing action reviewable and correctable.
+- Collect high-quality English command data for later model training.
 
-## Non-Goals for the MVP
+## MVP Boundary
 
-- Full conversational assistant behavior
-- Barcode scanning or camera-based inventory recognition
-- Precise nutrition tracking
-- Highly accurate quantity estimation from natural language alone
-- Native iOS or Android apps
+### Included
 
-## Target Users
+- One household without authentication
+- English text commands
+- Deterministic intent and slot parsing
+- Confirmation before storing an event
+- Inventory, shopping list, and recent event views
+- Optional expiry date when adding an item
+- Expiring-soon and expired status calculation
+- Cloudflare Worker API and D1
+- Next.js mobile web app on Vercel
 
-- Individuals who cook often and want a quick way to log food status
-- Shared households that need a single grocery and fridge view
-- Users who benefit from hands-free interaction while cooking
+### Excluded
 
-## Primary Use Cases
+- Raspberry Pi audio, wake-word detection, and speech-to-text
+- A trained intent or slot model
+- Multi-user authentication
+- Push notifications
+- Barcode or camera input
+- Native mobile apps
+- Automatic shelf-life prediction
 
-- "Add milk to the fridge."
-- "We are low on eggs."
-- "Throw away the spinach."
-- "Put yogurt on the shopping list."
-- "What do we need to buy?"
-- "What is expiring this week?"
+## Primary User Flow
 
-## Core Product Principles
+1. The user enters `Add two cartons of milk`.
+2. The user optionally selects an expiry date.
+3. The API returns a structured interpretation.
+4. The web app displays the proposed action.
+5. The user confirms or cancels it.
+6. The API stores an append-only event.
+7. Inventory, shopping list, and history are recalculated.
 
-- Voice-first, but not voice-only
-- Fast correction path on mobile
-- Event history as the source of truth
-- Narrow command coverage with high reliability
-- Privacy-aware design, favoring local processing where practical
+Interpretation and mutation remain separate. Parser or model output never directly modifies inventory.
 
-## Functional Requirements
+## Language Schema
 
-### Voice Input
-
-- Detect a wake word on Raspberry Pi
-- Capture short speech commands with low latency
-- Transcribe commands into text
-- Ask for confirmation when confidence is low
-
-### NLP Understanding
-
-- Detect the user intent
-- Extract structured slots such as item name, quantity, unit, and state
-- Normalize synonyms and household-specific item names
-- Return a confidence score for downstream confirmation logic
-
-### Inventory and Grocery Logic
-
-- Record events for item actions
-- Project current inventory state from event history
-- Generate a shopping list from explicit requests and low-stock signals
-- Flag items nearing expiration when expiry metadata exists
-
-### Mobile Web App
-
-- Show current inventory state
-- Show shopping list
-- Show recent kitchen actions
-- Allow correction and deletion of incorrect events
-- Support a simple shared-household model
-
-## Proposed Intent Schema
+MVP intents:
 
 - `add_item`
 - `consume_item`
-- `remove_item`
 - `mark_low`
-- `mark_expired`
 - `throw_away`
 - `add_to_buy`
-- `query_status`
-- `query_buy_list`
-- `query_expiring`
+- `query_inventory`
+- `unknown`
 
-## Proposed Slot Schema
+MVP slots:
 
 - `item_name`
 - `quantity`
 - `unit`
 - `location`
-- `state`
-- `time_ref`
-- `confidence`
+- `expiration_date`
+
+Example:
+
+```json
+{
+  "intent": "add_item",
+  "slots": {
+    "item_name": "milk",
+    "quantity": 2,
+    "unit": "carton",
+    "location": "fridge",
+    "expiration_date": "2026-09-03"
+  },
+  "confidence": 0.94,
+  "requires_confirmation": false
+}
+```
+
+Later intents include `remove_from_buy`, `update_expiry`, `query_expiring`, and `correct_event`.
+
+## Expiry Model
+
+Expiry belongs to an inventory batch, not the canonical item. Two cartons of milk purchased on different days may have different expiry dates.
+
+For the MVP, expiry can be supplied through the web date picker or an ISO date in a supported text command. The system does not infer expiry from the item type.
+
+Derived expiry states:
+
+- `unknown`: no expiry date
+- `fresh`: more than three days remain
+- `expiring_soon`: zero to three days remain
+- `expired`: the expiry date has passed
+
+Dates use `YYYY-MM-DD`. Comparisons use date-only UTC values to prevent timezone shifts.
 
 ## Event Model
 
-The system should store user actions as append-only events. This is more robust than mutating a single current-status table.
+The event log is the source of truth. Current views are projections derived from events.
 
-Suggested event types:
+MVP event types:
 
-- `added`
-- `consumed`
-- `marked_low`
-- `marked_expired`
-- `thrown_away`
-- `added_to_buy`
-- `removed_from_buy`
-- `corrected`
+- `item_added`
+- `item_consumed`
+- `item_marked_low`
+- `item_thrown_away`
+- `item_added_to_buy`
 
-Suggested event fields:
+Event fields:
 
-- `event_id`
-- `household_id`
-- `user_id`
-- `item_id`
+- `id`
 - `event_type`
+- `item_name`
 - `quantity`
 - `unit`
+- `location`
+- `expiration_date`
 - `raw_utterance`
-- `normalized_payload`
 - `confidence`
-- `source` such as `voice` or `mobile`
-- `timestamp`
+- `source`
+- `created_at`
 
-## Suggested Data Model
+For MVP-scale data, read endpoints replay all events. A materialized projection can be added when event volume justifies it.
 
-### Core Tables
+## Architecture
 
-- `users`
-- `households`
-- `household_members`
-- `items`
-- `item_aliases`
-- `events`
-- `shopping_list_entries`
+```text
+Next.js web app on Vercel
+          |
+          | HTTPS JSON
+          v
+Cloudflare Worker API
+          |
+          v
+Cloudflare D1 event store
+```
 
-### Optional Derived Views or Tables
+Future voice path:
 
-- `inventory_projection`
-- `expiring_items`
-- `waste_report`
+```text
+Raspberry Pi -> wake word -> local ASR -> Worker API
+```
 
-## High-Level Architecture
+### Web Responsibilities
 
-### Edge Device
+- Capture a text command and optional expiry date
+- Display interpretation and confidence
+- Require explicit confirmation
+- Render inventory, shopping list, and event history
+- Present loading, empty, validation, and API error states
 
-Raspberry Pi handles:
+### API Responsibilities
 
-- microphone input
-- wake word detection
-- short audio recording
-- local TTS for confirmations or responses
-- sending structured requests to the backend
+- Validate request bodies
+- Parse supported English command patterns
+- Return structured interpretations
+- Store confirmed events
+- Build inventory and shopping-list projections
+- Enforce CORS for configured web origins
 
-### Backend
+### Shared Contract Responsibilities
 
-Backend handles:
+- Define intent, slot, event, and response schemas
+- Keep web and API payloads synchronized
+- Reject malformed dates, quantities, or event types
 
-- authentication and household routing
-- event ingestion
-- NLP orchestration or validation
-- inventory projection logic
-- shopping-list generation
-- reporting endpoints
+## API Contract
 
-### Frontend
-
-The mobile web app handles:
-
-- household dashboard
-- inventory list
-- shopping list
-- action history
-- event correction UI
-
-## Recommended Technical Stack
-
-### Raspberry Pi
-
-- Wake word: `openWakeWord` or `Picovoice`
-- ASR: `whisper.cpp` for accuracy or `Vosk` for lighter local inference
-- TTS: `Piper`
-
-### Backend
-
-- `FastAPI` or `Node.js` with a REST API
-- `PostgreSQL` for shared use, or `SQLite` for early prototyping
-- Background tasks for reminders and notifications
-
-### Frontend
-
-- React-based PWA
-- Mobile-first layout
-- Lightweight auth and household switching
-
-## NLP Development Strategy
-
-Start simple. The first version should use intent classification plus slot extraction, with rule-based normalization around item names and quantities. Do not start with a broad open-ended assistant.
-
-Recommended stages:
-
-1. Handwritten command templates and synonym dictionaries
-2. Structured intent and slot parsing with confidence scoring
-3. Real utterance collection from test users
-4. Iterative improvement of normalization and clarification prompts
-
-Important NLP challenges:
-
-- Korean and English mixed item names
-- Synonyms and household-specific aliases
-- Vague quantities such as "a bit" or "almost out"
-- Repairing ASR errors that turn one ingredient into another
-
-## API Outline
-
-Suggested initial endpoints:
-
-- `POST /events`
-- `GET /inventory`
-- `GET /shopping-list`
-- `POST /shopping-list`
-- `GET /events`
-- `PATCH /events/:id`
-- `DELETE /events/:id`
-- `GET /reports/expiring`
-- `GET /reports/waste`
-
-## MVP Definition
-
-The MVP should support:
-
-- one household
-- a limited command set
-- basic item alias normalization
-- fridge inventory projection
-- shopping list management
-- mobile correction flow
-
-The MVP should not require:
-
-- camera input
-- advanced multi-turn conversation
-- detailed nutrition metadata
+- `POST /commands/interpret`: parse without mutating
+- `POST /events`: store a confirmed state-changing action
+- `GET /inventory`: return current projected inventory
+- `GET /shopping-list`: return projected shopping items
+- `GET /events`: return recent event history
+- `GET /health`: health check
 
 ## Milestones
 
-### Phase 1: Data and Backend Foundation
+### M0: Repository Foundation
 
-- Define entities, events, and API contract
-- Implement event ingestion
-- Implement inventory projection
-- Seed a small item alias dictionary
+- npm workspaces
+- Shared TypeScript configuration
+- Shared Zod contracts
+- Setup and progress documentation
 
-### Phase 2: Mobile Web App MVP
+Completion: workspaces install and resolve shared contracts.
 
-- Build dashboard, inventory, shopping list, and history screens
-- Add event correction and deletion
-- Validate the end-to-end data model without voice
+### M1: Text Command API
 
-### Phase 3: Raspberry Pi Voice Pipeline
+- Cloudflare Worker scaffold
+- D1 event migration
+- Rule-based English parser
+- API validation and CORS
+- Parser and projection tests
 
-- Add wake word and audio capture
-- Integrate local ASR
-- Map parsed commands to API requests
-- Add low-confidence confirmation flow
+Completion: `We are low on milk` is parsed, confirmed, persisted, and visible through read endpoints.
 
-### Phase 4: Intelligence and Reporting
+### M2: Mobile Web MVP
 
-- Expiring-soon reminders
-- Waste tracking reports
-- Improved normalization and ranking
-- Better household customization
+- Command and optional expiry inputs
+- Interpretation preview and confirmation
+- Inventory, shopping-list, and history views
+- Loading, empty, and error states
 
-## Risks and Mitigations
+Completion: the full flow works on a phone-sized viewport and persists across refresh.
 
-### ASR Reliability in Kitchen Environments
+### M3: Cloud Deployment
 
-Risk:
-Background noise and distance from the microphone will reduce transcription quality.
+- Production D1
+- Worker deployment
+- Vercel deployment
+- API URL and allowed origins configured
 
-Mitigation:
-Use short commands, test in realistic kitchen settings, and add confirmation for low-confidence commands.
+Completion: the Vercel app reads and writes through the Worker, while unrelated origins are rejected.
+
+### M4: Dataset Collection
+
+- Save corrected utterances and parser failures
+- Create versioned JSONL data
+- Define train, validation, and test splits
+- Establish intent and slot evaluation scripts
+
+Completion: each intent has at least 80 reviewed examples, with non-template test examples.
+
+### M5: English NLP Model
+
+- Fine-tune `distilbert-base-uncased` for intent classification
+- Train token classification for slots
+- Compare against the deterministic baseline
+- Add confidence thresholds and fallback behavior
+
+Completion: intent macro-F1, entity-level slot F1, and end-to-end exact match are reported and improve over baseline.
+
+### M6: Raspberry Pi Voice Client
+
+- Wake-word detection
+- Local English speech-to-text
+- Worker API client
+- Confirmation feedback
+
+Completion: voice input follows the same confirmed event path as web text input.
+
+## Testing Strategy
+
+- Unit tests for command patterns, normalization, quantities, and expiry
+- Unit tests for event projection
+- API tests against local D1
+- Web interaction tests
+- Manual mobile viewport checks
+- End-to-end tests for interpretation, confirmation, persistence, and refresh
+
+## Initial Success Metrics
+
+- At least 90% intent accuracy on a reviewed MVP test set
+- At least 85% slot exact-match accuracy
+- Zero unconfirmed state-changing actions
+- A typical command can be confirmed in under five seconds
+- Incorrect actions are identifiable in event history
+
+## Known Risks
 
 ### Inventory Drift
 
-Risk:
-Users will forget to log some actions, so system state will diverge from reality.
+Users may forget to log actions. The MVP uses coarse state and visible history rather than claiming perfect physical inventory accuracy.
 
-Mitigation:
-Favor coarse status labels such as `low` or `out`, and make mobile corrections very fast.
+### Command Ambiguity
 
-### Item Normalization
+`Add milk` could mean inventory or shopping list. The parser only selects an intent for supported patterns and otherwise returns `unknown`.
 
-Risk:
-One household may use many names for the same item.
+### Batch Expiry Complexity
 
-Mitigation:
-Support alias dictionaries and keep normalization editable.
+Multiple batches can have different expiry dates. The MVP preserves expiry on addition events and reports the nearest known expiry.
 
-### Overly Broad Scope
+### Premature Model Training
 
-Risk:
-Trying to solve full smart-kitchen automation too early will delay delivery.
-
-Mitigation:
-Keep the first release focused on a small command set and a reliable correction loop.
-
-## Success Criteria
-
-- A user can log common kitchen actions by voice in a few seconds.
-- The phone web app reflects those actions accurately enough to be useful day to day.
-- Users can quickly fix incorrect interpretations.
-- The system produces a trustworthy "what should I buy" view.
-
-## Near-Term Next Steps
-
-1. Choose the product name to keep branding consistent across repo and app.
-2. Decide the initial stack for backend and frontend.
-3. Draft the event schema and API contract.
-4. Build a non-voice prototype to validate the data model.
-5. Add Raspberry Pi voice input after the backend and web views are stable.
+Template-generated data can produce misleading results. Training begins after the product flow produces reviewed real-world utterances.

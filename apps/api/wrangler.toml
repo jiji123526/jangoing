@@ -1,0 +1,9 @@
+name = "jangoing-api"
+main = "src/index.ts"
+compatibility_date = "2025-02-14"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jangoing-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

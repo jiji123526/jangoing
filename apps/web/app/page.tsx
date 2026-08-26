@@ -1,0 +1,407 @@
+"use client";
+
+import type {
+  CreateEventRequest,
+  EventType,
+  Intent,
+  Interpretation,
+} from "@jangoing/contracts";
+import {
+  CalendarDays,
+  Check,
+  History,
+  LoaderCircle,
+  RefreshCw,
+  Refrigerator,
+  Send,
+  ShoppingBasket,
+  X,
+} from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  createEvent,
+  getDashboardData,
+  interpretCommand,
+  type DashboardData,
+} from "../lib/api";
+
+const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
+  add_item: "item_added",
+  consume_item: "item_consumed",
+  mark_low: "item_marked_low",
+  throw_away: "item_thrown_away",
+  add_to_buy: "item_added_to_buy",
+};
+
+const examples = [
+  "Add two cartons of milk",
+  "We are low on eggs",
+  "Put yogurt on the shopping list",
+];
+
+const emptyDashboard: DashboardData = {
+  inventory: [],
+  events: [],
+  shoppingList: [],
+};
+
+function titleCase(value: string): string {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function formatTimestamp(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+export default function Home() {
+  const [command, setCommand] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [interpretation, setInterpretation] =
+    useState<Interpretation | null>(null);
+  const [dashboard, setDashboard] = useState(emptyDashboard);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError(null);
+    try {
+      setDashboard(await getDashboardData());
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not load kitchen data.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  async function handleInterpret(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!command.trim()) return;
+
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await interpretCommand(
+        command.trim(),
+        expiryDate || undefined,
+      );
+      setInterpretation(result);
+
+      if (result.intent === "query_inventory" && result.slots.item_name) {
+        const item = dashboard.inventory.find(
+          (entry) => entry.item_name === result.slots.item_name,
+        );
+        setNotice(
+          item
+            ? `${titleCase(item.item_name)} is ${titleCase(item.status)}.`
+            : `${titleCase(result.slots.item_name)} is not in the inventory.`,
+        );
+      }
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not interpret command.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!interpretation?.slots.item_name) return;
+    const eventType = eventTypeByIntent[interpretation.intent];
+    if (!eventType) return;
+
+    const payload: CreateEventRequest = {
+      event_type: eventType,
+      item_name: interpretation.slots.item_name,
+      quantity: interpretation.slots.quantity ?? null,
+      unit: interpretation.slots.unit ?? null,
+      location: interpretation.slots.location ?? null,
+      expiration_date: interpretation.slots.expiration_date ?? null,
+      raw_utterance: interpretation.raw_utterance,
+      confidence: interpretation.confidence,
+      source: "web",
+    };
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await createEvent(payload);
+      setCommand("");
+      setExpiryDate("");
+      setInterpretation(null);
+      setNotice(`${titleCase(payload.item_name)} updated.`);
+      await loadDashboard();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not save the action.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canConfirm =
+    interpretation &&
+    interpretation.intent !== "unknown" &&
+    interpretation.intent !== "query_inventory" &&
+    interpretation.slots.item_name &&
+    eventTypeByIntent[interpretation.intent];
+
+  return (
+    <main>
+      <header className="topbar">
+        <div>
+          <span className="brand">jangoing</span>
+          <span className="phase">Text MVP</span>
+        </div>
+        <button
+          className="icon-button"
+          type="button"
+          onClick={() => void loadDashboard()}
+          disabled={loading}
+          title="Refresh kitchen data"
+          aria-label="Refresh kitchen data"
+        >
+          <RefreshCw size={18} className={loading ? "spin" : undefined} />
+        </button>
+      </header>
+
+      <section className="command-band" aria-labelledby="command-heading">
+        <div className="section-heading">
+          <p className="eyebrow">Kitchen command</p>
+          <h1 id="command-heading">What changed?</h1>
+        </div>
+
+        <form onSubmit={handleInterpret} className="command-form">
+          <label className="field command-field">
+            <span>English command</span>
+            <div className="command-input-wrap">
+              <input
+                value={command}
+                onChange={(event) => {
+                  setCommand(event.target.value);
+                  setInterpretation(null);
+                  setNotice(null);
+                }}
+                placeholder="We are low on milk"
+                maxLength={500}
+                autoComplete="off"
+              />
+              <button
+                className="primary-icon-button"
+                type="submit"
+                disabled={submitting || !command.trim()}
+                title="Interpret command"
+                aria-label="Interpret command"
+              >
+                {submitting ? (
+                  <LoaderCircle size={20} className="spin" />
+                ) : (
+                  <Send size={20} />
+                )}
+              </button>
+            </div>
+          </label>
+
+          <label className="field expiry-field">
+            <span>
+              <CalendarDays size={16} />
+              Expiry date <small>optional</small>
+            </span>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(event) => {
+                setExpiryDate(event.target.value);
+                setInterpretation(null);
+              }}
+            />
+          </label>
+        </form>
+
+        <div className="examples" aria-label="Example commands">
+          {examples.map((example) => (
+            <button
+              type="button"
+              key={example}
+              onClick={() => {
+                setCommand(example);
+                setInterpretation(null);
+                setNotice(null);
+              }}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="message error">{error}</p>}
+        {notice && <p className="message notice">{notice}</p>}
+
+        {interpretation && (
+          <div className="interpretation" aria-live="polite">
+            <div className="interpretation-main">
+              <span className={`intent intent-${interpretation.intent}`}>
+                {titleCase(interpretation.intent)}
+              </span>
+              {interpretation.intent === "unknown" ? (
+                <p>This command is outside the current MVP patterns.</p>
+              ) : (
+                <dl>
+                  {Object.entries(interpretation.slots).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{titleCase(key)}</dt>
+                      <dd>{String(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <span className="confidence">
+                {Math.round(interpretation.confidence * 100)}% confidence
+              </span>
+            </div>
+
+            <div className="interpretation-actions">
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setInterpretation(null)}
+                title="Cancel action"
+                aria-label="Cancel action"
+              >
+                <X size={19} />
+              </button>
+              {canConfirm && (
+                <button
+                  className="confirm-button"
+                  type="button"
+                  onClick={() => void handleConfirm()}
+                  disabled={submitting}
+                >
+                  <Check size={18} />
+                  Confirm
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className="dashboard-grid">
+        <section className="data-section inventory-section">
+          <div className="data-heading">
+            <div>
+              <Refrigerator size={19} />
+              <h2>Inventory</h2>
+            </div>
+            <span>{dashboard.inventory.length}</span>
+          </div>
+
+          {loading ? (
+            <p className="empty-state">Loading inventory...</p>
+          ) : dashboard.inventory.length === 0 ? (
+            <p className="empty-state">No inventory actions yet.</p>
+          ) : (
+            <div className="inventory-list">
+              {dashboard.inventory.map((item) => (
+                <div className="inventory-row" key={item.item_name}>
+                  <div>
+                    <strong>{titleCase(item.item_name)}</strong>
+                    <span>
+                      {item.quantity > 0
+                        ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
+                        : "Quantity not recorded"}
+                    </span>
+                  </div>
+                  <div className="inventory-meta">
+                    <span className={`status status-${item.status}`}>
+                      {titleCase(item.status)}
+                    </span>
+                    {item.nearest_expiration_date && (
+                      <time
+                        className={`expiry expiry-${item.expiry_state}`}
+                        dateTime={item.nearest_expiration_date}
+                      >
+                        {item.nearest_expiration_date}
+                      </time>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="data-section shopping-section">
+          <div className="data-heading">
+            <div>
+              <ShoppingBasket size={19} />
+              <h2>Shopping list</h2>
+            </div>
+            <span>{dashboard.shoppingList.length}</span>
+          </div>
+
+          {dashboard.shoppingList.length === 0 ? (
+            <p className="empty-state">Nothing to buy yet.</p>
+          ) : (
+            <ul className="shopping-list">
+              {dashboard.shoppingList.map((item) => (
+                <li key={item.item_name}>
+                  <span className="check-box" aria-hidden="true" />
+                  {titleCase(item.item_name)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="data-section history-section">
+          <div className="data-heading">
+            <div>
+              <History size={19} />
+              <h2>Recent actions</h2>
+            </div>
+            <span>{dashboard.events.length}</span>
+          </div>
+
+          {dashboard.events.length === 0 ? (
+            <p className="empty-state">Confirmed actions will appear here.</p>
+          ) : (
+            <ol className="event-list">
+              {dashboard.events.slice(0, 10).map((event) => (
+                <li key={event.id}>
+                  <span className="event-marker" />
+                  <div>
+                    <strong>{titleCase(event.event_type)}</strong>
+                    <p>{event.raw_utterance}</p>
+                    <time dateTime={event.created_at}>
+                      {formatTimestamp(event.created_at)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}

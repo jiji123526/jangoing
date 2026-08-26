@@ -1,0 +1,23 @@
+{
+  "name": "jangoing",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "db:create": "npm run db:create --workspace @jangoing/api",
+    "db:migrate:local": "npm run db:migrate:local --workspace @jangoing/api",
+    "db:migrate:remote": "npm run db:migrate:remote --workspace @jangoing/api",
+    "deploy:api": "npm run deploy --workspace @jangoing/api",
+    "dev:api": "npm run dev --workspace @jangoing/api",
+    "dev:web": "npm run dev --workspace @jangoing/web",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}

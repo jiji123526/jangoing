@@ -1,0 +1,28 @@
+{
+  "name": "@jangoing/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run",
+    "db:create": "wrangler d1 create jangoing-db",
+    "db:migrate:local": "wrangler d1 migrations apply jangoing-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply jangoing-db --remote",
+    "deploy": "wrangler deploy",
+    "dev": "tsx watch src/dev.ts",
+    "dev:worker": "wrangler dev --local",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jangoing/contracts": "0.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "wrangler": "4.126.0"
+  }
+}
