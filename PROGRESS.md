@@ -11,6 +11,9 @@ Add new entries at the top of the log so the latest state is easy to find.
   plumbing.
 - `/annotate` now auto-loads one `generated_review` sample on first page entry
   so annotation can start immediately from pregenerated coverage data.
+- After each successful save, `/annotate` now automatically opens the next item
+  from the current queue, or falls back to `generated_review` after manual-entry
+  annotations.
 - Korean docs now describe the exact assistant-draft API path from browser to
   Worker to OpenAI and back to `annotation_proposals` / `annotations`.
 - Production D1 migrations are confirmed through 0005. Migration 0006 and
@@ -102,6 +105,27 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 - If this default proves too repetitive, add a user-selectable default queue
   preference later.
+
+## 2026-08-27 - Auto-advance after annotation save enabled
+
+### Completed
+
+- Updated `/annotate` so a successful save immediately loads the next sample
+  from the same queue when the current sample came from a queue.
+- Added a fallback so manual-entry annotations automatically continue with the
+  next `generated_review` sample when available.
+- Documented the new auto-advance behavior in the Korean annotation guide.
+
+### Decisions
+
+- Continue within the current queue by default because that preserves the
+  annotator's active workflow better than always jumping back to a single queue.
+- Reset to an empty editor only when no next sample is available in the chosen
+  queue.
+
+### Next
+
+- If annotators need a pause point, add a toggle later for auto-advance on/off.
 
 ## 2026-08-27 - Generated review queue added
 

@@ -104,6 +104,9 @@ https://jangoing-web.vercel.app/annotate
 9. Training candidate 또는 Evaluation candidate를 고른다.
 10. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
 11. `Save annotation`을 누른다.
+12. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열린다.
+    직접 입력한 수동 샘플이었다면 기본적으로 `generated_review` queue의 다음 샘플을
+    자동으로 시도한다.
 
 ### Assistant draft 동작
 
@@ -181,6 +184,8 @@ https://jangoing-web.vercel.app/annotate
 
 페이지 첫 진입 시에는 annotator가 바로 시작할 수 있도록 `generated_review` queue를
 한 번 자동으로 불러온다. 이후에는 각 버튼으로 원하는 queue를 수동 전환하면 된다.
+또한 queue에서 작업을 시작한 경우 `Save annotation` 뒤에는 같은 queue의 다음 샘플이
+자동으로 이어서 열리므로 반복 라벨링 속도가 더 빠르다.
 
 queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편집한다. correction이
 이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation

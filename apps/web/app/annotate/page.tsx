@@ -333,6 +333,18 @@ export default function AnnotatePage() {
     void loadQueue("generated_review");
   }, []);
 
+  function resetEditorState() {
+    setDraft("");
+    setSample(null);
+    setActions([]);
+    setActiveActionIndex(0);
+    setSelection(null);
+    setNotes("");
+    setQueueItem(null);
+    setAssistantProposal(null);
+    setAssistantApplied(false);
+  }
+
   async function createSample(event: FormEvent) {
     event.preventDefault();
     if (!draft.trim()) return;
@@ -405,6 +417,16 @@ export default function AnnotatePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function loadNextQueueSampleAfterSave(type: AnnotationQueueType): Promise<boolean> {
+    const [item] = await getAnnotationQueue(type, 1);
+    if (!item) {
+      return false;
+    }
+
+    loadQueueSample(item);
+    return true;
   }
 
   function captureSelection() {
@@ -506,6 +528,7 @@ export default function AnnotatePage() {
 
   async function saveAnnotation() {
     if (!sample) return;
+    const nextQueueType: AnnotationQueueType = queueItem?.queue_type ?? "generated_review";
     const validationError = missingNormalizedValueError(actions);
     if (validationError) {
       setError(validationError);
@@ -534,16 +557,17 @@ export default function AnnotatePage() {
         train_candidates: current.train_candidates + (purpose === "train_candidate" ? 1 : 0),
         evaluation_candidates: current.evaluation_candidates + (purpose === "evaluation_candidate" ? 1 : 0),
       }));
-      setNotice("Annotation saved. New normalized values from this review are now reusable in the next sample.");
-      setDraft("");
-      setSample(null);
-      setActions([]);
-      setActiveActionIndex(0);
-      setSelection(null);
-      setNotes("");
-      setQueueItem(null);
-      setAssistantProposal(null);
-      setAssistantApplied(false);
+      const loadedNext = await loadNextQueueSampleAfterSave(nextQueueType);
+      if (loadedNext) {
+        setNotice(
+          `Annotation saved. Loaded the next ${readable(nextQueueType)} sample, and new normalized values from this review are now reusable.`,
+        );
+      } else {
+        resetEditorState();
+        setNotice(
+          `Annotation saved. No more items are waiting in the ${readable(nextQueueType)} queue right now.`,
+        );
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save annotation.");
     } finally {
