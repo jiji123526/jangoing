@@ -2,6 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Controlled phrase families added
+
+### Completed
+
+- Replaced the free-text phrase-family field with an intent-specific dropdown.
+- Added semantic family names for all eight current intents.
+- Reset phrase family whenever the annotator changes intent.
+- Added API schema validation for intent and phrase-family combinations.
+- Documented how to propose a genuinely new phrase family without forcing a match.
+
+### Decisions
+
+- Use human-readable semantic families for real annotations instead of synthetic
+  generator identifiers such as `template-01`.
+- Keep phrase-family options in the shared contracts package.
+- Continue allowing an empty family when no controlled option is correct.
+
 ## 2026-08-27 - Controlled normalized values added
 
 ### Completed

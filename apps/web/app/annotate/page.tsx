@@ -7,7 +7,10 @@ import type {
   Intent,
   LoggedInterpretation,
 } from "@jangoing/contracts";
-import { AnnotationNormalizedValues } from "@jangoing/contracts";
+import {
+  AnnotationNormalizedValues,
+  AnnotationPhraseFamilies,
+} from "@jangoing/contracts";
 import { ArrowLeft, Check, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -122,6 +125,7 @@ export default function AnnotatePage() {
       setIntent(result.intent);
       setEntities([]);
       setSelection(null);
+      setPhraseFamily("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create sample.");
     } finally {
@@ -226,7 +230,10 @@ export default function AnnotatePage() {
               <div className={styles.step}><span>2</span><div><b>Choose the intent</b><small>Use clarification when the request is relevant but unsafe to resolve.</small></div></div>
               <div className={styles.intentGrid}>
                 {intents.map((value) => (
-                  <button key={value} type="button" onClick={() => setIntent(value)}
+                  <button key={value} type="button" onClick={() => {
+                    setIntent(value);
+                    setPhraseFamily("");
+                  }}
                     className={intent === value ? styles.activeIntent : ""}>
                     {readable(value)}
                   </button>
@@ -262,7 +269,12 @@ export default function AnnotatePage() {
                 <label><span>Purpose</span><select value={purpose} onChange={(event) => setPurpose(event.target.value as DatasetPurpose)}>
                   <option value="train_candidate">Training candidate</option><option value="evaluation_candidate">Evaluation candidate</option>
                 </select></label>
-                <label><span>Phrase family <small>optional</small></span><input value={phraseFamily} onChange={(event) => setPhraseFamily(event.target.value)} placeholder="implicit-low-stock" /></label>
+                <label><span>Phrase family <small>optional</small></span><select value={phraseFamily} onChange={(event) => setPhraseFamily(event.target.value)}>
+                  <option value="">Select a family</option>
+                  {AnnotationPhraseFamilies[intent].map((family) => (
+                    <option key={family} value={family}>{readable(family)}</option>
+                  ))}
+                </select></label>
                 <label className={styles.full}><span>Notes <small>optional</small></span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ambiguity or labeling rationale" /></label>
               </div>
               <button className={styles.save} type="button" onClick={() => void saveAnnotation()} disabled={busy}>

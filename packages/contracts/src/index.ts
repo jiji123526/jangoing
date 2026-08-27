@@ -120,6 +120,58 @@ export const AnnotationNormalizedValues = {
   EXPIRY_DATE: [],
 } as const satisfies Record<EntityLabel, readonly (string | number)[]>;
 
+export const AnnotationPhraseFamilies = {
+  add_item: [
+    "explicit_add_to_inventory",
+    "purchased_item_report",
+    "storage_instruction",
+    "quantity_addition",
+  ],
+  consume_item: [
+    "consumed_item_report",
+    "used_item_report",
+    "finished_item_report",
+    "quantity_consumed",
+  ],
+  mark_low: [
+    "state_low_on_entity",
+    "state_almost_out",
+    "need_more_soon",
+    "quantity_running_low",
+  ],
+  throw_away: [
+    "explicit_discard_request",
+    "spoiled_item_discard",
+    "thrown_away_report",
+    "expired_item_discard",
+  ],
+  add_to_buy: [
+    "explicit_add_to_list",
+    "purchase_request",
+    "need_to_buy",
+    "shopping_reminder",
+  ],
+  query_inventory: [
+    "yes_no_inventory_query",
+    "quantity_inventory_query",
+    "location_inventory_query",
+    "expiry_inventory_query",
+  ],
+  needs_clarification: [
+    "state_out_of_entity",
+    "unresolved_reference",
+    "vague_category_request",
+    "usual_items_request",
+    "ambiguous_action",
+  ],
+  unknown: [
+    "preference_statement",
+    "unrelated_question",
+    "unrelated_statement",
+    "unsupported_request",
+  ],
+} as const satisfies Record<Intent, readonly string[]>;
+
 export const EntityAnnotationSchema = z
   .object({
     label: EntityLabelSchema,
@@ -145,7 +197,18 @@ export const CreateAnnotationRequestSchema = z
     notes: z.string().trim().max(1000).nullable().optional(),
     annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
   })
-  .strict();
+  .strict()
+  .superRefine((annotation, context) => {
+    if (!annotation.phrase_family) return;
+    const allowedFamilies: readonly string[] = AnnotationPhraseFamilies[annotation.intent];
+    if (!allowedFamilies.includes(annotation.phrase_family)) {
+      context.addIssue({
+        code: "custom",
+        path: ["phrase_family"],
+        message: `Phrase family is not valid for intent ${annotation.intent}`,
+      });
+    }
+  });
 
 export const AnnotationQueueItemSchema = z.object({
   inference_id: z.string().uuid(),

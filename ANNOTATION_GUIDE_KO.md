@@ -26,7 +26,7 @@ https://<vercel-domain>/annotate
 5. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
    선택기를 사용한다.
 6. Training candidate 또는 Evaluation candidate를 고른다.
-7. 같은 표현군을 알고 있다면 phrase family를 입력한다.
+7. intent별 dropdown에서 문장 구조에 맞는 phrase family를 선택한다.
 8. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
 9. `Save annotation`을 누른다.
 
@@ -96,6 +96,25 @@ annotation-v1은 자유 입력 대신 label별 controlled vocabulary를 사용�
 
 목록에 필요한 값이 없다면 비슷한 값을 임의로 고르지 않는다. normalized value를
 비워 두고 notes에 필요한 후보를 기록한 다음 taxonomy/convention을 먼저 확장한다.
+
+## Phrase family 선택 메뉴
+
+Phrase family도 자유 입력하지 않고 선택한 intent에 맞는 controlled list에서 고른다.
+intent를 변경하면 이전 family 선택은 자동으로 초기화된다. 메뉴에는 생성기 내부 번호인
+`template-01` 대신 사람이 의미를 이해할 수 있는 이름을 사용한다.
+API도 intent와 family 조합을 검증하므로 메뉴 밖의 임의 문자열은 새 annotation으로
+저장되지 않는다.
+
+예:
+
+- `We're low on milk` → `state_low_on_entity`
+- `We're out of drinks` → `state_out_of_entity`
+- `Add milk to the list` → `explicit_add_to_list`
+- `Do we have milk?` → `yes_no_inventory_query`
+- `Put that on the list` → `unresolved_reference`
+
+맞는 family가 없다면 비슷한 family를 억지로 고르지 않는다. 선택을 비워 두고 notes에
+새 family 후보를 기록한 뒤 shared contract와 convention을 함께 확장한다.
 
 예:
 

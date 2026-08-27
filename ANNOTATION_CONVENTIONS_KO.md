@@ -143,6 +143,10 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 - item이나 category 이름을 family에 넣지 않는다.
 - 단어만 교체한 문장들은 같은 family를 사용한다.
 
+`/annotate`에서는 현재 intent에 맞는 controlled family만 선택할 수 있다. 목록에 맞는
+구조가 없으면 유사한 family로 합치지 말고 선택을 비워 둔 뒤 notes에 새 family 후보를
+기록한다. 합의 후 shared contract의 목록과 이 문서를 함께 수정한다.
+
 예:
 
 | 문장 | Phrase family |
