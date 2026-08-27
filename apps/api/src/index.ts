@@ -2,6 +2,7 @@ import {
   ConfirmActionRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
+  UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
 } from "@jangoing/contracts";
 import { projectInventory, projectShoppingList } from "./domain/projections";
@@ -13,6 +14,9 @@ interface Env {
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+const parserVersion = "rules-v1";
+const normalizerVersion = "normalizers-v1";
+const schemaVersion = "inference-v1";
 
 function configuredOrigins(env: Env): string[] {
   return env.ALLOWED_ORIGINS
@@ -65,6 +69,7 @@ async function readEvents(env: Env, limit?: number): Promise<EventRecord[]> {
 }
 
 async function handleInterpret(request: Request, env: Env): Promise<Response> {
+  const startedAt = Date.now();
   const body = await request.json();
   const parsed = InterpretCommandRequestSchema.safeParse(body);
 
@@ -77,7 +82,48 @@ async function handleInterpret(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  return json(request, env, parseCommand(parsed.data));
+  const result = parseCommand(parsed.data);
+  const inferenceId = crypto.randomUUID();
+  const latencyMs = Date.now() - startedAt;
+  await env.DB.prepare(
+    `INSERT INTO inference_logs (
+      id, raw_utterance, request_context, predicted_interpretation,
+      parser_version, normalizer_version, schema_version, source,
+      outcome, latency_ms, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+  ).bind(
+    inferenceId,
+    result.raw_utterance,
+    JSON.stringify({ expiration_date: parsed.data.expiration_date ?? null }),
+    JSON.stringify(result),
+    parserVersion,
+    normalizerVersion,
+    schemaVersion,
+    "web",
+    latencyMs,
+    new Date().toISOString(),
+  ).run();
+  return json(request, env, {
+    ...result,
+    inference_id: inferenceId,
+    parser_version: parserVersion,
+    latency_ms: latencyMs,
+  });
+}
+
+async function handleInferenceOutcome(request: Request, env: Env): Promise<Response> {
+  const parsed = UpdateInferenceOutcomeRequestSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return json(request, env, { error: "Invalid inference outcome" }, 400);
+  }
+  const result = await env.DB.prepare(
+    `UPDATE inference_logs SET outcome = ?, resolved_at = ?
+     WHERE id = ? AND outcome = 'pending'`,
+  ).bind(parsed.data.outcome, new Date().toISOString(), parsed.data.inference_id).run();
+  if (!result.meta.changes) {
+    return json(request, env, { error: "Pending inference not found" }, 404);
+  }
+  return json(request, env, { success: true });
 }
 
 async function handleCreateEvent(
@@ -97,6 +143,12 @@ async function handleCreateEvent(
   }
 
   const submission = parsed.data;
+  const pendingInference = await env.DB.prepare(
+    "SELECT id FROM inference_logs WHERE id = ? AND outcome = 'pending'",
+  ).bind(submission.inference_id).first();
+  if (!pendingInference) {
+    return json(request, env, { error: "Pending inference not found" }, 409);
+  }
   const event: EventRecord = {
     id: crypto.randomUUID(),
     ...submission.event,
@@ -169,6 +221,17 @@ async function handleCreateEvent(
     )
     .run();
 
+  const outcome = JSON.stringify(predicted) === JSON.stringify(correctedInterpretation)
+    ? "confirmed"
+    : "corrected";
+  await env.DB.prepare(
+    `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'`,
+  ).bind(
+    JSON.stringify(correctedInterpretation), outcome, event.id,
+    event.created_at, submission.inference_id,
+  ).run();
+
   return json(request, env, event, 201);
 }
 
@@ -196,6 +259,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "POST" && url.pathname === "/events") {
     return handleCreateEvent(request, env);
+  }
+
+  if (request.method === "POST" && url.pathname === "/inferences/outcome") {
+    return handleInferenceOutcome(request, env);
   }
 
   if (request.method === "GET" && url.pathname === "/events") {

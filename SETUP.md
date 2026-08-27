@@ -27,7 +27,32 @@ Open `http://localhost:3000`. The local API defaults to `http://localhost:8787`.
 
 To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.example`.
 
-The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies the event schema. This keeps local development independent from Cloudflare authentication and its native runtime. Production still uses the Cloudflare Worker and D1.
+The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
+the event, correction, and inference-log schemas. This keeps local development
+independent from Cloudflare authentication and its native runtime. Production
+still uses the Cloudflare Worker and D1.
+
+## ML Setup
+
+Use Python 3.11 or newer. The macOS system Python may be older, so verify with
+`python3 --version` before creating the environment.
+
+```bash
+python3 -m venv ml/.venv
+source ml/.venv/bin/activate
+pip install -e './ml[dev]'
+```
+
+Export reviewed local interactions and train the CPU baseline:
+
+```bash
+npm run dataset:export -- --output ml/data/reviewed.jsonl
+python ml/train_baseline.py ml/data/reviewed.jsonl
+pytest ml/tests
+```
+
+The exporter excludes pending and cancelled interactions from supervised training.
+Raw conversational data and generated model artifacts are ignored by Git.
 
 To test with Wrangler's local D1 runtime on a compatible machine:
 

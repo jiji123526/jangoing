@@ -2,6 +2,7 @@ import {
   ConfirmActionRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
+  UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
 } from "@jangoing/contracts";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -27,6 +28,10 @@ const correctionMigrationPath = resolve(
   apiDirectory,
   "migrations/0002_create_corrections.sql",
 );
+const inferenceMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0003_create_inference_logs.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -45,6 +50,13 @@ const correctionMigration = readFileSync(correctionMigrationPath, "utf8")
   .replace("CREATE TABLE corrections", "CREATE TABLE IF NOT EXISTS corrections")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
 database.exec(correctionMigration);
+const inferenceMigration = readFileSync(inferenceMigrationPath, "utf8")
+  .replace("CREATE TABLE inference_logs", "CREATE TABLE IF NOT EXISTS inference_logs")
+  .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
+database.exec(inferenceMigration);
+const parserVersion = "rules-v1";
+const normalizerVersion = "normalizers-v1";
+const schemaVersion = "inference-v1";
 
 function readBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolveBody, reject) => {
@@ -123,6 +135,7 @@ async function route(
   }
 
   if (request.method === "POST" && path === "/commands/interpret") {
+    const startedAt = Date.now();
     const parsed = InterpretCommandRequestSchema.safeParse(
       await readBody(request),
     );
@@ -136,7 +149,38 @@ async function route(
       return;
     }
 
-    sendJson(response, origin, parseCommand(parsed.data));
+    const result = parseCommand(parsed.data);
+    const inferenceId = crypto.randomUUID();
+    const latencyMs = Date.now() - startedAt;
+    database.prepare(
+      `INSERT INTO inference_logs (
+        id, raw_utterance, request_context, predicted_interpretation,
+        parser_version, normalizer_version, schema_version, source,
+        outcome, latency_ms, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    ).run(
+      inferenceId, result.raw_utterance,
+      JSON.stringify({ expiration_date: parsed.data.expiration_date ?? null }),
+      JSON.stringify(result), parserVersion, normalizerVersion, schemaVersion,
+      "web", latencyMs, new Date().toISOString(),
+    );
+    sendJson(response, origin, {
+      ...result, inference_id: inferenceId, parser_version: parserVersion, latency_ms: latencyMs,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && path === "/inferences/outcome") {
+    const parsed = UpdateInferenceOutcomeRequestSchema.safeParse(await readBody(request));
+    if (!parsed.success) {
+      sendJson(response, origin, { error: "Invalid inference outcome" }, 400);
+      return;
+    }
+    const result = database.prepare(
+      `UPDATE inference_logs SET outcome = ?, resolved_at = ?
+       WHERE id = ? AND outcome = 'pending'`,
+    ).run(parsed.data.outcome, new Date().toISOString(), parsed.data.inference_id);
+    sendJson(response, origin, result.changes ? { success: true } : { error: "Pending inference not found" }, result.changes ? 200 : 404);
     return;
   }
 
@@ -153,6 +197,13 @@ async function route(
     }
 
     const submission = parsed.data;
+    const pendingInference = database.prepare(
+      "SELECT id FROM inference_logs WHERE id = ? AND outcome = 'pending'",
+    ).get(submission.inference_id);
+    if (!pendingInference) {
+      sendJson(response, origin, { error: "Pending inference not found" }, 409);
+      return;
+    }
     const event: EventRecord = {
       id: crypto.randomUUID(),
       ...submission.event,
@@ -218,6 +269,17 @@ async function route(
       submission.parser_version,
       JSON.stringify(predicted) === JSON.stringify(corrected) ? 0 : 1,
       event.created_at,
+    );
+
+    const outcome = JSON.stringify(predicted) === JSON.stringify(corrected)
+      ? "confirmed"
+      : "corrected";
+    database.prepare(
+      `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+       event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'`,
+    ).run(
+      JSON.stringify(corrected), outcome, event.id, event.created_at,
+      submission.inference_id,
     );
 
     sendJson(response, origin, event, 201);

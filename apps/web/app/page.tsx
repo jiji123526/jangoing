@@ -4,7 +4,7 @@ import type {
   CreateEventRequest,
   EventType,
   Intent,
-  Interpretation,
+  LoggedInterpretation,
 } from "@jangoing/contracts";
 import {
   CalendarDays,
@@ -22,6 +22,7 @@ import {
   createEvent,
   getDashboardData,
   interpretCommand,
+  updateInferenceOutcome,
   type DashboardData,
 } from "../lib/api";
 
@@ -56,7 +57,7 @@ type EditableInterpretation = {
   expirationDate: string;
 };
 
-function toEditable(interpretation: Interpretation): EditableInterpretation {
+function toEditable(interpretation: LoggedInterpretation): EditableInterpretation {
   return {
     intent: interpretation.intent,
     itemName: interpretation.slots.item_name ?? "",
@@ -91,7 +92,7 @@ export default function Home() {
   const [command, setCommand] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [interpretation, setInterpretation] =
-    useState<Interpretation | null>(null);
+    useState<LoggedInterpretation | null>(null);
   const [edited, setEdited] = useState<EditableInterpretation | null>(null);
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [loading, setLoading] = useState(true);
@@ -180,6 +181,7 @@ export default function Home() {
 
     try {
       await createEvent({
+        inference_id: interpretation.inference_id,
         event: payload,
         original_interpretation: interpretation,
         parser_version: "rules-v1",
@@ -197,6 +199,21 @@ export default function Home() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleCancel() {
+    if (!interpretation) return;
+    try {
+      await updateInferenceOutcome({
+        inference_id: interpretation.inference_id,
+        outcome: "cancelled",
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not log cancellation.");
+      return;
+    }
+    setInterpretation(null);
+    setEdited(null);
   }
 
   const canConfirm =
@@ -416,10 +433,7 @@ export default function Home() {
               <button
                 className="icon-button"
                 type="button"
-                onClick={() => {
-                  setInterpretation(null);
-                  setEdited(null);
-                }}
+                onClick={() => void handleCancel()}
                 title="Cancel action"
                 aria-label="Cancel action"
               >

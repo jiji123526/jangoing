@@ -1,0 +1,5 @@
+joblib<2,>=1.4
+scikit-learn<2,>=1.5
+
+[dev]
+pytest<9,>=8

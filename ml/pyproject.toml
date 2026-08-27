@@ -1,0 +1,15 @@
+[project]
+name = "jangoing-ml"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["joblib>=1.4,<2", "scikit-learn>=1.5,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.setuptools.packages.find]
+where = ["src"]

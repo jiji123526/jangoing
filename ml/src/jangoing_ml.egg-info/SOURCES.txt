@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/jangoing_ml/__init__.py
+src/jangoing_ml/data.py
+src/jangoing_ml/split.py
+src/jangoing_ml.egg-info/PKG-INFO
+src/jangoing_ml.egg-info/SOURCES.txt
+src/jangoing_ml.egg-info/dependency_links.txt
+src/jangoing_ml.egg-info/requires.txt
+src/jangoing_ml.egg-info/top_level.txt
+tests/test_split.py

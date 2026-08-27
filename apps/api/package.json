@@ -11,6 +11,7 @@
     "deploy": "wrangler deploy",
     "dev": "tsx watch src/dev.ts",
     "dev:worker": "wrangler dev --local",
+    "dataset:export": "tsx scripts/export-dataset.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

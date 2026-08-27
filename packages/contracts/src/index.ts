@@ -46,6 +46,27 @@ export const InterpretationSchema = z
   })
   .strict();
 
+export const LoggedInterpretationSchema = InterpretationSchema.extend({
+  inference_id: z.string().uuid(),
+  parser_version: z.string(),
+  latency_ms: z.number().nonnegative(),
+});
+
+export const InferenceOutcomeSchema = z.enum([
+  "pending",
+  "confirmed",
+  "corrected",
+  "cancelled",
+  "rejected",
+]);
+
+export const UpdateInferenceOutcomeRequestSchema = z
+  .object({
+    inference_id: z.string().uuid(),
+    outcome: InferenceOutcomeSchema.exclude(["pending"]),
+  })
+  .strict();
+
 export const EventTypeSchema = z.enum([
   "item_added",
   "item_consumed",
@@ -70,6 +91,7 @@ export const CreateEventRequestSchema = z
 
 export const ConfirmActionRequestSchema = z
   .object({
+    inference_id: z.string().uuid(),
     event: CreateEventRequestSchema,
     original_interpretation: InterpretationSchema,
     parser_version: z.string().trim().min(1).max(80).default("rules-v1"),
@@ -115,6 +137,11 @@ export type InterpretCommandRequest = z.infer<
   typeof InterpretCommandRequestSchema
 >;
 export type Interpretation = z.infer<typeof InterpretationSchema>;
+export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
+export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
+export type UpdateInferenceOutcomeRequest = z.infer<
+  typeof UpdateInferenceOutcomeRequestSchema
+>;
 export type EventType = z.infer<typeof EventTypeSchema>;
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
 export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;

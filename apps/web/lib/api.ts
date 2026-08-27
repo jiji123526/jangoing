@@ -1,11 +1,12 @@
 import {
   EventRecordSchema,
-  InterpretationSchema,
+  LoggedInterpretationSchema,
   InventoryItemSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
   type EventRecord,
-  type Interpretation,
+  type LoggedInterpretation,
+  type UpdateInferenceOutcomeRequest,
   type InventoryItem,
   type ShoppingListItem,
 } from "@jangoing/contracts";
@@ -43,7 +44,7 @@ async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
 export async function interpretCommand(
   text: string,
   expirationDate?: string,
-): Promise<Interpretation> {
+): Promise<LoggedInterpretation> {
   const body = await apiRequest("/commands/interpret", {
     method: "POST",
     body: JSON.stringify({
@@ -52,7 +53,16 @@ export async function interpretCommand(
     }),
   });
 
-  return InterpretationSchema.parse(body);
+  return LoggedInterpretationSchema.parse(body);
+}
+
+export async function updateInferenceOutcome(
+  update: UpdateInferenceOutcomeRequest,
+): Promise<void> {
+  await apiRequest("/inferences/outcome", {
+    method: "POST",
+    body: JSON.stringify(update),
+  });
 }
 
 export async function createEvent(

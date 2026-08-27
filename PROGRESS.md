@@ -2,6 +2,44 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - First measurable model-learning loop built
+
+### Completed
+
+- Added default inference logging with prediction, request context, parser,
+  normalizer, schema version, latency, timestamp, and outcome.
+- Connected confirmed, corrected, and cancelled UI outcomes to inference IDs.
+- Added reviewed JSONL export with dataset-safe local output.
+- Added Python dataset validation and phrase-family grouped splits.
+- Added a CPU TF-IDF plus logistic-regression intent baseline.
+- Added reproducibility metadata: dataset digest, Git commit, seed, Python
+  version, split counts, class metrics, and confusion matrix.
+
+### Decisions
+
+- Keep pending/cancelled interactions for product analysis but exclude them from
+  supervised baseline exports until they receive reviewed labels.
+- Prevent phrase families from crossing train, validation, and test splits.
+- Keep raw data and model artifacts out of Git.
+
+### Validation
+
+- Eight TypeScript parser/projection tests pass.
+- ML grouped-split test passes on Python 3.12.
+- A 20-record fixture trains and evaluates the baseline successfully on CPU.
+- A live local request records an inference ID and cancelled outcome in SQLite.
+
+### Blockers
+
+- Real reviewed data is not yet large enough for meaningful model metrics.
+- Entity-span labeling is still required before training a slot model.
+
+### Next
+
+- Apply migration 0003 locally and remotely.
+- Collect 250 to 400 reviewed utterances across at least two intents.
+- Add span annotation and the versioned category taxonomy contract.
+
 ## 2026-08-26 - Generalized item and category language planned
 
 ### Completed

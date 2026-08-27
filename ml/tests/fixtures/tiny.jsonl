@@ -1,0 +1,20 @@
+{"id":"1","text":"add milk","intent":"add_item","phrase_family":"add-1"}
+{"id":"2","text":"put eggs in the fridge","intent":"add_item","phrase_family":"add-2"}
+{"id":"3","text":"we bought yogurt","intent":"add_item","phrase_family":"add-3"}
+{"id":"4","text":"store two apples","intent":"add_item","phrase_family":"add-4"}
+{"id":"5","text":"we are low on milk","intent":"mark_low","phrase_family":"low-1"}
+{"id":"6","text":"almost out of eggs","intent":"mark_low","phrase_family":"low-2"}
+{"id":"7","text":"juice is almost gone","intent":"mark_low","phrase_family":"low-3"}
+{"id":"8","text":"running low on coffee","intent":"mark_low","phrase_family":"low-4"}
+{"id":"9","text":"buy bread","intent":"add_to_buy","phrase_family":"buy-1"}
+{"id":"10","text":"get some tea","intent":"add_to_buy","phrase_family":"buy-2"}
+{"id":"11","text":"put rice on the shopping list","intent":"add_to_buy","phrase_family":"buy-3"}
+{"id":"12","text":"we need bananas","intent":"add_to_buy","phrase_family":"buy-4"}
+{"id":"13","text":"I used one egg","intent":"consume_item","phrase_family":"use-1"}
+{"id":"14","text":"finished the milk","intent":"consume_item","phrase_family":"use-2"}
+{"id":"15","text":"drank a bottle of water","intent":"consume_item","phrase_family":"use-3"}
+{"id":"16","text":"ate two apples","intent":"consume_item","phrase_family":"use-4"}
+{"id":"17","text":"milk maybe later","intent":"unknown","phrase_family":"unknown-1"}
+{"id":"18","text":"that sounds good","intent":"unknown","phrase_family":"unknown-2"}
+{"id":"19","text":"what should we cook","intent":"unknown","phrase_family":"unknown-3"}
+{"id":"20","text":"the weather is nice","intent":"unknown","phrase_family":"unknown-4"}

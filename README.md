@@ -44,6 +44,7 @@ logging foundation is reliable.
 - `packages/contracts`: shared Zod schemas and TypeScript types
 - `ml`: future English intent-classification and slot-extraction work
 - `pi`: future Raspberry Pi voice client
+- `ml`: dataset validation, grouped splitting, and the first intent baseline
 
 ## Local Development
 
@@ -68,6 +69,25 @@ npm run dev:web
 Open `http://localhost:3000`. The web app uses `http://localhost:8787` as its default API URL.
 
 Local development uses Node's SQLite API and stores data in `apps/api/.local/`. Production uses the same event schema through Cloudflare D1.
+
+Every valid interpretation now receives an inference ID and logs its prediction,
+versions, latency, and eventual confirmed, corrected, or cancelled outcome.
+
+## First ML Baseline
+
+After collecting reviewed commands, export and train locally:
+
+```bash
+python3 -m venv ml/.venv
+source ml/.venv/bin/activate
+pip install -e './ml[dev]'
+npm run dataset:export -- --output ml/data/reviewed.jsonl
+python ml/train_baseline.py ml/data/reviewed.jsonl
+```
+
+The baseline writes a model plus versioned metrics including the dataset digest,
+Git commit, seed, split counts, per-class report, and confusion matrix. See
+[the ML quick start](./ml/README.md).
 
 ## Documentation
 

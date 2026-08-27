@@ -1,4 +1,8 @@
 node_modules/
+ml/.venv/
+ml/data/
+ml/artifacts/
+*.joblib
 .next/
 .wrangler/
 .local/
