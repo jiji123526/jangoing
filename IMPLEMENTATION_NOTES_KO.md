@@ -1,0 +1,388 @@
+# jangoing 구현 설명서
+
+## 1. 이 문서의 목적
+
+이 문서는 현재 jangoing에 무엇을 구현했는지, 왜 그런 구조를 선택했는지,
+검토했던 다른 선택지는 무엇인지, 그리고 아직 구현하지 않은 것은 무엇인지
+기록한다. 코드가 바뀔 때 의사결정의 배경이 사라지지 않도록 유지하는 문서다.
+
+## 2. 프로젝트의 현재 목표
+
+jangoing의 단기 제품 형태는 주방 재고 및 쇼핑 목록 웹 앱이지만, 프로젝트의
+핵심은 모델 학습과 검증이다. 제품 UI는 사용자가 실제 표현을 입력하고 모델의
+해석을 검토·수정하게 만드는 데이터 수집 및 평가 환경 역할도 한다.
+
+장기 목표는 명령문만 처리하는 파서가 아니다. 다음과 같은 일상 대화 안에서
+관련 요청과 컨텍스트를 찾아야 한다.
+
+- `We're out of drinks`에서 특정 상품명이 아니라 음료 카테고리를 인식한다.
+- `I want to lose weight. What should I eat this week?`에서 목표, 선호, 재고,
+  유통기한을 함께 사용해 추천한다.
+- 쇼핑 목록의 상품에 대해 가격, 위치, 유효시간이 확인된 딜이나 대체품을
+  추천한다.
+- 무엇을 의미하는지 불명확하면 임의로 재고를 변경하지 않고 질문한다.
+
+이 장기 기능들은 아직 구현된 상태가 아니다. 현재 구현은 이 목표에 필요한
+검토 데이터와 비교 가능한 baseline을 만드는 첫 번째 학습 루프다.
+
+## 3. 현재 실행 구조
+
+```text
+Vercel
+  └─ apps/web: Next.js 웹 UI
+          |
+          v
+Cloudflare Worker
+  └─ apps/api: 해석, 검증, 이벤트 API
+          |
+          v
+Cloudflare D1
+  ├─ events
+  ├─ corrections
+  └─ inference_logs
+
+개발자 컴퓨터
+  └─ ml/: 데이터 검증, 분할, 모델 학습, 평가
+```
+
+Python은 현재 Vercel이나 Cloudflare에 배포하지 않는다. `ml/`은 개발자
+컴퓨터에서 학습과 평가를 실행하기 위한 도구다. 학습된 모델도 아직 production
+요청 처리에 사용하지 않는다.
+
+## 4. 적용한 기능
+
+### 4.1 수정 가능한 해석 UI
+
+기존 UI는 규칙 기반 파서가 반환한 결과를 읽고 확인하거나 취소하는 방식이었다.
+현재는 저장 전에 다음 값을 수정할 수 있다.
+
+- action/intent
+- item
+- quantity
+- unit
+- location
+- expiration date
+
+`unknown`으로 분류된 문장도 사용자가 올바른 action과 값을 입력해 복구할 수
+있다. 재고를 변경하는 작업은 여전히 사용자의 명시적 확인 이후에만 저장된다.
+
+관련 파일:
+
+- `apps/web/app/page.tsx`
+- `apps/web/app/globals.css`
+- `apps/web/lib/api.ts`
+- `packages/contracts/src/index.ts`
+
+### 4.2 이벤트 저장
+
+`events` 테이블은 실제로 확인된 주방 상태 변경을 저장한다. 현재 재고와 쇼핑
+목록은 이벤트를 다시 재생해 계산한다. 파서가 어떤 예측을 했다는 이유만으로
+이벤트가 만들어지지는 않는다.
+
+이 구조를 선택한 이유:
+
+- 잘못된 모델 예측이 자동으로 재고를 변경하지 않게 한다.
+- 어떤 행동이 실제로 확인됐는지 추적할 수 있다.
+- 이후 정정 이벤트나 감사 기록을 추가하기 쉽다.
+
+### 4.3 correction 기록
+
+`corrections` 테이블은 원래 예측과 사용자가 최종 확인한 해석을 별도로 저장한다.
+수정이 없었던 확인도 사람이 검토한 정답 후보이기 때문에 기록한다.
+
+관련 마이그레이션:
+
+- `apps/api/migrations/0002_create_corrections.sql`
+
+저장하는 핵심 값:
+
+- 원문
+- 원래 intent와 slots
+- 최종 intent와 slots
+- parser version
+- 실제 수정 여부
+- 연결된 event ID
+
+### 4.4 모든 유효한 해석 시도 로깅
+
+`inference_logs` 테이블은 사용자가 확인을 완료했는지와 무관하게 유효한 해석
+요청을 먼저 기록한다. 각 요청에는 UUID 형태의 `inference_id`가 생성된다.
+
+현재 저장하는 값:
+
+- 원문
+- 요청 컨텍스트
+- 예측 결과
+- 수정 결과가 생긴 경우 최종 결과
+- parser, normalizer, schema version
+- 입력 source
+- 처리 지연시간
+- pending, confirmed, corrected, cancelled, rejected outcome
+- 연결된 event ID
+- 생성 및 해결 시간
+
+관련 마이그레이션:
+
+- `apps/api/migrations/0003_create_inference_logs.sql`
+
+웹에서 확인하면 해당 inference가 `confirmed` 또는 `corrected`가 되고, 취소
+버튼을 누르면 `cancelled`가 된다. event 생성 요청은 실제 pending inference ID가
+있어야 승인된다.
+
+이 구조를 선택한 이유:
+
+- 이벤트만 저장하면 실패, unknown, 취소 사례가 사라진다.
+- 실패 사례가 사라지면 모델의 실제 error distribution을 알 수 없다.
+- 모델 버전별 correction rate와 latency를 비교할 수 있어야 한다.
+- 학습 데이터와 제품 행동 데이터를 구분할 수 있어야 한다.
+
+### 4.5 학습 데이터 export
+
+`apps/api/scripts/export-dataset.ts`가 검토 완료 데이터를 JSONL로 내보낸다.
+현재 supervised export에는 `confirmed`와 `corrected`만 포함한다. pending과
+cancelled에는 신뢰할 수 있는 정답이 없기 때문이다.
+
+로컬 SQLite에서 export:
+
+```bash
+npm run dataset:export -- --output ml/data/reviewed.jsonl
+```
+
+production D1에서 export:
+
+```bash
+npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+```
+
+로컬 명령은 `npm run dev:api`를 실행해 생성된
+`apps/api/.local/jangoing.sqlite`를 읽는다. `--remote`는 Wrangler 인증을
+사용해 Cloudflare D1을 읽는다.
+
+export를 API의 공개 GET endpoint로 만들지 않은 이유는 원문 대화 데이터가
+인터넷에 노출될 위험이 있기 때문이다. 현재는 로컬 또는 인증된 Wrangler
+명령으로만 export한다.
+
+### 4.6 첫 intent baseline
+
+`ml/train_baseline.py`는 다음 모델을 학습한다.
+
+```text
+TF-IDF + Logistic Regression
+```
+
+이 모델은 현재 intent 분류만 담당한다. item, quantity 등의 slot 모델은 아직
+학습하지 않는다.
+
+기록하는 결과:
+
+- dataset SHA-256
+- Git commit
+- random seed
+- Python version
+- train/validation/test 개수
+- intent별 precision, recall, F1
+- macro average
+- confusion matrix
+- 직렬화된 모델 파일
+
+TF-IDF baseline을 먼저 선택한 이유:
+
+- GPU 없이 CPU에서 빠르게 학습된다.
+- 데이터와 평가 파이프라인 오류를 발견하기 쉽다.
+- 이후 DistilBERT나 다른 모델이 실제로 개선됐는지 비교할 기준이 된다.
+- 적은 데이터에서 복잡한 모델을 먼저 사용해 생기는 과적합을 피할 수 있다.
+
+### 4.7 표현군 기준 데이터 분할
+
+`ml/src/jangoing_ml/split.py`는 동일한 `phrase_family`가 train과 test에 동시에
+들어가지 않게 그룹 단위로 분할한다.
+
+예를 들어 다음 문장들은 단어만 바꾼 동일 템플릿일 수 있다.
+
+```text
+We're out of milk
+We're out of eggs
+We're out of juice
+```
+
+무작위 행 단위 분할을 하면 거의 같은 문장이 train과 test에 들어가 점수가
+부풀려질 수 있다. grouped split은 이 leakage를 줄이기 위해 선택했다.
+
+현재 exporter가 생성하는 phrase family는 문장 형태를 단순화한 초기 heuristic이다.
+정식 데이터셋을 만들 때는 사람이 검토한 template/semantic family ID로 대체하거나
+보완해야 한다.
+
+## 5. 검토한 다른 선택지
+
+### 5.1 처음부터 DistilBERT 학습
+
+가능하지만 선택하지 않았다. 현재 실제 검토 데이터가 부족하고 데이터 분할 및
+평가 루프도 막 만들어진 단계다. 복잡한 모델부터 사용하면 높은 점수가 모델의
+능력 때문인지 데이터 leakage 때문인지 구분하기 어렵다.
+
+향후 TF-IDF baseline을 확정한 뒤 DistilBERT intent classifier와 동일한 frozen
+test set에서 비교한다.
+
+### 5.2 LLM API로 모든 요청 해석
+
+빠르게 자연스러운 데모를 만들 수 있는 선택지다. 하지만 다음 문제가 있다.
+
+- 모델이나 provider 업데이트에 따라 결과가 달라질 수 있다.
+- 비용과 네트워크 의존성이 생긴다.
+- 정확한 재현과 세부 오류 분석이 어려울 수 있다.
+- 개인 대화 및 주방 데이터의 외부 전송 정책이 필요하다.
+
+장기적으로 LLM을 teacher, fallback, 또는 context reasoning 구성요소로 비교할 수
+있지만, 항상 버전·prompt·latency·비용을 기록하고 같은 평가셋에서 비교해야 한다.
+
+### 5.3 하나의 테이블에 이벤트와 예측을 모두 저장
+
+스키마가 단순해지지만 선택하지 않았다. 예측은 실패하거나 취소될 수 있고,
+이벤트는 사용자가 실제 승인한 상태 변경이다. 두 개념을 합치면 실패 데이터가
+사라지거나 확인되지 않은 행동이 이벤트처럼 취급될 위험이 있다.
+
+그래서 `inference_logs`, `corrections`, `events`를 분리하고 ID로 연결했다.
+
+### 5.4 Python API를 지금 별도 배포
+
+FastAPI 등을 이용해 모델 서버를 배포할 수 있지만 아직 하지 않았다. 현재 모델은
+baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 먼저 만들면
+운영 비용과 장애 지점만 늘어난다.
+
+배포 가능한 향후 선택지:
+
+- 별도 Python inference service
+- ONNX 변환 후 Raspberry Pi에서 로컬 추론
+- 지원되는 런타임을 이용한 edge inference
+- 외부 모델 API
+
+선택은 정확도, p95 latency, 비용, 개인정보, 오프라인 요구사항을 측정한 뒤 한다.
+
+### 5.5 무작위 데이터 분할
+
+구현은 쉽지만 유사 템플릿 leakage 위험 때문에 기본값으로 선택하지 않았다.
+표현군 단위 분할을 사용하고, 최종 test set은 학습 중 수정하지 않는 방향을
+선택했다.
+
+### 5.6 MLflow 또는 Weights & Biases 즉시 도입
+
+실험 대시보드를 바로 얻을 수 있지만 현재는 첫 baseline 단계라 로컬
+`metrics.json`과 artifact metadata로 시작했다. 실험 수가 늘어나고 여러 사람이
+협업하기 시작하면 MLflow, W&B 또는 managed registry를 비교해 도입할 수 있다.
+
+## 6. 현재 구현하지 않은 것
+
+다음 항목은 계획에는 있지만 아직 동작하지 않는다.
+
+- DistilBERT intent 모델
+- BIO entity span annotation UI
+- slot extraction 모델
+- `drink -> beverage` 형태의 정식 카테고리 taxonomy 및 resolver
+- multi-turn 대화 context retrieval
+- 사용자 목표, 선호, 알레르기, 예산 프로필
+- 식단 또는 상품 추천 ranking
+- 가격 및 딜 공급자 연동
+- 온라인 A/B 평가 및 모델 registry dashboard
+- Python 모델의 production inference 배포
+
+특히 현재 correction UI는 normalized slot 값은 저장하지만, 원문에서 item이나
+date가 차지한 정확한 문자 범위는 저장하지 않는다. 따라서 intent baseline은
+학습할 수 있지만 정식 token-level slot 모델을 학습하려면 span annotation 기능이
+추가로 필요하다.
+
+## 7. 현재 한계와 주의사항
+
+### 데이터 양
+
+실제 검토 데이터가 거의 없으면 모델 점수는 의미가 없다. 최소 두 intent가
+필요하며, 첫 유의미한 비교를 위해 250~400개의 다양한 검토 문장을 목표로 한다.
+
+### 개인정보
+
+`inference_logs`에는 사용자가 입력한 원문이 포함된다. production 데이터를
+학습에 사용할 때는 보존 기간, 삭제 요청, 접근 권한, 비식별화 정책을 먼저
+확정해야 한다. JSONL 파일은 Git에 포함되지 않도록 ignore되어 있다.
+
+### pending 기록
+
+사용자가 브라우저를 닫거나 새 문장을 입력해 화면을 이탈하면 일부 inference가
+pending으로 남을 수 있다. 현재 취소 버튼은 기록되지만 자동 timeout 정리는 아직
+구현되지 않았다.
+
+### invalid request
+
+스키마 검증을 통과하지 못한 빈 문자열이나 malformed JSON은 inference로 저장하지
+않는다. 운영 보안 로그와 모델 학습 로그는 목적이 다르므로, 이런 요청은 향후
+별도의 API observability 계층에서 집계하는 것이 적절하다.
+
+### 원자성
+
+event, correction, inference outcome은 논리적으로 연결돼 있지만 현재 모든 저장이
+하나의 명시적 데이터베이스 transaction으로 묶여 있지는 않다. 트래픽과 장애
+복구 요구가 커지기 전에 D1 batch/transaction 전략과 idempotency key를 추가해야 한다.
+
+## 8. 실행 방법
+
+### 웹과 로컬 API
+
+```bash
+npm install
+npm run dev:api
+npm run dev:web
+```
+
+### production 마이그레이션과 API 배포
+
+```bash
+npm run db:migrate:remote
+npm run deploy:api
+```
+
+`npx wrangler deploy`를 직접 실행하려면 저장소 루트가 아니라 `apps/api`에서
+실행해야 한다.
+
+### Python 환경
+
+Python 3.11 이상이 필요하다.
+
+```bash
+python3 -m venv ml/.venv
+source ml/.venv/bin/activate
+pip install -e './ml[dev]'
+```
+
+### production 데이터 export 및 baseline 학습
+
+```bash
+npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+python ml/train_baseline.py ml/data/reviewed.jsonl
+```
+
+결과는 기본적으로 `ml/artifacts/baseline/`에 생성되고 Git에는 포함되지 않는다.
+
+## 9. 검증한 내용
+
+- TypeScript parser/projection 테스트 8개
+- 전체 TypeScript typecheck
+- Cloudflare Worker dry build
+- Next.js production build
+- Python grouped-split 테스트
+- 20개 fixture를 이용한 CPU baseline 학습 및 평가
+- 실제 로컬 API 요청의 inference ID 발급과 cancelled outcome 저장
+- 로컬 SQLite JSONL export 명령의 workspace 및 출력 경로 처리
+
+fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미하지 않는다.
+
+## 10. 다음 권장 작업
+
+1. production에 최신 D1 마이그레이션을 적용한다.
+2. 웹에서 실제 표현을 입력하고 잘못된 결과를 수정·확인한다.
+3. 250~400개의 검토 데이터를 여러 intent에 걸쳐 수집한다.
+4. pending timeout과 idempotent/atomic 저장을 보강한다.
+5. phrase family를 검토하고 frozen test set을 만든다.
+6. TF-IDF baseline 결과를 첫 기준점으로 저장한다.
+7. entity span annotation과 category taxonomy를 구현한다.
+8. 같은 test set으로 DistilBERT와 baseline을 비교한다.
+
+모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
+실험의 재현성, 그리고 확인되지 않은 상태 변경을 막는 것이다.

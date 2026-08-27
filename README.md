@@ -95,6 +95,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 - [Local, Cloudflare, and Vercel setup](./SETUP.md)
 - [Development progress log](./PROGRESS.md)
 - [Model evaluation and logging standard](./MODEL_EVALUATION.md)
+- [구현 내용과 기술적 의사결정 설명서](./IMPLEMENTATION_NOTES_KO.md)
 
 ## MVP Commands
 
