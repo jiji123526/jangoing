@@ -385,6 +385,8 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 - 기존 phrase family의 추가 variation
 - 규칙을 정립하기 위해 만든 예문
 - 이미 모델 개발 과정에서 본 문장
+- `correction queue`, `expiry queue`, `low-confidence queue`, `confirmed queue`에서
+  가져온 대부분의 annotation 후보
 
 ### `evaluation_candidate`
 
@@ -392,10 +394,39 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 - 기존 template를 보고 단어만 바꾸지 않은 문장
 - 모델·학습 데이터·현재 오류 분석을 보기 전에 확보한 문장
 - intent와 entity 정답을 사람이 확인한 문장
+- 기본적으로 `evaluation holdout` queue에서 가져온 후보
 
 `evaluation_candidate`는 즉시 최종 test set이 아니다. 중복 제거, family 단위 분리,
 품질 검토, 버전 고정 후에만 frozen evaluation set이 된다. 같은 phrase family는
 train과 evaluation에 나누어 넣지 않는다.
+
+### Queue와 dataset purpose 관계
+
+- `correction queue`
+  모델이 실제로 틀렸고 사용자가 correction을 남긴 문장을 모은다.
+  기본 목적은 error-focused `train_candidate` 수집이다.
+
+- `expiry queue`
+  날짜/유통기한 signal이 있는 문장을 모은다.
+  기본 목적은 `EXPIRY_DATE` span과 normalization 품질을 높이는
+  `train_candidate` 수집이다.
+
+- `low-confidence queue`
+  confidence가 낮거나 `unknown`, `needs_clarification`에 가까운 문장을 모은다.
+  기본 목적은 active-learning 성격의 `train_candidate` 수집이다.
+
+- `confirmed queue`
+  모델이 맞았고 사용자가 confirmed한 실사용 문장을 모은다.
+  기본 목적은 실제 production 분포에 가까운 `train_candidate` 보강이다.
+
+- `evaluation holdout`
+  reviewed 문장 중 deterministic bucket 규칙으로 분리한 후보를 모은다.
+  기본 목적은 `evaluation_candidate` 수집이다.
+
+queue는 **샘플을 어디서 가져왔는지**를 나타내고, dataset purpose는 **최종 split에서
+어디에 들어갈지**를 나타낸다. 보통 queue의 기본 목적을 따르지만, annotator는 특별한
+근거가 있을 때 다른 purpose로 저장할 수 있다. 다만 이런 경우 notes에 이유를 남기는
+편이 좋다.
 
 ## Notes convention
 
