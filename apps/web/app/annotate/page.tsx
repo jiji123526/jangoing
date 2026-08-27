@@ -297,8 +297,11 @@ export default function AnnotatePage() {
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("low_confidence")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load low-confidence queue
               </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("confirmed_unannotated")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load confirmed queue
+              </button>
             </div>
-            <p>Start with corrected examples, expiry-heavy sentences, or low-confidence predictions.</p>
+            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, or confirmed production samples.</p>
           </div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}

@@ -89,4 +89,12 @@ describe("annotationQueueQuery", () => {
     expect(queue.query).toContain("needs_clarification");
     expect(queue.query).toContain("unknown");
   });
+
+  it("returns confirmed but still-unannotated examples", () => {
+    const queue = annotationQueueQuery("confirmed_unannotated");
+
+    expect(queue.reason).toBe("confirmed_prediction");
+    expect(queue.query).toContain("il.outcome = 'confirmed'");
+    expect(queue.query).toContain("il.corrected_interpretation IS NOT NULL");
+  });
 });

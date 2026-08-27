@@ -138,6 +138,26 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LIMIT ?`,
         reason: "low_confidence_or_ambiguous_intent",
       };
+    case "confirmed_unannotated":
+      return {
+        query: `SELECT
+          il.id AS inference_id,
+          il.raw_utterance AS text,
+          il.predicted_interpretation,
+          il.corrected_interpretation,
+          il.parser_version,
+          il.outcome,
+          COALESCE(il.resolved_at, il.created_at) AS created_at
+        FROM inference_logs il
+        LEFT JOIN annotations a ON a.inference_id = il.id
+        WHERE
+          a.id IS NULL
+          AND il.outcome = 'confirmed'
+          AND il.corrected_interpretation IS NOT NULL
+        ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
+        LIMIT ?`,
+        reason: "confirmed_prediction",
+      };
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);
   }
