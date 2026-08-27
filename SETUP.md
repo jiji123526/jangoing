@@ -52,6 +52,11 @@ cd /home/jjiwoo/.workspace/jangoing
 # Seed the production annotation queues
 npm run annotation:seed-queues -- --remote
 
+# Import a pregenerated dataset as generated-review annotation candidates
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/synthetic-v1.jsonl \
+  --label synthetic-v1
+
 # Seed the production annotation queues with a custom mix
 npm run annotation:seed-queues -- --remote \
   --correction 50 \
@@ -106,6 +111,15 @@ To prefill `/annotate` with deterministic reviewed samples for each queue, run:
 npm run annotation:seed-queues
 ```
 
+To import a pregenerated JSONL dataset into the dedicated `generated_review`
+queue, run:
+
+```bash
+npm run annotation:import-generated -- \
+  --input ml/datasets/synthetic-v1.jsonl \
+  --label synthetic-v1
+```
+
 The default seed currently targets:
 
 - 36 `correction` samples
@@ -120,6 +134,14 @@ after migrations are already applied, run:
 
 ```bash
 npm run annotation:seed-queues -- --remote
+```
+
+For pregenerated review imports, use the same command with `--remote`:
+
+```bash
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/synthetic-v1.jsonl \
+  --label synthetic-v1
 ```
 
 ## ML Setup

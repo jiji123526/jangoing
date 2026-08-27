@@ -12,6 +12,7 @@
     "dev": "tsx watch src/dev.ts",
     "dev:worker": "wrangler dev --local",
     "annotation:seed-queues": "node --import tsx scripts/seed-annotation-queues.ts",
+    "annotation:import-generated": "node --import tsx scripts/import-generated-review-dataset.ts",
     "dataset:export": "tsx scripts/export-dataset.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

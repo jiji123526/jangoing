@@ -5,9 +5,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 ## Current state as of 2026-08-27
 
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
-  queues, deterministic queue seeding, split train/evaluation dataset export
-  validation, task-aware reviewed export filtering, and dynamic normalized-value
-  suggestions.
+  queues, deterministic queue seeding, generated-review dataset import, split
+  train/evaluation dataset export validation, task-aware reviewed export
+  filtering, and dynamic normalized-value suggestions.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
@@ -18,6 +18,27 @@ Add new entries at the top of the log so the latest state is easy to find.
   values, and build the first slot-training dataset and baseline.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Generated review queue added
+
+### Completed
+
+- Added a dedicated `generated_review` annotation queue for pregenerated JSONL datasets.
+- Added `annotation:import-generated` for local or remote import of pregenerated review candidates.
+- Imported records now store parser prediction and pregenerated reference interpretation together in `inference_logs`.
+- Updated `/annotate` with a `Load generated review` button and queue notice.
+- Documented that pregenerated data should bootstrap coverage, not replace real reviewed traffic.
+
+### Decisions
+
+- Keep pregenerated data in its own queue instead of mixing it into `correction` or `confirmed`.
+- Treat `correction`, `confirmed`, and `evaluation_holdout` as actual-user queues.
+- Use pregenerated references as annotation starting points, not as unquestioned final truth.
+
+### Next
+
+- Consider entity prefill from pregenerated references if annotation speed becomes the main bottleneck.
+- Later, add dataset-label filters if multiple pregenerated corpora need to coexist in production.
 
 ## 2026-08-27 - Deterministic annotation queue seeding added
 

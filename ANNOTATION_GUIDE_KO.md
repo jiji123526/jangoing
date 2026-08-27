@@ -46,6 +46,11 @@ cd /home/jjiwoo/.workspace/jangoing
 # production annotation queue seed
 npm run annotation:seed-queues -- --remote
 
+# import pregenerated JSONL into generated_review
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/synthetic-v1.jsonl \
+  --label synthetic-v1
+
 # production annotation queue seed with a custom mix
 npm run annotation:seed-queues -- --remote \
   --correction 50 \
@@ -97,6 +102,7 @@ https://jangoing-web.vercel.app/annotate
 - `Load expiry queue`: 날짜/유통기한 표현이 들어간 문장
 - `Load low-confidence queue`: confidence가 낮거나 `unknown`,
   `needs_clarification`에 가까운 문장
+- `Load generated review`: pregenerated dataset에서 가져온 broad-coverage 문장
 - `Load confirmed queue`: 실사용에서 맞았고 confirmed된 문장
 - `Load evaluation holdout`: evaluation 후보로 분리하려는 reviewed 문장
 
@@ -130,6 +136,16 @@ npm run annotation:seed-queues -- --remote
 주의: 여기서 넣는 숫자는 **queue에서 최종적으로 보이는 개수**가 아니라 seed로 넣는
 reviewed inference record 개수다. queue 조건이 겹치기 때문에 하나의 record가 여러
 queue에 동시에 잡힐 수 있다.
+
+pregenerated JSONL dataset을 review source로 쓰고 싶다면 `generated_review` 전용
+queue에 import한다. 이 방식은 synthetic/pregenerated 문장을 `correction`이나
+`confirmed`에 섞지 않고 별도 source로 관리할 수 있다.
+
+```bash
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/synthetic-v1.jsonl \
+  --label synthetic-v1
+```
 
 ### D1에서 queue data 확인하는 방법
 
@@ -215,6 +231,22 @@ WHERE a.id IS NULL
 - 주의:
   이 큐는 어려운 문장 비중이 높아서 실제 사용 분포를 대표하지는 않는다.
 
+#### `generated review`
+
+- 들어오는 데이터:
+  pregenerated JSONL dataset을 `annotation:import-generated`로 import한 문장 중 아직
+  annotation이 없는 것
+- 현재 샘플 성격:
+  broad coverage를 빠르게 확보하기 위한 synthetic/pregenerated review 후보
+- 주 목적:
+  직접 문장을 떠올리기 어려울 때 annotation source를 제공하고, intent coverage와
+  surface variety를 빠르게 넓히는 것
+- 주의:
+  이 큐는 actual user traffic이 아니다. parser가 현재 문장을 어떻게 해석하는지와,
+  pregenerated reference intent가 함께 들어가지만, 그 reference를 절대 정답처럼
+  맹신하지 않는다. bootstrapping 용도로 보고, 장기적으로는 real reviewed data의
+  비중이 더 커져야 한다.
+
 #### `confirmed queue`
 
 - 들어오는 데이터:
@@ -245,6 +277,7 @@ WHERE a.id IS NULL
 
 - `correction`, `expiry`, `low-confidence`, `confirmed`는 주로 **training candidate
   source**로 생각하면 된다.
+- `generated_review`는 **bootstrapping용 training candidate source**다.
 - `evaluation holdout`은 기본적으로 **evaluation candidate source**다.
 - 실제 저장되는 split은 queue 이름이 아니라, annotator가 최종 저장할 때의
   `dataset purpose`와 이후 export 검증으로 결정된다.

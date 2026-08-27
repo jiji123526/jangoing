@@ -6,6 +6,8 @@ import {
   type AnnotationQueueType,
   type Interpretation,
 } from "@jangoing/contracts";
+import { annotationQueueSeedSource } from "./queue-seed";
+import { generatedReviewSourcePrefix } from "./generated-review";
 
 export interface AnnotationQueueRow {
   inference_id: string;
@@ -51,6 +53,11 @@ const expirySignals = [
   "december",
 ];
 
+const generatedReviewSourceLike = `${generatedReviewSourcePrefix}%`;
+const actualUserSourceFilter =
+  `il.source != '${annotationQueueSeedSource}' AND il.source NOT LIKE '${generatedReviewSourceLike}'`;
+const nonGeneratedReviewFilter = `il.source NOT LIKE '${generatedReviewSourceLike}'`;
+
 export function parseAnnotationQueueQuery(
   input: Record<string, string | undefined>,
 ): AnnotationQueueQuery {
@@ -73,6 +80,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
           a.id IS NULL
+          AND ${actualUserSourceFilter}
           AND il.outcome = 'corrected'
           AND il.corrected_interpretation IS NOT NULL
         ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
@@ -93,6 +101,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
           a.id IS NULL
+          AND ${nonGeneratedReviewFilter}
           AND (${expirySignals
             .map((signal) => `LOWER(il.raw_utterance) LIKE '%${signal.replaceAll("'", "''")}%'`)
             .join(" OR ")})
@@ -122,6 +131,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
           a.id IS NULL
+          AND ${nonGeneratedReviewFilter}
           AND (
             json_extract(il.predicted_interpretation, '$.confidence') < 0.85
             OR json_extract(il.predicted_interpretation, '$.intent') IN ('unknown', 'needs_clarification')
@@ -152,6 +162,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
           a.id IS NULL
+          AND ${actualUserSourceFilter}
           AND il.outcome = 'confirmed'
           AND il.corrected_interpretation IS NOT NULL
         ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
@@ -172,12 +183,33 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
           a.id IS NULL
+          AND ${actualUserSourceFilter}
           AND il.outcome IN ('confirmed', 'corrected')
           AND il.corrected_interpretation IS NOT NULL
           AND substr(replace(il.id, '-', ''), 1, 1) IN ('0', '1', '2')
         ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
         LIMIT ?`,
         reason: "deterministic_holdout_bucket",
+      };
+    case "generated_review":
+      return {
+        query: `SELECT
+          il.id AS inference_id,
+          il.raw_utterance AS text,
+          il.predicted_interpretation,
+          il.corrected_interpretation,
+          il.parser_version,
+          il.outcome,
+          COALESCE(il.resolved_at, il.created_at) AS created_at
+        FROM inference_logs il
+        LEFT JOIN annotations a ON a.inference_id = il.id
+        WHERE
+          a.id IS NULL
+          AND il.source LIKE '${generatedReviewSourceLike}'
+          AND il.corrected_interpretation IS NOT NULL
+        ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
+        LIMIT ?`,
+        reason: "generated_dataset_record",
       };
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);

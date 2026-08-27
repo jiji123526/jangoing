@@ -282,6 +282,7 @@ export const AnnotationQueueTypeSchema = z.enum([
   "low_confidence",
   "confirmed_unannotated",
   "evaluation_holdout",
+  "generated_review",
 ]);
 
 export const AnnotationQueueItemSchema = z.object({

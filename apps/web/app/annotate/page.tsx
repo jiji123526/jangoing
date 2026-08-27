@@ -368,6 +368,8 @@ export default function AnnotatePage() {
       setNotice(
         type === "evaluation_holdout"
           ? "Loaded a reviewed holdout example and preselected it as an evaluation candidate."
+          : type === "generated_review"
+          ? "Loaded a pregenerated review example. Use it to broaden coverage, but treat the reference intent as a starting point rather than final truth."
           : type === "expiry"
           ? "Loaded an expiry-focused example. Mark the date span, then apply the parsed expiry date if it looks correct."
           : correctedIntent
@@ -523,6 +525,9 @@ export default function AnnotatePage() {
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("low_confidence")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load low-confidence queue
               </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("generated_review")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load generated review
+              </button>
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("confirmed_unannotated")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load confirmed queue
               </button>
@@ -530,7 +535,7 @@ export default function AnnotatePage() {
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load evaluation holdout
               </button>
             </div>
-            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, confirmed production samples, or a deterministic evaluation slice.</p>
+            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, pregenerated coverage samples, confirmed production samples, or a deterministic evaluation slice.</p>
           </div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}

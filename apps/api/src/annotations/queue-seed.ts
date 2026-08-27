@@ -506,5 +506,6 @@ export function seededQueueTargets(plan: QueueSeedPlan): Record<AnnotationQueueT
     low_confidence: plan.low_confidence,
     confirmed_unannotated: plan.confirmed_unannotated,
     evaluation_holdout: plan.evaluation_holdout,
+    generated_review: 0,
   };
 }
