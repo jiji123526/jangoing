@@ -36,6 +36,10 @@ Add new entries at the top of the log so the latest state is easy to find.
   paired with remote seeding and remote export, not local SQLite.
 - Added a production-only command cheat sheet for multi-laptop annotation
   workflow.
+- Documented how to inspect queue seed rows in D1 and clarified that queues are
+  derived from `inference_logs`, not stored as separate tables.
+- Documented that seed/synthetic data are bootstrap aids and should not remain
+  the dominant long-term training distribution.
 
 ### Decisions
 

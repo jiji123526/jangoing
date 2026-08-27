@@ -131,6 +131,45 @@ npm run annotation:seed-queues -- --remote
 reviewed inference record 개수다. queue 조건이 겹치기 때문에 하나의 record가 여러
 queue에 동시에 잡힐 수 있다.
 
+### D1에서 queue data 확인하는 방법
+
+queue는 D1 안에 `correction_queue` 같은 별도 테이블로 저장되지 않는다. queue는
+`inference_logs`를 조건으로 조회해서 만들며, seed script도 queue sample을
+`inference_logs`에 넣는다.
+
+따라서 D1 UI 왼쪽 패널에서 `annotations`, `corrections`, `events`, `inference_logs`
+같은 **테이블 이름만 보이는 것은 정상**이다. 그 화면은 schema 브라우저이며, queue row는
+SQL로 확인해야 한다.
+
+production D1 SQL editor에서 먼저 seed row가 들어갔는지 확인:
+
+```sql
+SELECT COUNT(*) AS seeded_rows
+FROM inference_logs
+WHERE source = 'annotation-queue-seed-v1';
+```
+
+최근 seed row 보기:
+
+```sql
+SELECT id, raw_utterance, source, outcome, created_at
+FROM inference_logs
+WHERE source = 'annotation-queue-seed-v1'
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+correction queue 후보 수 확인:
+
+```sql
+SELECT COUNT(*) AS correction_candidates
+FROM inference_logs il
+LEFT JOIN annotations a ON a.inference_id = il.id
+WHERE a.id IS NULL
+  AND il.outcome = 'corrected'
+  AND il.corrected_interpretation IS NOT NULL;
+```
+
 ### Queue별 데이터 의미와 목적
 
 #### `correction queue`
@@ -211,6 +250,20 @@ queue에 동시에 잡힐 수 있다.
   `dataset purpose`와 이후 export 검증으로 결정된다.
 - 따라서 같은 queue에서 불러온 샘플이라도 품질 검토 후 다른 purpose로 저장할 수는
   있지만, 특별한 이유가 없다면 queue의 기본 목적을 따르는 편이 일관성이 높다.
+
+### seed/synthetic queue data의 한계
+
+queue seed와 synthetic data는 annotation을 시작하고 UI workflow를 검증하는 데는
+유용하지만, 표면 문장 패턴이 너무 통일될 수 있다는 한계가 있다. 문제는 schema 자체가
+아니라 **같은 template 가족이 너무 많이 반복되면 모델이 구조 대신 문장 껍데기를 외울 수
+있다**는 점이다.
+
+운영 원칙:
+
+- seed/synthetic data는 annotation bootstrapping과 smoke test 용도로 본다.
+- 실제 학습 데이터의 중심은 점점 reviewed real utterance로 옮긴다.
+- `confirmed` queue와 실제 correction traffic을 계속 섞어 real distribution을 복원한다.
+- 최종 평가는 synthetic가 아니라 reviewed evaluation holdout과 frozen set으로 한다.
 
 ## 여러 intent/action 라벨링
 

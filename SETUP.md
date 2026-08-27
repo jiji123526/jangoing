@@ -75,6 +75,31 @@ npm run deploy:api
 git push origin main
 ```
 
+To confirm that queue seed data is actually present in production D1, query
+`inference_logs` directly. Queue samples are not stored in separate queue tables.
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing/apps/api
+
+# How many deterministic seed rows exist?
+npx wrangler d1 execute jangoing-db --remote --command \
+"SELECT COUNT(*) AS seeded_rows
+ FROM inference_logs
+ WHERE source = 'annotation-queue-seed-v1';"
+
+# Show recent seed rows
+npx wrangler d1 execute jangoing-db --remote --command \
+"SELECT id, raw_utterance, source, outcome, created_at
+ FROM inference_logs
+ WHERE source = 'annotation-queue-seed-v1'
+ ORDER BY created_at DESC
+ LIMIT 20;"
+```
+
+If the D1 UI sidebar only shows tables and indexes such as `annotations`,
+`corrections`, `events`, and `inference_logs`, that is expected. The queue is a
+query over `inference_logs`, not its own stored table.
+
 To prefill `/annotate` with deterministic reviewed samples for each queue, run:
 
 ```bash
@@ -114,6 +139,11 @@ Train the reproducible synthetic bootstrap first:
 python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
   --output ml/artifacts/synthetic-v1-baseline
 ```
+
+Treat `synthetic-v1` and queue seed data as bootstrap sources, not the final
+distribution to optimize for. They are useful for pipeline checks, early model
+smoke tests, and annotation bootstrapping, but reviewed real utterances should
+become the dominant training and evaluation source over time.
 
 Export reviewed local interactions and train a separate human-data run after
 enough single-action annotations exist:
