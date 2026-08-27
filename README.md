@@ -154,7 +154,8 @@ The current language layer is a deterministic regular-expression parser, not a t
   in its metrics metadata.
 - Natural-language expiry parsing now covers explicit expiry phrases such as
   `expiring tomorrow`, `expires next Friday`, and `with expiry date on August twenty-eighth`,
-  but broader date context and timezone persistence are still incomplete.
+  and the browser's `reference_date` and `timezone` are now logged for replay,
+  but broader date-context handling is still incomplete.
 - The parser may still incorrectly include unsupported date or unit phrases in
   `item_name`. Always review the interpretation before confirming.
 

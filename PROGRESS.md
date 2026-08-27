@@ -12,10 +12,32 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Vercel remains connected to `main` for the existing frontend deployment.
 - Recent validation: 30 TypeScript tests and repo-wide typecheck pass.
 - Active work: collect 100–200 human training candidates and 100+ independent
-  evaluation candidates, then add explicit reference-date/timezone capture and
-  stronger normalized-value quality rules.
+  evaluation candidates, then strengthen normalized-value quality rules and
+  build the first slot-training dataset and baseline.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Reference date and timezone persistence added
+
+### Completed
+
+- Added optional `timezone` to the interpret request contract.
+- Sent the browser timezone with each text interpretation request.
+- Stored both `reference_date` and `timezone` in inference-log request context.
+- Included `reference_date` and `timezone` in reviewed dataset export records.
+- Added export tests covering request-context persistence.
+
+### Decisions
+
+- Persist timezone now even before using it deeply in normalization so reviewed
+  datasets keep enough context for later reprocessing and audits.
+- Keep annotation records linked to inference context through `inference_id`
+  instead of duplicating the same date metadata into a second table right now.
+
+### Next
+
+- Surface date-context metadata in annotation and debugging workflows when needed.
+- Use timezone-aware evaluation once natural-date coverage expands beyond the current expiry-only parser.
 
 ## 2026-08-27 - Natural-language expiry normalization added
 
@@ -26,7 +48,7 @@ Add new entries at the top of the log so the latest state is easy to find.
   `with expiry date on August twenty-eighth`.
 - Added optional `reference_date` to the interpret request contract.
 - Sent the browser's local date as the default reference date for text parsing.
-- Stored `reference_date` alongside request context in inference logs.
+- Stored `reference_date` and later `timezone` alongside request context in inference logs.
 - Added parser tests covering natural and relative expiry phrases.
 
 ### Decisions
@@ -38,8 +60,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Next
 
-- Add `timezone` capture and persistence beside `reference_date`.
 - Expand date handling beyond expiry-only phrases if the product needs it.
+- Add stronger ambiguity handling for vague natural-language date expressions.
 
 ## 2026-08-27 - Task-aware reviewed export filters added
 

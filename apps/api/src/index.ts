@@ -126,6 +126,7 @@ async function handleInterpret(request: Request, env: Env): Promise<Response> {
     JSON.stringify({
       expiration_date: parsed.data.expiration_date ?? null,
       reference_date: parsed.data.reference_date ?? null,
+      timezone: parsed.data.timezone ?? null,
     }),
     JSON.stringify(result),
     parserVersion,

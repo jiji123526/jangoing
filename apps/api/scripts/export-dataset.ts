@@ -15,7 +15,7 @@ import {
 const apiDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(apiDirectory, "../..");
 const query = `SELECT il.id, il.raw_utterance, il.predicted_interpretation,
-  il.corrected_interpretation, il.parser_version, il.outcome, il.created_at,
+  il.corrected_interpretation, il.request_context, il.parser_version, il.outcome, il.created_at,
   a.intent AS annotation_intent, a.entities AS annotation_entities,
   a.normalized AS annotation_normalized, a.dataset_purpose,
   a.phrase_family AS annotation_phrase_family, a.actions AS annotation_actions,

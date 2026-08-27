@@ -25,9 +25,17 @@ export interface DatasetRecord {
   annotation_schema_version: string | null;
   reviewed_at: string | null;
   has_annotation: boolean;
+  reference_date?: string;
+  timezone?: string;
   intent?: string;
   slots?: unknown;
   entities?: unknown;
+}
+
+interface RequestContextPayload {
+  expiration_date?: string | null;
+  reference_date?: string | null;
+  timezone?: string | null;
 }
 
 function parseDatasetExportTask(value: string): DatasetExportTask {
@@ -117,6 +125,13 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
   const records: DatasetRecord[] = [];
 
   for (const row of rows) {
+    const requestContext = row.request_context
+      ? parseJson<RequestContextPayload>(
+          row.request_context,
+          row.id ?? "<unknown>",
+          "request_context",
+        )
+      : null;
     const correctedPayload = row.corrected_interpretation
       ? parseJson<{
           intent: string;
@@ -181,6 +196,8 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
       annotation_schema_version: row.annotation_schema_version,
       reviewed_at: row.annotation_created_at ?? row.created_at,
       has_annotation: row.annotation_created_at !== null,
+      ...(requestContext?.reference_date ? { reference_date: requestContext.reference_date } : {}),
+      ...(requestContext?.timezone ? { timezone: requestContext.timezone } : {}),
     });
   }
 

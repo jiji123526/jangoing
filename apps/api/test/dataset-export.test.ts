@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDatasetRecords,
   filterDatasetRecords,
   parseDatasetExportArgs,
   splitAndValidateDataset,
@@ -162,5 +163,53 @@ describe("filterDatasetRecords", () => {
       task: "intent",
       requireAnnotation: true,
     })).toEqual([annotated]);
+  });
+});
+
+describe("buildDatasetRecords", () => {
+  it("includes reference date and timezone from request context", () => {
+    const [record] = buildDatasetRecords([
+      {
+        id: "record-1",
+        raw_utterance: "Add milk expiring tomorrow",
+        predicted_interpretation: JSON.stringify({
+          intent: "add_item",
+          slots: {
+            item_name: "milk",
+            expiration_date: "2026-08-27",
+          },
+          confidence: 0.94,
+          requires_confirmation: false,
+          raw_utterance: "Add milk expiring tomorrow",
+        }),
+        corrected_interpretation: JSON.stringify({
+          intent: "add_item",
+          slots: {
+            item_name: "milk",
+            expiration_date: "2026-08-27",
+          },
+        }),
+        request_context: JSON.stringify({
+          reference_date: "2026-08-26",
+          timezone: "America/New_York",
+        }),
+        parser_version: "rules-v1",
+        outcome: "confirmed",
+        created_at: "2026-08-27T00:00:00.000Z",
+        annotation_intent: null,
+        annotation_entities: null,
+        annotation_normalized: null,
+        dataset_purpose: "train_candidate",
+        annotation_phrase_family: null,
+        annotation_actions: null,
+        annotation_schema_version: null,
+        annotation_created_at: null,
+      },
+    ]);
+
+    expect(record).toMatchObject({
+      reference_date: "2026-08-26",
+      timezone: "America/New_York",
+    });
   });
 });

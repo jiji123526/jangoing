@@ -30,6 +30,10 @@ function localReferenceDate(): string {
   return `${year}-${month}-${day}`;
 }
 
+function localTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
@@ -65,6 +69,7 @@ export async function interpretCommand(
       text,
       ...(expirationDate ? { expiration_date: expirationDate } : {}),
       reference_date: localReferenceDate(),
+      timezone: localTimezone(),
     }),
   });
 

@@ -205,6 +205,7 @@ async function route(
       JSON.stringify({
         expiration_date: parsed.data.expiration_date ?? null,
         reference_date: parsed.data.reference_date ?? null,
+        timezone: parsed.data.timezone ?? null,
       }),
       JSON.stringify(result), parserVersion, normalizerVersion, schemaVersion,
       "web", latencyMs, new Date().toISOString(),

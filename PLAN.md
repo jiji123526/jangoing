@@ -91,11 +91,13 @@ These limitations are acceptable only while every state-changing action requires
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
 - Runtime parsing now normalizes explicit natural-language expiry phrases, but
-  full reference-date/timezone persistence is still missing.
+  broader timezone-aware normalization and annotation-surface visibility are
+  still missing.
 - Reviewed export now separates train/evaluation splits and supports task-aware
   filtering for `intent`, `slots`, and `joint` exports.
-- `reference_date` and `timezone` are documented but not yet stored
-  end-to-end in inference, annotation, and export payloads.
+- `reference_date` and `timezone` are now persisted through inference request
+  context and reviewed export, but they are not yet surfaced in the annotation
+  UI or used for deeper timezone-aware normalization logic.
 - Reviewed annotations do not yet enforce normalized-value completeness for
   labels such as ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
 - The single-action baseline gate is still implicit in ML code rather than a
@@ -586,8 +588,10 @@ Current status: infrastructure and production UI are complete; human-reviewed
 collection is now the active work. `synthetic-v1` supplies 800 bootstrap records
 but does not satisfy the human evaluation requirement. Queue-based sample loading
 and task-aware train/evaluation export are implemented. Explicit natural-date
-normalization is also implemented for expiry phrases; full
-reference-date/timezone capture remains open.
+normalization is also implemented for expiry phrases, and
+reference-date/timezone persistence is in place through inference logs and
+reviewed export. Annotation-surface visibility and stronger normalization rules
+remain open.
 
 ### M5.5: Experiment and Observability Foundation
 

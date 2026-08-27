@@ -123,8 +123,8 @@ Python은 현재 Vercel이나 Cloudflare에 배포하지 않는다. `ml/`은 개
 - 생성 및 해결 시간
 
 현재 요청 컨텍스트에는 수동 date picker의 `expiration_date`뿐 아니라 자연어 날짜
-해석 기준으로 사용한 `reference_date`도 함께 저장한다. `timezone`까지는 아직
-저장하지 않는다.
+해석 기준으로 사용한 `reference_date`, 그리고 브라우저에서 보낸 `timezone`도 함께
+저장한다.
 
 관련 마이그레이션:
 
@@ -172,6 +172,10 @@ npm run dataset:export -- --remote \
 export를 API의 공개 GET endpoint로 만들지 않은 이유는 원문 대화 데이터가
 인터넷에 노출될 위험이 있기 때문이다. 현재는 로컬 또는 인증된 Wrangler
 명령으로만 export한다.
+
+export JSONL에는 reviewed intent/action 정보 외에도 원문 해석 당시의
+`reference_date`와 `timezone`이 함께 들어간다. 이 값은 나중에 자연어 날짜
+normalization 규칙을 다시 적용하거나 오류를 재현할 때 필요하다.
 
 이제 export는 train/evaluation 분리뿐 아니라 task별 필터도 지원한다.
 
@@ -518,14 +522,14 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 1. synthetic-v1으로 재현 가능한 첫 baseline artifact를 확정한다.
 2. `/annotate`에서 training candidate 100~200개를 수집한다.
 3. template와 모델 예측을 보지 않고 evaluation candidate 100개 이상을 수집한다.
-4. `reference_date`와 `timezone`을 inference/annotation/export에 함께 저장한다.
-5. reviewed annotation에서 normalized value completeness 규칙을 강화한다.
-6. intent·phrase family·난이도별 분포와 중복을 검토한다.
-7. evaluation candidate를 validation과 frozen test로 승인·분리한다.
-8. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
-9. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
-10. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
-11. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
+4. reviewed annotation에서 normalized value completeness 규칙을 강화한다.
+5. intent·phrase family·난이도별 분포와 중복을 검토한다.
+6. evaluation candidate를 validation과 frozen test로 승인·분리한다.
+7. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
+8. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
+9. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
+10. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
+11. annotation/debugging 흐름에 date context visibility가 더 필요한지 확인한다.
 12. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
