@@ -26,6 +26,7 @@
 .sampleForm { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: stretch; }
 .queueActions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 12px; border: 1px solid #d9ded7; border-radius: 7px; background: #f7f8f3; }
 .queueActions p { margin: 0; color: #68716b; font-size: .75rem; }
+.queueButtons { display: flex; flex-wrap: wrap; gap: 8px; }
 .secondaryButton { min-height: 40px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #1f6b45; border-radius: 6px; color: #1f6b45; background: white; font-weight: 750; }
 .sampleForm textarea, .metaGrid textarea { min-height: 90px; resize: vertical; }
 .sampleForm textarea, .metaGrid input, .metaGrid select, .metaGrid textarea, .entityList input, .entityList select { padding: 11px 12px; border: 1px solid #b9c3bb; border-radius: 6px; color: #17201b; background: white; font: inherit; }

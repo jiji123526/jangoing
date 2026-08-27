@@ -22,6 +22,35 @@ interface QueueDefinition {
   reason: string;
 }
 
+const expirySignals = [
+  "expire",
+  "expiry",
+  "expiring",
+  "expires",
+  "use by",
+  "best by",
+  "tomorrow",
+  "next friday",
+  "next saturday",
+  "next sunday",
+  "next monday",
+  "next tuesday",
+  "next wednesday",
+  "next thursday",
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
+
 export function parseAnnotationQueueQuery(
   input: Record<string, string | undefined>,
 ): AnnotationQueueQuery {
@@ -49,6 +78,35 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
         LIMIT ?`,
         reason: "corrected_prediction",
+      };
+    case "expiry":
+      return {
+        query: `SELECT
+          il.id AS inference_id,
+          il.raw_utterance AS text,
+          il.predicted_interpretation,
+          il.corrected_interpretation,
+          il.parser_version,
+          il.outcome,
+          COALESCE(il.resolved_at, il.created_at) AS created_at
+        FROM inference_logs il
+        LEFT JOIN annotations a ON a.inference_id = il.id
+        WHERE
+          a.id IS NULL
+          AND (${expirySignals
+            .map((signal) => `LOWER(il.raw_utterance) LIKE '%${signal.replaceAll("'", "''")}%'`)
+            .join(" OR ")})
+        ORDER BY
+          CASE il.outcome
+            WHEN 'corrected' THEN 0
+            WHEN 'confirmed' THEN 1
+            WHEN 'pending' THEN 2
+            ELSE 3
+          END,
+          COALESCE(il.resolved_at, il.created_at) ASC,
+          il.id ASC
+        LIMIT ?`,
+        reason: "expiry_phrase_detected",
       };
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);

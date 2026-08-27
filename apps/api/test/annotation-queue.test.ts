@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  annotationQueueQuery,
   buildAnnotationQueueItems,
   parseAnnotationQueueQuery,
 } from "../src/annotations/queue";
@@ -67,5 +68,16 @@ describe("buildAnnotationQueueItems", () => {
         intent: "add_to_buy",
       },
     });
+  });
+});
+
+describe("annotationQueueQuery", () => {
+  it("includes natural-date signals in the expiry queue", () => {
+    const expiryQueue = annotationQueueQuery("expiry");
+
+    expect(expiryQueue.reason).toBe("expiry_phrase_detected");
+    expect(expiryQueue.query).toContain("august");
+    expect(expiryQueue.query).toContain("best by");
+    expect(expiryQueue.query).toContain("next friday");
   });
 });

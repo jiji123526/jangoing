@@ -3,6 +3,7 @@
 import type {
   AnnotationAction,
   AnnotationQueueItem,
+  AnnotationQueueType,
   AnnotationStats,
   DatasetPurpose,
   EntityAnnotation,
@@ -163,14 +164,14 @@ export default function AnnotatePage() {
     setQueueItem(item);
   }
 
-  async function loadCorrectionQueue() {
+  async function loadQueue(type: AnnotationQueueType) {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      const [item] = await getAnnotationQueue("correction", 1);
+      const [item] = await getAnnotationQueue(type, 1);
       if (!item) {
-        setNotice("No unreviewed corrected examples are waiting in the correction queue.");
+        setNotice(`No items are waiting in the ${readable(type)} queue.`);
         return;
       }
       loadQueueSample(item);
@@ -178,10 +179,10 @@ export default function AnnotatePage() {
       setNotice(
         correctedIntent
           ? `Loaded a corrected example. Parser predicted ${readable(item.predicted_interpretation.intent)} and the saved correction prefilled ${readable(correctedIntent)}.`
-          : "Loaded a corrected example from the correction queue.",
+          : `Loaded an item from the ${readable(type)} queue.`,
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load the correction queue.");
+      setError(caught instanceof Error ? caught.message : `Could not load the ${type} queue.`);
     } finally {
       setBusy(false);
     }
@@ -286,10 +287,15 @@ export default function AnnotatePage() {
         <section className={styles.card}>
           <div className={styles.step}><span>1</span><div><b>Create a sample</b><small>Write it as you would actually say it.</small></div></div>
           <div className={styles.queueActions}>
-            <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadCorrectionQueue()}>
-              {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load correction queue
-            </button>
-            <p>Start with corrected examples that still need span labels.</p>
+            <div className={styles.queueButtons}>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("correction")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load correction queue
+              </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("expiry")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load expiry queue
+              </button>
+            </div>
+            <p>Start with corrected examples or sentences that contain expiry language.</p>
           </div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}
