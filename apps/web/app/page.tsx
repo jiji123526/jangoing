@@ -39,6 +39,34 @@ const examples = [
   "Put yogurt on the shopping list",
 ];
 
+const editableIntents: Intent[] = [
+  "add_item",
+  "consume_item",
+  "mark_low",
+  "throw_away",
+  "add_to_buy",
+];
+
+type EditableInterpretation = {
+  intent: Intent;
+  itemName: string;
+  quantity: string;
+  unit: string;
+  location: "" | "fridge" | "freezer" | "pantry";
+  expirationDate: string;
+};
+
+function toEditable(interpretation: Interpretation): EditableInterpretation {
+  return {
+    intent: interpretation.intent,
+    itemName: interpretation.slots.item_name ?? "",
+    quantity: interpretation.slots.quantity?.toString() ?? "",
+    unit: interpretation.slots.unit ?? "",
+    location: interpretation.slots.location ?? "",
+    expirationDate: interpretation.slots.expiration_date ?? "",
+  };
+}
+
 const emptyDashboard: DashboardData = {
   inventory: [],
   events: [],
@@ -64,6 +92,7 @@ export default function Home() {
   const [expiryDate, setExpiryDate] = useState("");
   const [interpretation, setInterpretation] =
     useState<Interpretation | null>(null);
+  const [edited, setEdited] = useState<EditableInterpretation | null>(null);
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -102,6 +131,7 @@ export default function Home() {
         expiryDate || undefined,
       );
       setInterpretation(result);
+      setEdited(toEditable(result));
 
       if (result.intent === "query_inventory" && result.slots.item_name) {
         const item = dashboard.inventory.find(
@@ -123,17 +153,23 @@ export default function Home() {
   }
 
   async function handleConfirm() {
-    if (!interpretation?.slots.item_name) return;
-    const eventType = eventTypeByIntent[interpretation.intent];
+    if (!interpretation || !edited?.itemName.trim()) return;
+    const eventType = eventTypeByIntent[edited.intent];
     if (!eventType) return;
+
+    const quantity = edited.quantity ? Number(edited.quantity) : null;
+    if (quantity !== null && (!Number.isFinite(quantity) || quantity <= 0)) {
+      setError("Quantity must be a number greater than zero.");
+      return;
+    }
 
     const payload: CreateEventRequest = {
       event_type: eventType,
-      item_name: interpretation.slots.item_name,
-      quantity: interpretation.slots.quantity ?? null,
-      unit: interpretation.slots.unit ?? null,
-      location: interpretation.slots.location ?? null,
-      expiration_date: interpretation.slots.expiration_date ?? null,
+      item_name: edited.itemName.trim().toLowerCase(),
+      quantity,
+      unit: edited.unit.trim().toLowerCase() || null,
+      location: edited.location || null,
+      expiration_date: edited.expirationDate || null,
       raw_utterance: interpretation.raw_utterance,
       confidence: interpretation.confidence,
       source: "web",
@@ -143,10 +179,15 @@ export default function Home() {
     setError(null);
 
     try {
-      await createEvent(payload);
+      await createEvent({
+        event: payload,
+        original_interpretation: interpretation,
+        parser_version: "rules-v1",
+      });
       setCommand("");
       setExpiryDate("");
       setInterpretation(null);
+      setEdited(null);
       setNotice(`${titleCase(payload.item_name)} updated.`);
       await loadDashboard();
     } catch (caught) {
@@ -160,10 +201,9 @@ export default function Home() {
 
   const canConfirm =
     interpretation &&
-    interpretation.intent !== "unknown" &&
-    interpretation.intent !== "query_inventory" &&
-    interpretation.slots.item_name &&
-    eventTypeByIntent[interpretation.intent];
+    edited &&
+    edited.itemName.trim() &&
+    eventTypeByIntent[edited.intent];
 
   return (
     <main>
@@ -199,6 +239,7 @@ export default function Home() {
                 onChange={(event) => {
                   setCommand(event.target.value);
                   setInterpretation(null);
+                  setEdited(null);
                   setNotice(null);
                 }}
                 placeholder="We are low on milk"
@@ -232,6 +273,7 @@ export default function Home() {
               onChange={(event) => {
                 setExpiryDate(event.target.value);
                 setInterpretation(null);
+                setEdited(null);
               }}
             />
           </label>
@@ -245,6 +287,7 @@ export default function Home() {
               onClick={() => {
                 setCommand(example);
                 setInterpretation(null);
+                setEdited(null);
                 setNotice(null);
               }}
             >
@@ -262,17 +305,107 @@ export default function Home() {
               <span className={`intent intent-${interpretation.intent}`}>
                 {titleCase(interpretation.intent)}
               </span>
-              {interpretation.intent === "unknown" ? (
-                <p>This command is outside the current MVP patterns.</p>
-              ) : (
-                <dl>
-                  {Object.entries(interpretation.slots).map(([key, value]) => (
-                    <div key={key}>
-                      <dt>{titleCase(key)}</dt>
-                      <dd>{String(value)}</dd>
-                    </div>
-                  ))}
-                </dl>
+              <p className="review-hint">
+                Review every field. Fix anything the parser misunderstood before
+                saving.
+              </p>
+              {edited && (
+                <div className="correction-grid">
+                  <label className="field">
+                    <span>Action</span>
+                    <select
+                      value={edited.intent}
+                      onChange={(event) =>
+                        setEdited({
+                          ...edited,
+                          intent: event.target.value as Intent,
+                        })
+                      }
+                    >
+                      {(edited.intent === "unknown" ||
+                        edited.intent === "query_inventory") && (
+                        <option value={edited.intent}>Choose an action</option>
+                      )}
+                      {editableIntents.map((intent) => (
+                        <option key={intent} value={intent}>
+                          {titleCase(intent)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Item</span>
+                    <input
+                      required
+                      maxLength={120}
+                      value={edited.itemName}
+                      onChange={(event) =>
+                        setEdited({ ...edited, itemName: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span>
+                      Quantity <small>optional</small>
+                    </span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      value={edited.quantity}
+                      onChange={(event) =>
+                        setEdited({ ...edited, quantity: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span>
+                      Unit <small>optional</small>
+                    </span>
+                    <input
+                      maxLength={40}
+                      value={edited.unit}
+                      onChange={(event) =>
+                        setEdited({ ...edited, unit: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span>
+                      Location <small>optional</small>
+                    </span>
+                    <select
+                      value={edited.location}
+                      onChange={(event) =>
+                        setEdited({
+                          ...edited,
+                          location: event.target
+                            .value as EditableInterpretation["location"],
+                        })
+                      }
+                    >
+                      <option value="">Not specified</option>
+                      <option value="fridge">Fridge</option>
+                      <option value="freezer">Freezer</option>
+                      <option value="pantry">Pantry</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>
+                      Expiry date <small>optional</small>
+                    </span>
+                    <input
+                      type="date"
+                      value={edited.expirationDate}
+                      onChange={(event) =>
+                        setEdited({
+                          ...edited,
+                          expirationDate: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
               )}
               <span className="confidence">
                 {Math.round(interpretation.confidence * 100)}% confidence
@@ -283,7 +416,10 @@ export default function Home() {
               <button
                 className="icon-button"
                 type="button"
-                onClick={() => setInterpretation(null)}
+                onClick={() => {
+                  setInterpretation(null);
+                  setEdited(null);
+                }}
                 title="Cancel action"
                 aria-label="Cancel action"
               >

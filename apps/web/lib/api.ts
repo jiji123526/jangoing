@@ -3,7 +3,7 @@ import {
   InterpretationSchema,
   InventoryItemSchema,
   ShoppingListItemSchema,
-  type CreateEventRequest,
+  type ConfirmActionRequest,
   type EventRecord,
   type Interpretation,
   type InventoryItem,
@@ -56,11 +56,11 @@ export async function interpretCommand(
 }
 
 export async function createEvent(
-  event: CreateEventRequest,
+  submission: ConfirmActionRequest,
 ): Promise<EventRecord> {
   const body = await apiRequest("/events", {
     method: "POST",
-    body: JSON.stringify(event),
+    body: JSON.stringify(submission),
   });
 
   return EventRecordSchema.parse(body);

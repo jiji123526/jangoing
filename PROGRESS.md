@@ -2,6 +2,38 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - Editable interpretation review added
+
+### Completed
+
+- Replaced the read-only interpretation preview with editable action, item,
+  quantity, unit, location, and expiry fields.
+- Added a correction-data migration that retains the original prediction and
+  the user's confirmed values alongside the resulting event.
+- Allowed unsupported commands to be recovered by selecting a valid action and
+  filling in the corrected fields.
+
+### Decisions
+
+- Store prediction and correction snapshots separately from inventory events.
+- Record confirmations that needed no edits as useful reviewed examples too.
+- Version the current deterministic parser as `rules-v1`.
+
+### Validation
+
+- Eight parser and projection tests pass.
+- All TypeScript workspaces pass type checking.
+- Cloudflare Worker dry bundle and Next.js production build succeed.
+
+### Blockers
+
+- `None` for local development. Production requires applying migration 0002.
+
+### Next
+
+- Apply the correction migration to D1 and deploy the API and web app.
+- Add natural English date normalization.
+
 ## Entry Template
 
 ```markdown

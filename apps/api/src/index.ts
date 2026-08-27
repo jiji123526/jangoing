@@ -1,5 +1,5 @@
 import {
-  CreateEventRequestSchema,
+  ConfirmActionRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
   type EventRecord,
@@ -85,7 +85,7 @@ async function handleCreateEvent(
   env: Env,
 ): Promise<Response> {
   const body = await request.json();
-  const parsed = CreateEventRequestSchema.safeParse(body);
+  const parsed = ConfirmActionRequestSchema.safeParse(body);
 
   if (!parsed.success) {
     return json(
@@ -96,13 +96,14 @@ async function handleCreateEvent(
     );
   }
 
+  const submission = parsed.data;
   const event: EventRecord = {
     id: crypto.randomUUID(),
-    ...parsed.data,
-    quantity: parsed.data.quantity ?? null,
-    unit: parsed.data.unit ?? null,
-    location: parsed.data.location ?? null,
-    expiration_date: parsed.data.expiration_date ?? null,
+    ...submission.event,
+    quantity: submission.event.quantity ?? null,
+    unit: submission.event.unit ?? null,
+    location: submission.event.location ?? null,
+    expiration_date: submission.event.expiration_date ?? null,
     created_at: new Date().toISOString(),
   };
 
@@ -123,6 +124,47 @@ async function handleCreateEvent(
       event.raw_utterance,
       event.confidence,
       event.source,
+      event.created_at,
+    )
+    .run();
+
+  const correctedInterpretation = {
+    intent: Object.entries({
+      item_added: "add_item",
+      item_consumed: "consume_item",
+      item_marked_low: "mark_low",
+      item_thrown_away: "throw_away",
+      item_added_to_buy: "add_to_buy",
+    }).find(([eventType]) => eventType === event.event_type)?.[1],
+    slots: {
+      item_name: event.item_name,
+      ...(event.quantity !== null ? { quantity: event.quantity } : {}),
+      ...(event.unit !== null ? { unit: event.unit } : {}),
+      ...(event.location !== null ? { location: event.location } : {}),
+      ...(event.expiration_date !== null
+        ? { expiration_date: event.expiration_date }
+        : {}),
+    },
+  };
+  const predicted = {
+    intent: submission.original_interpretation.intent,
+    slots: submission.original_interpretation.slots,
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO corrections (
+      id, event_id, raw_utterance, predicted_interpretation,
+      corrected_interpretation, parser_version, was_corrected, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      crypto.randomUUID(),
+      event.id,
+      event.raw_utterance,
+      JSON.stringify(predicted),
+      JSON.stringify(correctedInterpretation),
+      submission.parser_version,
+      JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
       event.created_at,
     )
     .run();

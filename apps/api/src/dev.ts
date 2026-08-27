@@ -1,5 +1,5 @@
 import {
-  CreateEventRequestSchema,
+  ConfirmActionRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
   type EventRecord,
@@ -23,6 +23,10 @@ const migrationPath = resolve(
   apiDirectory,
   "migrations/0001_create_events.sql",
 );
+const correctionMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0002_create_corrections.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -37,6 +41,10 @@ const migration = readFileSync(migrationPath, "utf8")
   .replace("CREATE TABLE events", "CREATE TABLE IF NOT EXISTS events")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
 database.exec(migration);
+const correctionMigration = readFileSync(correctionMigrationPath, "utf8")
+  .replace("CREATE TABLE corrections", "CREATE TABLE IF NOT EXISTS corrections")
+  .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
+database.exec(correctionMigration);
 
 function readBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolveBody, reject) => {
@@ -133,7 +141,7 @@ async function route(
   }
 
   if (request.method === "POST" && path === "/events") {
-    const parsed = CreateEventRequestSchema.safeParse(await readBody(request));
+    const parsed = ConfirmActionRequestSchema.safeParse(await readBody(request));
     if (!parsed.success) {
       sendJson(
         response,
@@ -144,13 +152,14 @@ async function route(
       return;
     }
 
+    const submission = parsed.data;
     const event: EventRecord = {
       id: crypto.randomUUID(),
-      ...parsed.data,
-      quantity: parsed.data.quantity ?? null,
-      unit: parsed.data.unit ?? null,
-      location: parsed.data.location ?? null,
-      expiration_date: parsed.data.expiration_date ?? null,
+      ...submission.event,
+      quantity: submission.event.quantity ?? null,
+      unit: submission.event.unit ?? null,
+      location: submission.event.location ?? null,
+      expiration_date: submission.event.expiration_date ?? null,
       created_at: new Date().toISOString(),
     };
 
@@ -174,6 +183,42 @@ async function route(
         event.source,
         event.created_at,
       );
+
+    const intentByEventType = {
+      item_added: "add_item",
+      item_consumed: "consume_item",
+      item_marked_low: "mark_low",
+      item_thrown_away: "throw_away",
+      item_added_to_buy: "add_to_buy",
+    } as const;
+    const predicted = {
+      intent: submission.original_interpretation.intent,
+      slots: submission.original_interpretation.slots,
+    };
+    const corrected = {
+      intent: intentByEventType[event.event_type],
+      slots: {
+        item_name: event.item_name,
+        ...(event.quantity !== null ? { quantity: event.quantity } : {}),
+        ...(event.unit !== null ? { unit: event.unit } : {}),
+        ...(event.location !== null ? { location: event.location } : {}),
+        ...(event.expiration_date !== null
+          ? { expiration_date: event.expiration_date }
+          : {}),
+      },
+    };
+    database.prepare(
+      `INSERT INTO corrections (
+        id, event_id, raw_utterance, predicted_interpretation,
+        corrected_interpretation, parser_version, was_corrected, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      crypto.randomUUID(), event.id, event.raw_utterance,
+      JSON.stringify(predicted), JSON.stringify(corrected),
+      submission.parser_version,
+      JSON.stringify(predicted) === JSON.stringify(corrected) ? 0 : 1,
+      event.created_at,
+    );
 
     sendJson(response, origin, event, 201);
     return;

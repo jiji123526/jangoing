@@ -68,6 +68,14 @@ export const CreateEventRequestSchema = z
   })
   .strict();
 
+export const ConfirmActionRequestSchema = z
+  .object({
+    event: CreateEventRequestSchema,
+    original_interpretation: InterpretationSchema,
+    parser_version: z.string().trim().min(1).max(80).default("rules-v1"),
+  })
+  .strict();
+
 export const EventRecordSchema = CreateEventRequestSchema.extend({
   id: z.string(),
   created_at: z.string(),
@@ -109,6 +117,7 @@ export type InterpretCommandRequest = z.infer<
 export type Interpretation = z.infer<typeof InterpretationSchema>;
 export type EventType = z.infer<typeof EventTypeSchema>;
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
+export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;
 export type EventRecord = z.infer<typeof EventRecordSchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;

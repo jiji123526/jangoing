@@ -34,7 +34,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -261,6 +262,7 @@ h1 {
 
 .interpretation-main {
   min-width: 0;
+  flex: 1;
 }
 
 .intent {
@@ -308,10 +310,60 @@ h1 {
   font-size: 0.72rem;
 }
 
+.review-hint {
+  margin: 12px 0 15px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.correction-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.correction-grid input,
+.correction-grid select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid #b9c3bb;
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.correction-grid input:focus,
+.correction-grid select:focus {
+  border-color: var(--green);
+  outline: 3px solid rgba(31, 107, 69, 0.13);
+}
+
 .interpretation-actions {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .interpretation {
+    flex-direction: column;
+  }
+
+  .correction-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .interpretation-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .correction-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .confirm-button {
