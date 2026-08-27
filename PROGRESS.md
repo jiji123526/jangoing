@@ -20,6 +20,9 @@ Add new entries at the top of the log so the latest state is easy to find.
   new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
 - Newly added entity cards now appear at the top of the current action group
   instead of being reordered to the bottom by text span position.
+- Browser text selection in `/annotate` now trims leading and trailing
+  whitespace before creating an entity span, so double-click word picks do not
+  accidentally save the following space.
 - `mark_out` / `item_marked_out` now exist as first-class runtime actions, so
   `we have no milk` can drive an explicit inventory-to-zero update instead of
   being forced into clarification-only handling.

@@ -250,6 +250,21 @@ function normalizedValueFormatError(actions: AnnotationAction[]): string | null 
   return null;
 }
 
+function trimSelectionEdges(text: string): {
+  trimmedText: string;
+  leadingWhitespace: number;
+  trailingWhitespace: number;
+} {
+  const leadingWhitespace = text.match(/^\s*/)?.[0].length ?? 0;
+  const trailingWhitespace = text.match(/\s*$/)?.[0].length ?? 0;
+
+  return {
+    trimmedText: text.trim(),
+    leadingWhitespace,
+    trailingWhitespace,
+  };
+}
+
 function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
   if (!item || item.queue_type !== "expiry") {
     return null;
@@ -575,12 +590,14 @@ export default function AnnotatePage() {
     const range = browserSelection.getRangeAt(0);
     if (!root.contains(range.commonAncestorContainer)) return;
     const text = range.toString();
-    if (!text.trim()) return;
+    const { trimmedText, leadingWhitespace, trailingWhitespace } = trimSelectionEdges(text);
+    if (!trimmedText) return;
     const before = range.cloneRange();
     before.selectNodeContents(root);
     before.setEnd(range.startContainer, range.startOffset);
-    const start = before.toString().length;
-    setSelection({ start, end: start + text.length, text });
+    const start = before.toString().length + leadingWhitespace;
+    const end = start + text.length - leadingWhitespace - trailingWhitespace;
+    setSelection({ start, end, text: trimmedText });
   }
 
   function addEntity(label: EntityLabel) {
