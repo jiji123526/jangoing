@@ -135,6 +135,15 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
 - 확실하지 않은 정규화 값을 추측하지 않는다. 비워 두고 notes에 후보를 기록한다.
 
+### reviewed annotation에서 normalized value 필수 규칙
+
+- `ITEM`, `CATEGORY`, `UNIT`, `LOCATION`, `EXPIRY_DATE`는 reviewed annotation에서
+  normalized value가 **필수**다.
+- `EXPIRY_DATE`의 normalized value는 반드시 `YYYY-MM-DD` 형식이어야 한다.
+- `QUANTITY`는 현재 예외적으로 비워 둘 수 있다. 다만 가능하면 숫자 값으로 채운다.
+- 필수 label의 normalized value가 확실하지 않다면 억지로 틀린 값을 넣지 말고,
+  span 또는 intent 판단 자체를 다시 검토한 뒤 notes에 이유를 남긴다.
+
 `/annotate`는 이 규칙을 지키도록 label별 선택 메뉴를 제공한다. ITEM과 CATEGORY는
 `grocery-v1`, LOCATION은 API contract, QUANTITY와 UNIT은 annotation-v2의 controlled
 value 목록을 사용한다. EXPIRY_DATE는 ISO 형식을 보장하는 날짜 선택기를 사용한다.

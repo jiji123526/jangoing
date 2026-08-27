@@ -40,6 +40,78 @@ describe("CreateAnnotationRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("rejects missing normalized values for reviewed item-style labels", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "add_item",
+        phrase_family: "explicit_add_to_inventory",
+        entities: [{ label: "ITEM", start: 4, end: 8, text: "milk" }],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("requires an ISO-like string normalized value for expiry-date entities", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "add_item",
+        phrase_family: "explicit_add_to_inventory",
+        entities: [{
+          label: "EXPIRY_DATE",
+          start: 18,
+          end: 26,
+          text: "tomorrow",
+          normalized_value: 1,
+        }],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-ISO expiry-date normalized strings", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "add_item",
+        phrase_family: "explicit_add_to_inventory",
+        entities: [{
+          label: "EXPIRY_DATE",
+          start: 18,
+          end: 26,
+          text: "tomorrow",
+          normalized_value: "tomorrow",
+        }],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("still allows quantity entities without normalized values", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "consume_item",
+        phrase_family: "quantity_consumed",
+        entities: [{ label: "QUANTITY", start: 7, end: 10, text: "two" }],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("AnnotationStatsSchema", () => {

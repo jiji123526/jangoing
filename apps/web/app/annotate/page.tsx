@@ -51,11 +51,40 @@ const emptyStats: AnnotationStats = {
   evaluation_candidates: 0,
 };
 
+const normalizedValueRequiredLabels = new Set<EntityLabel>([
+  "ITEM",
+  "CATEGORY",
+  "UNIT",
+  "LOCATION",
+  "EXPIRY_DATE",
+]);
+
 function readable(value: string): string {
   return value
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function missingNormalizedValueError(actions: AnnotationAction[]): string | null {
+  for (const action of actions) {
+    for (const entity of action.entities) {
+      if (!normalizedValueRequiredLabels.has(entity.label)) {
+        continue;
+      }
+      if (entity.label === "EXPIRY_DATE") {
+        if (typeof entity.normalized_value !== "string" || entity.normalized_value.length === 0) {
+          return `Add a normalized expiry date for "${entity.text}" before saving.`;
+        }
+        continue;
+      }
+      if (typeof entity.normalized_value !== "string" || entity.normalized_value.trim().length === 0) {
+        return `Add a normalized value for ${readable(entity.label)} span "${entity.text}" before saving.`;
+      }
+    }
+  }
+
+  return null;
 }
 
 function NormalizedValueControl({
@@ -225,6 +254,11 @@ export default function AnnotatePage() {
 
   async function saveAnnotation() {
     if (!sample) return;
+    const validationError = missingNormalizedValueError(actions);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {

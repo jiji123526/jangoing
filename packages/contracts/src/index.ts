@@ -182,7 +182,53 @@ export const EntityAnnotationSchema = z
     text: z.string().min(1),
     normalized_value: z.union([z.string(), z.number()]).optional(),
   })
-  .refine((entity) => entity.end > entity.start, "Entity end must follow start");
+  .refine((entity) => entity.end > entity.start, "Entity end must follow start")
+  .superRefine((entity, context) => {
+    const requiresNormalizedValue = entity.label !== "QUANTITY";
+    if (requiresNormalizedValue && entity.normalized_value === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["normalized_value"],
+        message: `Normalized value is required for label ${entity.label}`,
+      });
+      return;
+    }
+
+    if (entity.label === "EXPIRY_DATE" && typeof entity.normalized_value !== "string") {
+      context.addIssue({
+        code: "custom",
+        path: ["normalized_value"],
+        message: "EXPIRY_DATE normalized value must be an ISO date string",
+      });
+      return;
+    }
+
+    if (
+      entity.label === "EXPIRY_DATE" &&
+      typeof entity.normalized_value === "string" &&
+      !IsoDateSchema.safeParse(entity.normalized_value).success
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["normalized_value"],
+        message: "EXPIRY_DATE normalized value must be in YYYY-MM-DD format",
+      });
+      return;
+    }
+
+    if (
+      entity.label !== "EXPIRY_DATE" &&
+      entity.label !== "QUANTITY" &&
+      entity.normalized_value !== undefined &&
+      (typeof entity.normalized_value !== "string" || entity.normalized_value.trim().length === 0)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["normalized_value"],
+        message: `Normalized value for label ${entity.label} must be a non-empty string`,
+      });
+    }
+  });
 
 export const DatasetPurposeSchema = z.enum([
   "train_candidate",
