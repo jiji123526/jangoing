@@ -5,8 +5,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 ## Current state as of 2026-08-27
 
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
-  queues, split train/evaluation dataset export validation, task-aware
-  reviewed export filtering, and dynamic normalized-value suggestions.
+  queues, deterministic queue seeding, split train/evaluation dataset export
+  validation, task-aware reviewed export filtering, and dynamic normalized-value
+  suggestions.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
@@ -17,6 +18,36 @@ Add new entries at the top of the log so the latest state is easy to find.
   values, and build the first slot-training dataset and baseline.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Deterministic annotation queue seeding added
+
+### Completed
+
+- Added a deterministic queue-seeding generator for correction, expiry,
+  low-confidence, confirmed, and evaluation-holdout annotation queues.
+- Added a local/remote seeding script at
+  `apps/api/scripts/seed-annotation-queues.ts`.
+- Added root and API workspace commands so queue seed data can be created with
+  one npm command.
+- Made the local seeding path auto-create the SQLite database and apply
+  migrations through 0005 when needed.
+- Documented how to prefill queue data for annotation sessions.
+
+### Decisions
+
+- Seed `inference_logs` directly because queue loading only depends on reviewed
+  inference state, not on events or annotations.
+- Keep seed IDs deterministic and stable so reruns refresh the same namespace
+  instead of creating unbounded duplicate traffic.
+- Leave previously annotated seeded rows intact; reruns upsert the same reviewed
+  examples rather than deleting rows that may already have annotation history.
+
+### Next
+
+- If the curated seed traffic starts feeling repetitive, add a v2 seed set with
+  more lexical variety while keeping the same queue semantics.
+- Use the seed script mainly for annotation bootstrapping and UI workflow
+  testing, not as a substitute for real reviewed user traffic.
 
 ## 2026-08-27 - Dynamic normalized annotation values added
 

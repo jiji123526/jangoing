@@ -33,6 +33,28 @@ the event, correction, inference-log, and annotation schemas through migration
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
+To prefill `/annotate` with deterministic reviewed samples for each queue, run:
+
+```bash
+npm run annotation:seed-queues
+```
+
+The default seed currently targets:
+
+- 36 `correction` samples
+- 48 `expiry` samples
+- 36 `low_confidence` samples
+- 42 `confirmed_unannotated` samples
+- 24 `evaluation_holdout` samples
+
+The script is idempotent for its deterministic ID namespace and prints the
+actual local queue counts after seeding. To seed the production D1 instead,
+after migrations are already applied, run:
+
+```bash
+npm run annotation:seed-queues -- --remote
+```
+
 ## ML Setup
 
 Use Python 3.11 or newer. The macOS system Python may be older, so verify with

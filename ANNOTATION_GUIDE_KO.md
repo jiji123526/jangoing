@@ -57,6 +57,29 @@ queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편
 이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation
 holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 선택된다.
 
+로컬 annotation queue를 빠르게 채우고 싶다면 아래 명령으로 deterministic synthetic
+reviewed sample을 넣을 수 있다.
+
+```bash
+npm run annotation:seed-queues
+```
+
+기본 seed 수량은 다음과 같다.
+
+- `correction`: 36
+- `expiry`: 48
+- `low_confidence`: 36
+- `confirmed_unannotated`: 42
+- `evaluation_holdout`: 24
+
+이 스크립트는 `apps/api/.local/jangoing.sqlite`가 없으면 자동으로 만들고 migration
+0005까지 적용한다. 이미 같은 seed ID가 있으면 같은 row를 갱신하므로 반복 실행해도
+안전하다. production D1에 넣고 싶다면 root에서 다음처럼 실행한다.
+
+```bash
+npm run annotation:seed-queues -- --remote
+```
+
 ### Queue별 데이터 의미와 목적
 
 #### `correction queue`
