@@ -83,6 +83,9 @@ holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 �
 - 주의:
   expiry signal이 들어간다고 모두 정확한 expiry action은 아니므로, 실제 intent와
   entity span은 사람이 다시 확정해야 한다.
+  expiry queue 샘플에는 parser가 계산한 ISO expiry date가 있으면
+  `Apply parsed expiry date` helper 버튼이 나타난다. 먼저 사람이 정확한
+  `EXPIRY_DATE` span을 만든 뒤, 그 값이 맞아 보일 때만 적용한다.
 
 #### `low-confidence queue`
 

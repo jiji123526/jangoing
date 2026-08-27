@@ -87,6 +87,24 @@ function missingNormalizedValueError(actions: AnnotationAction[]): string | null
   return null;
 }
 
+function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
+  if (!item || item.queue_type !== "expiry") {
+    return null;
+  }
+
+  const reviewedExpiry = item.reviewed_interpretation?.slots.expiration_date;
+  if (typeof reviewedExpiry === "string" && reviewedExpiry.length > 0) {
+    return reviewedExpiry;
+  }
+
+  const predictedExpiry = item.predicted_interpretation.slots.expiration_date;
+  if (typeof predictedExpiry === "string" && predictedExpiry.length > 0) {
+    return predictedExpiry;
+  }
+
+  return null;
+}
+
 function NormalizedValueControl({
   entity,
   onChange,
@@ -146,6 +164,7 @@ export default function AnnotatePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const expirySuggestion = suggestedExpiryDate(queueItem);
 
   useEffect(() => {
     void getAnnotationStats()
@@ -208,6 +227,8 @@ export default function AnnotatePage() {
       setNotice(
         type === "evaluation_holdout"
           ? "Loaded a reviewed holdout example and preselected it as an evaluation candidate."
+          : type === "expiry"
+          ? "Loaded an expiry-focused example. Mark the date span, then apply the parsed expiry date if it looks correct."
           : correctedIntent
           ? `Loaded a corrected example. Parser predicted ${readable(item.predicted_interpretation.intent)} and the saved correction prefilled ${readable(correctedIntent)}.`
           : `Loaded an item from the ${readable(type)} queue.`,
@@ -250,6 +271,33 @@ export default function AnnotatePage() {
     setSelection(null);
     window.getSelection()?.removeAllRanges();
     setError(null);
+  }
+
+  function applySuggestedExpiryDate() {
+    if (!expirySuggestion) {
+      setError("No parsed expiry date is available for this queue item.");
+      return;
+    }
+
+    const activeEntities = actions[activeActionIndex]?.entities ?? [];
+    const hasExpiryEntity = activeEntities.some((entity) => entity.label === "EXPIRY_DATE");
+    if (!hasExpiryEntity) {
+      setError("Add an EXPIRY_DATE span to the active action before applying the parsed date.");
+      return;
+    }
+
+    setActions((current) => current.map((action, index) =>
+      index === activeActionIndex
+        ? {
+            ...action,
+            entities: action.entities.map((entity) =>
+              entity.label === "EXPIRY_DATE"
+                ? { ...entity, normalized_value: expirySuggestion }
+                : entity),
+          }
+        : action));
+    setError(null);
+    setNotice(`Applied parsed expiry date ${expirySuggestion} to EXPIRY_DATE span(s) in Action ${activeActionIndex + 1}.`);
   }
 
   async function saveAnnotation() {
@@ -408,6 +456,14 @@ export default function AnnotatePage() {
               <div className={styles.labelBar}>
                 {labels.map((label) => <button type="button" key={label} disabled={!selection} onClick={() => addEntity(label)}>{label}</button>)}
               </div>
+              {expirySuggestion ? (
+                <p className={styles.inputHint}>
+                  Expiry queue helper: parser suggested <code>{expirySuggestion}</code>.{" "}
+                  <button type="button" className={styles.secondaryButton} onClick={applySuggestedExpiryDate}>
+                    Apply parsed expiry date
+                  </button>
+                </p>
+              ) : null}
               {selection && <p className={styles.selection}>Selected: “{selection.text}” [{selection.start}, {selection.end}]</p>}
               <div className={styles.entityList}>
                 {actions.map((action, actionIndex) => (
