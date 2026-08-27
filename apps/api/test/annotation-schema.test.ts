@@ -56,6 +56,42 @@ describe("CreateAnnotationRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts item-condition entities when they carry a normalized value", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "add_to_buy",
+        phrase_family: "purchase_request",
+        entities: [
+          { label: "ITEM_CONDITION", start: 4, end: 10, text: "frozen", normalized_value: "frozen" },
+          { label: "ITEM", start: 11, end: 22, text: "blueberries", normalized_value: "blueberry" },
+        ],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing normalized values for item-condition entities", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "throw_away",
+        phrase_family: "spoiled_item_discard",
+        entities: [
+          { label: "ITEM_CONDITION", start: 16, end: 23, text: "spoiled" },
+          { label: "ITEM", start: 24, end: 28, text: "milk", normalized_value: "milk" },
+        ],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("requires an ISO-like string normalized value for expiry-date entities", () => {
     const result = CreateAnnotationRequestSchema.safeParse({
       inference_id: inferenceId,

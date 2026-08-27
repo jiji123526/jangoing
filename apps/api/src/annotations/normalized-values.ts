@@ -13,6 +13,7 @@ export interface AnnotationNormalizedValueRow {
 function emptyAnnotationNormalizedValues(): AnnotationNormalizedValuesResponse {
   return {
     ITEM: [...AnnotationNormalizedValues.ITEM],
+    ITEM_CONDITION: [...AnnotationNormalizedValues.ITEM_CONDITION],
     CATEGORY: [...AnnotationNormalizedValues.CATEGORY],
     QUANTITY: [...AnnotationNormalizedValues.QUANTITY],
     UNIT: [...AnnotationNormalizedValues.UNIT],
@@ -68,6 +69,7 @@ export function collectAnnotationNormalizedValues(
   const values = emptyAnnotationNormalizedValues();
   const stringBuckets = {
     ITEM: new Set(values.ITEM),
+    ITEM_CONDITION: new Set(values.ITEM_CONDITION),
     CATEGORY: new Set(values.CATEGORY),
     UNIT: new Set(values.UNIT),
     LOCATION: new Set(values.LOCATION),
@@ -101,6 +103,7 @@ export function collectAnnotationNormalizedValues(
       }
 
       if (entity.label === "ITEM") stringBuckets.ITEM.add(normalizedValue);
+      if (entity.label === "ITEM_CONDITION") stringBuckets.ITEM_CONDITION.add(normalizedValue);
       if (entity.label === "CATEGORY") stringBuckets.CATEGORY.add(normalizedValue);
       if (entity.label === "UNIT") stringBuckets.UNIT.add(normalizedValue);
       if (entity.label === "LOCATION") stringBuckets.LOCATION.add(normalizedValue);
@@ -110,6 +113,7 @@ export function collectAnnotationNormalizedValues(
 
   return AnnotationNormalizedValuesResponseSchema.parse({
     ITEM: [...stringBuckets.ITEM].sort((left, right) => left.localeCompare(right)),
+    ITEM_CONDITION: [...stringBuckets.ITEM_CONDITION].sort((left, right) => left.localeCompare(right)),
     CATEGORY: [...stringBuckets.CATEGORY].sort((left, right) => left.localeCompare(right)),
     QUANTITY: [...quantityBucket].sort((left, right) => left - right),
     UNIT: [...stringBuckets.UNIT].sort((left, right) => left.localeCompare(right)),

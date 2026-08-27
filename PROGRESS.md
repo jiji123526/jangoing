@@ -9,6 +9,12 @@ Add new entries at the top of the log so the latest state is easy to find.
   train/evaluation dataset export validation, task-aware reviewed export
   filtering, dynamic normalized-value suggestions, and assistant-draft proposal
   plumbing.
+- Annotation now supports `ITEM_CONDITION` as a first-class entity label, so
+  phrases such as `ripe bananas`, `frozen blueberries`, and `spoiled milk` can
+  be split into condition + item instead of collapsing everything into `ITEM`.
+- Shared canonical defaults now also include `blueberry`, and the synthetic
+  taxonomy no longer treats condition-like phrases such as `ripe bananas` or
+  `fresh strawberries` as plain ITEM aliases.
 - `/annotate` now auto-loads one `generated_review` sample on first page entry
   so annotation can start immediately from pregenerated coverage data.
 - After each successful save, `/annotate` now automatically opens the next item
@@ -17,13 +23,14 @@ Add new entries at the top of the log so the latest state is easy to find.
 - After each successful save, `/annotate` also resets the page scroll to the top
   so the next sample starts at the beginning of the workflow.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
-  new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
+  new ITEM/ITEM_CONDITION/CATEGORY/UNIT values can be added inline with a
+  `Save ...` helper.
 - Newly added entity cards now appear at the top of the current action group
   instead of being reordered to the bottom by text span position.
 - Browser text selection in `/annotate` now trims leading and trailing
   whitespace before creating an entity span, so double-click word picks do not
   accidentally save the following space.
-- `synthetic-v1` now regenerates against a broader grocery taxonomy with 33
+- `synthetic-v1` now regenerates against a broader grocery taxonomy with 34
   canonical food/drink items and rotates English aliases so generated_review
   coverage is less concentrated on the original tiny item set.
 - The repo now includes a Korean survey of relevant open-source datasets and a
@@ -32,6 +39,40 @@ Add new entries at the top of the log so the latest state is easy to find.
 - `mark_out` / `item_marked_out` now exist as first-class runtime actions, so
   `we have no milk` can drive an explicit inventory-to-zero update instead of
   being forced into clarification-only handling.
+
+## 2026-08-27 - Item-condition annotation support added
+
+### Completed
+
+- Added `ITEM_CONDITION` to the shared annotation entity-label contract.
+- Added default normalized-value suggestions for common condition values such as
+  `ripe`, `fresh`, `spoiled`, `frozen`, and `thawed`.
+- Updated `/annotate` so ITEM_CONDITION can be labeled, requires a normalized
+  value, and can grow its canonical list inline with the same `Save ...`
+  workflow used by ITEM/ITEM_CONDITION/CATEGORY/UNIT.
+- Updated normalized-value aggregation so reviewed ITEM_CONDITION values are
+  returned from the API and reused as future annotation suggestions.
+- Added schema and aggregation tests for condition entities.
+- Added `blueberry` to the shared canonical item defaults and cleaned the
+  synthetic taxonomy to stop treating condition phrases as plain item aliases.
+
+### Decisions
+
+- Treat temporary state modifiers such as `ripe`, `frozen`, `spoiled`, and
+  `moldy` as `ITEM_CONDITION`, not as part of ITEM canonical identity.
+- Keep subtype or market-name expressions such as `oat milk`, `green tea`,
+  `ground coffee`, and `baby spinach` inside `ITEM` unless the household wants
+  a separate canonical item.
+- Limit this change to annotation/data-contract support for now; runtime parser
+  and event semantics for condition-aware actions remain future work.
+- Keep synthetic-v1 free of alias-embedded condition phrases, but defer full
+  synthetic `ITEM_CONDITION` span generation to a later dataset pass.
+
+### Validation
+
+- `python3 ml/data_generation/generate_synthetic.py`
+- `npm run test --workspace @jangoing/api`
+- `npm run typecheck`
 
 ## 2026-08-27 - Open dataset adoption plan documented
 
@@ -59,7 +100,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Completed
 
 - Expanded `ml/taxonomy/grocery-v1.json` from the original tiny starter set to
-  33 canonical products across dairy, produce, greens, protein, breakfast,
+  34 canonical products across dairy, produce, greens, protein, breakfast,
   staple, beverage, snack, and sweet categories.
 - Updated the synthetic generator so it no longer always uses the first alias
   for each product/category and instead rotates deterministic English surface

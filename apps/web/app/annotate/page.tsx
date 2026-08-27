@@ -44,6 +44,7 @@ const intents: Intent[] = [
 ];
 const labels: EntityLabel[] = [
   "ITEM",
+  "ITEM_CONDITION",
   "CATEGORY",
   "QUANTITY",
   "UNIT",
@@ -59,6 +60,7 @@ const emptyStats: AnnotationStats = {
 
 const normalizedValueRequiredLabels = new Set<EntityLabel>([
   "ITEM",
+  "ITEM_CONDITION",
   "CATEGORY",
   "UNIT",
   "LOCATION",
@@ -66,6 +68,7 @@ const normalizedValueRequiredLabels = new Set<EntityLabel>([
 ]);
 const freeformNormalizedValueLabels = new Set<EntityLabel>([
   "ITEM",
+  "ITEM_CONDITION",
   "CATEGORY",
   "UNIT",
 ]);
@@ -107,6 +110,7 @@ function missingNormalizedValueError(actions: AnnotationAction[]): string | null
 function initialNormalizedValueOptions(): AnnotationNormalizedValuesResponse {
   return {
     ITEM: [...AnnotationNormalizedValues.ITEM],
+    ITEM_CONDITION: [...AnnotationNormalizedValues.ITEM_CONDITION],
     CATEGORY: [...AnnotationNormalizedValues.CATEGORY],
     QUANTITY: [...AnnotationNormalizedValues.QUANTITY],
     UNIT: [...AnnotationNormalizedValues.UNIT],
@@ -121,6 +125,7 @@ function mergeNormalizedValueOptions(
 ): AnnotationNormalizedValuesResponse {
   const stringBuckets = {
     ITEM: new Set(current.ITEM),
+    ITEM_CONDITION: new Set(current.ITEM_CONDITION),
     CATEGORY: new Set(current.CATEGORY),
     UNIT: new Set(current.UNIT),
     LOCATION: new Set(current.LOCATION),
@@ -154,6 +159,7 @@ function mergeNormalizedValueOptions(
       }
 
       if (entity.label === "ITEM") stringBuckets.ITEM.add(normalizedValue);
+      if (entity.label === "ITEM_CONDITION") stringBuckets.ITEM_CONDITION.add(normalizedValue);
       if (entity.label === "CATEGORY") stringBuckets.CATEGORY.add(normalizedValue);
       if (entity.label === "UNIT") stringBuckets.UNIT.add(normalizedValue);
       if (entity.label === "LOCATION") stringBuckets.LOCATION.add(normalizedValue);
@@ -163,6 +169,7 @@ function mergeNormalizedValueOptions(
 
   return {
     ITEM: [...stringBuckets.ITEM].sort((left, right) => left.localeCompare(right)),
+    ITEM_CONDITION: [...stringBuckets.ITEM_CONDITION].sort((left, right) => left.localeCompare(right)),
     CATEGORY: [...stringBuckets.CATEGORY].sort((left, right) => left.localeCompare(right)),
     QUANTITY: [...quantityBucket].sort((left, right) => left - right),
     UNIT: [...stringBuckets.UNIT].sort((left, right) => left.localeCompare(right)),
@@ -185,6 +192,12 @@ function mergeSingleNormalizedValueOption(
       return {
         ...current,
         ITEM: [...new Set([...current.ITEM, value])].sort((left, right) => left.localeCompare(right)),
+      };
+    case "ITEM_CONDITION":
+      return {
+        ...current,
+        ITEM_CONDITION: [...new Set([...current.ITEM_CONDITION, value])]
+          .sort((left, right) => left.localeCompare(right)),
       };
     case "CATEGORY":
       return {
@@ -217,6 +230,8 @@ function freeformOptionsForLabel(
   switch (label) {
     case "ITEM":
       return options.ITEM;
+    case "ITEM_CONDITION":
+      return options.ITEM_CONDITION;
     case "CATEGORY":
       return options.CATEGORY;
     case "UNIT":

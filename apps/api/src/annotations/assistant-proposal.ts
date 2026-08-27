@@ -133,6 +133,7 @@ function systemPrompt(): string {
     "- intent",
     "- optional phrase_family",
     "- entities with label, exact text from the utterance, and normalized_value when clear",
+    "Use ITEM_CONDITION for modifiers like ripe, frozen, fresh, expired, spoiled, or moldy when they describe the item's state, and use ITEM for the item noun itself.",
     "Do not invent text that does not appear in the utterance.",
     "If unsure, omit the entity instead of hallucinating it.",
     "Prefer conservative intents such as needs_clarification over overcommitting.",

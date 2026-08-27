@@ -9,8 +9,13 @@ python ml/data_generation/generate_synthetic.py
 ```
 
 The current `synthetic-v1` keeps the same 800 balanced records but now draws
-from a broader 33-item grocery taxonomy and rotates English aliases for more
-surface variation.
+from a broader 34-item grocery taxonomy and rotates English aliases for more
+surface variation. Condition-like modifiers such as `ripe` and `fresh` are no
+longer embedded inside item aliases, so synthetic ITEM spans stay aligned with
+the annotation rule that temporary states should be labeled separately as
+`ITEM_CONDITION`. The generator still does not emit comprehensive
+`ITEM_CONDITION` span labels by itself, so use reviewed annotation rather than
+raw synthetic data for condition-sensitive slot training.
 
 ```bash
 python3 -m venv ml/.venv

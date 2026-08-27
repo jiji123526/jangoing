@@ -68,6 +68,7 @@ export const InferenceOutcomeSchema = z.enum([
 
 export const EntityLabelSchema = z.enum([
   "ITEM",
+  "ITEM_CONDITION",
   "CATEGORY",
   "QUANTITY",
   "UNIT",
@@ -112,6 +113,21 @@ export const AnnotationNormalizedValues = {
     "cookies",
     "ice_cream",
     "peanut_butter",
+    "blueberry",
+  ],
+  ITEM_CONDITION: [
+    "ripe",
+    "unripe",
+    "overripe",
+    "fresh",
+    "stale",
+    "expired",
+    "spoiled",
+    "rotten",
+    "moldy",
+    "frozen",
+    "thawed",
+    "bruised",
   ],
   CATEGORY: [
     "beverage",
@@ -355,6 +371,7 @@ export const AnnotationQueueResponseSchema = z.object({
 
 export const AnnotationNormalizedValuesResponseSchema = z.object({
   ITEM: z.array(z.string().trim().min(1)),
+  ITEM_CONDITION: z.array(z.string().trim().min(1)),
   CATEGORY: z.array(z.string().trim().min(1)),
   QUANTITY: z.array(z.number()),
   UNIT: z.array(z.string().trim().min(1)),

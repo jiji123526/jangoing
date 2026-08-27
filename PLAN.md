@@ -100,9 +100,15 @@ These limitations are acceptable only while every state-changing action requires
   context and reviewed export, but they are not yet surfaced in the annotation
   UI or used for deeper timezone-aware normalization logic.
 - Reviewed annotations now enforce normalized-value completeness for
-  ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
-- ITEM, CATEGORY, and UNIT normalized values can now grow directly from
+  ITEM, ITEM_CONDITION, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
+- ITEM, ITEM_CONDITION, CATEGORY, and UNIT normalized values can now grow directly from
   reviewed annotation history, but canonical drift governance is still manual.
+- Annotation schema now supports `ITEM_CONDITION` for modifiers such as
+  `ripe`, `frozen`, and `spoiled`, but parser/runtime consumption of that signal
+  is still a later step.
+- The synthetic bootstrap dataset no longer hides condition phrases inside item
+  aliases such as `ripe bananas`, but it still does not emit comprehensive
+  `ITEM_CONDITION` span labels for condition-sensitive slot training.
 - Assistant drafts can accelerate labeling, but they are not a substitute for
   human review and do not yet provide calibrated confidence per span.
 - The single-action baseline gate is still implicit in ML code rather than a

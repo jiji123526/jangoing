@@ -152,6 +152,9 @@ The current language layer is a deterministic regular-expression parser, not a t
 - Item normalization currently contains only a small alias list.
 - Assistant drafts are annotation helpers only. They can miss spans, choose the
   wrong phrase family, or fall back to the parser when no OpenAI key is configured.
+- `ITEM_CONDITION` is available in reviewed annotation, but the runtime parser
+  and bootstrap synthetic generator do not yet emit that entity label
+  consistently on their own.
 - Shopping-list removal, authentication, and multiple households are not implemented.
 - Multi-turn context, user goals, recommendation ranking, and deal-provider
   integrations are roadmap items, not current capabilities.

@@ -24,23 +24,30 @@ describe("collectAnnotationNormalizedValues", () => {
                 normalized_value: "plant_milk",
               },
               {
-                label: "UNIT",
+                label: "ITEM_CONDITION",
                 start: 15,
-                end: 22,
+                end: 21,
+                text: "frozen",
+                normalized_value: "frozen",
+              },
+              {
+                label: "UNIT",
+                start: 22,
+                end: 29,
                 text: "gallons",
                 normalized_value: "gallon",
               },
               {
                 label: "QUANTITY",
-                start: 23,
-                end: 26,
+                start: 30,
+                end: 33,
                 text: "1.5",
                 normalized_value: 1.5,
               },
               {
                 label: "EXPIRY_DATE",
-                start: 27,
-                end: 35,
+                start: 34,
+                end: 42,
                 text: "tomorrow",
                 normalized_value: "2026-08-28",
               },
@@ -53,6 +60,7 @@ describe("collectAnnotationNormalizedValues", () => {
 
     expect(values.ITEM).toContain("milk");
     expect(values.ITEM).toContain("oat_milk");
+    expect(values.ITEM_CONDITION).toContain("frozen");
     expect(values.CATEGORY).toContain("plant_milk");
     expect(values.UNIT).toContain("gallon");
     expect(values.QUANTITY).toContain(1.5);
@@ -79,9 +87,16 @@ describe("collectAnnotationNormalizedValues", () => {
             normalized_value: "fridge",
           },
           {
-            label: "QUANTITY",
+            label: "ITEM_CONDITION",
             start: 13,
-            end: 16,
+            end: 17,
+            text: "ripe",
+            normalized_value: "ripe",
+          },
+          {
+            label: "QUANTITY",
+            start: 18,
+            end: 21,
             text: "two",
             normalized_value: "2",
           },
@@ -107,6 +122,7 @@ describe("collectAnnotationNormalizedValues", () => {
     ]);
 
     expect(values.ITEM.filter((value) => value === "egg")).toHaveLength(1);
+    expect(values.ITEM_CONDITION.filter((value) => value === "ripe")).toHaveLength(1);
     expect(values.LOCATION.filter((value) => value === "fridge")).toHaveLength(1);
     expect(values.QUANTITY.filter((value) => value === 2)).toHaveLength(1);
   });
