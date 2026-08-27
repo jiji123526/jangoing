@@ -162,7 +162,8 @@ function interpretation(
     intent,
     slots,
     confidence,
-    requires_confirmation: intent === "throw_away" || confidence < 0.85,
+    requires_confirmation:
+      intent === "throw_away" || intent === "mark_out" || confidence < 0.85,
     raw_utterance: rawUtterance,
   };
 }
@@ -198,6 +199,27 @@ export function parseCommand(
       "add_to_buy",
       parseItemPhrase(needMatch[1]),
       0.88,
+    );
+  }
+
+  const outPatterns = [
+    /^(?:(?:we are|we're)\s+)?out of\s+(.+)$/i,
+    /^(?:(?:we have|we've got|there is|there's|there are)\s+)?no\s+(.+?)(?:\s+left)?$/i,
+    /^(?:we do not have|we don't have)\s+(?:any\s+)?(.+?)(?:\s+left)?$/i,
+    /^(.+?)\s+(?:is|are)\s+gone$/i,
+  ];
+
+  for (const pattern of outPatterns) {
+    const match = text.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    return interpretation(
+      rawUtterance,
+      "mark_out",
+      parseItemPhrase(match[1]),
+      0.95,
     );
   }
 

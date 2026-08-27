@@ -44,7 +44,7 @@ jangoing의 언어 시스템은 문장을 보고 다음 질문에 답해야 한�
 }
 ```
 
-반면 다음 문장은 관련 요청이지만 바로 실행하기에는 모호하다.
+반면 다음 문장은 현재 재고가 0이라는 상태를 직접 보고한다.
 
 ```text
 "We're out of drinks"
@@ -52,7 +52,7 @@ jangoing의 언어 시스템은 문장을 보고 다음 질문에 답해야 한�
 
 ```json
 {
-  "intent": "needs_clarification",
+  "intent": "mark_out",
   "entities": [
     {"label": "CATEGORY", "text": "drinks"}
   ],
@@ -159,6 +159,7 @@ annotation disagreement라고 볼 수 있다.
 - `add_item`: 재고 추가
 - `consume_item`: 사용 또는 소비
 - `mark_low`: 부족 상태 표시
+- `mark_out`: 재고 0 상태 표시
 - `throw_away`: 폐기
 - `add_to_buy`: 쇼핑 목록 추가
 - `query_inventory`: 재고 질문

@@ -35,6 +35,7 @@ const intents: Intent[] = [
   "update_expiry",
   "consume_item",
   "mark_low",
+  "mark_out",
   "throw_away",
   "add_to_buy",
   "query_inventory",

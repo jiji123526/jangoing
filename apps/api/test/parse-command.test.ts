@@ -27,6 +27,19 @@ describe("parseCommand", () => {
     });
   });
 
+  it("parses out-of-stock statements as mark_out", () => {
+    expect(parseCommand({ text: "We have no eggs" })).toMatchObject({
+      intent: "mark_out",
+      slots: { item_name: "egg" },
+      requires_confirmation: true,
+    });
+    expect(parseCommand({ text: "We're out of milk" })).toMatchObject({
+      intent: "mark_out",
+      slots: { item_name: "milk" },
+      requires_confirmation: true,
+    });
+  });
+
   it("requires confirmation for discarded items", () => {
     expect(parseCommand({ text: "Throw away the spinach" })).toMatchObject({
       intent: "throw_away",

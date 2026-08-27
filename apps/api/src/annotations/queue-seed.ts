@@ -120,7 +120,8 @@ function interpretation(
     intent,
     slots,
     confidence,
-    requires_confirmation: intent === "throw_away" || confidence < 0.85,
+    requires_confirmation:
+      intent === "throw_away" || intent === "mark_out" || confidence < 0.85,
     raw_utterance: rawUtterance,
   };
 }

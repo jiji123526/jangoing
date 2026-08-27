@@ -64,6 +64,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 | `update_expiry` | 기존 item의 유통기한 정보를 추가·수정·명시하는 요청/보고 | `The milk expires next Friday.` |
 | `consume_item` | 먹거나 사용해서 재고가 줄었다는 보고 | `I used one egg.` |
 | `mark_low` | 아직 남아 있지만 부족하거나 거의 소진됨 | `We're low on eggs.` |
+| `mark_out` | 현재 재고가 0이라는 상태를 확정적으로 보고 | `We have no milk.` |
 | `throw_away` | 버렸거나 폐기하라는 요청 | `Throw away the spinach.` |
 | `add_to_buy` | 쇼핑 목록에 추가하라는 명시적 요청 | `Put yogurt on the shopping list.` |
 | `query_inventory` | 보유 여부·수량·위치·유통기한을 묻는 요청 | `Do we have milk?` |
@@ -73,11 +74,11 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 ### 부족함을 말하는 표현
 
 - `We're low on milk`처럼 조금 남았다는 의미이면 `mark_low`다.
-- `We're out of milk`는 재고가 0이라는 상태를 말하지만 현재 intent에는 `mark_out`이
-  없다. 쇼핑 목록 추가가 **명시되지 않았다면** 자동으로 `add_to_buy`로 바꾸지 않고
-  `needs_clarification`으로 둔다.
-- `We're out of milk, add it to the list`는 명시적인 최종 요청이 있으므로
-  `add_to_buy`다.
+- `We're out of milk`, `We have no milk`, `There is no yogurt left`처럼
+  **현재 재고가 0이라고 직접 말하면** `mark_out`이다.
+- 쇼핑 목록 추가가 **명시되지 않았다면** `mark_out`을 `add_to_buy`로 바꾸지 않는다.
+- `We're out of milk, add it to the list`는 두 action으로 나눈다.
+  Action 1은 `mark_out`, Action 2는 `add_to_buy`다.
 - `We're out of drinks`도 같은 규칙을 적용하며 `drinks`는 `CATEGORY`다.
 
 ### `add_item`과 `update_expiry`
@@ -231,7 +232,7 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   직접 말해지면 `consume_item > finished_item_report`다.
   `low on`, `almost out`, `only one left`처럼 **아직 조금 남은 상태**면 `mark_low`다.
   `out of`처럼 **0개 상태만 보이고 event나 다음 action이 명시되지 않으면**
-  `needs_clarification > state_out_of_entity`다.
+  `mark_out > state_out_of_entity`다.
 
 - `consumed_item_report` vs `used_item_report` vs `quantity_consumed`
   `ate`, `drank`처럼 **섭취**가 중심이면 `consumed_item_report`,
@@ -348,7 +349,7 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   특정 item을 **다 써서 끝냈다**는 완료 상태 보고다.
   예: `We finished the milk.`, `I used up the yogurt.`
   단순 low 상태는 `mark_low`이고, `We're out of milk`처럼 결과 상태만 있고 실제
-  소비 event가 명시되지 않으면 `needs_clarification`의 `state_out_of_entity`를 쓴다.
+  소비 event가 명시되지 않으면 `mark_out`의 `state_out_of_entity`를 쓴다.
 
 - `quantity_consumed`
   소비나 사용의 핵심이 **정확한 소모량**에 있다.
@@ -378,6 +379,17 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   현재 남은 양이 적다는 점이 **수량 표현으로 직접 드러난다**.
   예: `We only have one egg left.`, `There's half a carton left.`
   단순 yes/no 질문은 query이고, 완전 소진이면 `state_out_of_entity`다.
+
+#### `mark_out`
+
+- `state_out_of_entity`
+  `We're out of ...`, `We have no ...`, `There is no ... left`처럼
+  **현재 재고가 0이라는 상태**를 직접 말한다.
+  예: `We're out of milk.`, `We have no eggs.`, `There are no drinks left.`
+  이 family는 **상태가 0이라는 관측**이지, 소비 원인 보고가 아니다.
+  따라서 `We used up the milk`처럼 원인이 분명한 completed consumption event는
+  `finished_item_report`를 우선한다.
+  `Add it to the list` 같은 후속 행동이 함께 있으면 별도 action으로 분리한다.
 
 #### `throw_away`
 
@@ -421,7 +433,7 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   화자가 **사야 한다는 필요성**을 진술한다.
   예: `We need to buy milk.`, `I need eggs.`
   imperative tone이 강하면 `purchase_request`가 더 맞다. 단순 부족 상태 보고만 있고
-  구매 요청이 명시되지 않으면 `mark_low` 또는 `needs_clarification`을 본다.
+  구매 요청이 명시되지 않으면 `mark_low` 또는 `mark_out`을 본다.
 
 - `shopping_reminder`
   나중 쇼핑을 위한 **메모/리마인더**다.
@@ -452,13 +464,6 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   하나를 고른다. 둘 다 독립 질문이면 action을 나눈다.
 
 #### `needs_clarification`
-
-- `state_out_of_entity`
-  `We're out of ...`처럼 **0개 상태는 보이지만 시스템이 취할 행동이 명시되지 않은**
-  경우다.
-  예: `We're out of milk.`, `We're out of drinks.`
-  `Add it to the list`가 이어지면 해당 action은 `add_to_buy`로 따로 라벨링한다.
-  실제로 다 먹었음을 보고하는 완결 event라면 `finished_item_report`를 검토한다.
 
 - `unresolved_reference`
   `that`, `it`, `the usual one`처럼 **지시 대상이 현재 문장만으로 복원되지 않는다**.

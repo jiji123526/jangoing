@@ -153,6 +153,7 @@ MVP intents:
 - `add_item`
 - `consume_item`
 - `mark_low`
+- `mark_out`
 - `throw_away`
 - `add_to_buy`
 - `query_inventory`
@@ -377,6 +378,7 @@ After the TF-IDF baseline and frozen human test set, compare
 - `add_item`
 - `consume_item`
 - `mark_low`
+- `mark_out`
 - `throw_away`
 - `add_to_buy`
 - `query_inventory`

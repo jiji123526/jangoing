@@ -101,6 +101,11 @@ export function projectInventory(
       state.forcedStatus = "low";
     }
 
+    if (event.event_type === "item_marked_out") {
+      state.batches = [];
+      state.forcedStatus = "out";
+    }
+
     if (event.event_type === "item_thrown_away") {
       state.batches = [];
       state.forcedStatus = "out";

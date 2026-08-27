@@ -453,6 +453,7 @@ async function handleCreateEvent(
       item_added: "add_item",
       item_consumed: "consume_item",
       item_marked_low: "mark_low",
+      item_marked_out: "mark_out",
       item_thrown_away: "throw_away",
       item_added_to_buy: "add_to_buy",
     }).find(([eventType]) => eventType === event.event_type)?.[1],

@@ -499,7 +499,7 @@ API도 intent와 family 조합을 검증하므로 메뉴 밖의 임의 문자열
 예:
 
 - `We're low on milk` → `state_low_on_entity`
-- `We're out of drinks` → `state_out_of_entity`
+- `We're out of drinks` → `mark_out` intent + `state_out_of_entity`
 - `Add milk to the list` → `explicit_add_to_list`
 - `Do we have milk?` → `yes_no_inventory_query`
 - `Put that on the list` → `unresolved_reference`

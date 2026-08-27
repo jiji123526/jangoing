@@ -66,6 +66,25 @@ describe("projectInventory", () => {
       status: "low",
     });
   });
+
+  it("marks an item out and clears remaining inventory", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 2,
+          unit: "carton",
+          location: "fridge",
+        }),
+        event({ event_type: "item_marked_out", item_name: "milk" }),
+      ])[0],
+    ).toMatchObject({
+      item_name: "milk",
+      quantity: 0,
+      status: "out",
+    });
+  });
 });
 
 describe("projectShoppingList", () => {

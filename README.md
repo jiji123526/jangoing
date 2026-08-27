@@ -132,6 +132,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 ```text
 Add two cartons of milk
 We are low on eggs
+We have no milk
 I used one egg
 Throw away the spinach
 Put yogurt on the shopping list

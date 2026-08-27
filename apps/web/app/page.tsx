@@ -32,6 +32,7 @@ const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
   consume_item: "item_consumed",
   mark_low: "item_marked_low",
+  mark_out: "item_marked_out",
   throw_away: "item_thrown_away",
   add_to_buy: "item_added_to_buy",
 };
@@ -39,6 +40,7 @@ const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
 const examples = [
   "Add two cartons of milk",
   "We are low on eggs",
+  "We have no milk",
   "Put yogurt on the shopping list",
 ];
 
@@ -46,6 +48,7 @@ const editableIntents: Intent[] = [
   "add_item",
   "consume_item",
   "mark_low",
+  "mark_out",
   "throw_away",
   "add_to_buy",
   "needs_clarification",

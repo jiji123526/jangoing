@@ -137,6 +137,21 @@ describe("CreateAnnotationRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts mark-out actions with out-of-stock phrase families", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "mark_out",
+        phrase_family: "state_out_of_entity",
+        entities: [{ label: "ITEM", start: 12, end: 16, text: "milk", normalized_value: "milk" }],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("requires assistant resolution when a proposal id is provided", () => {
     const result = CreateAnnotationRequestSchema.safeParse({
       inference_id: inferenceId,

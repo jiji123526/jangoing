@@ -12,6 +12,7 @@ export const IntentSchema = z.enum([
   "update_expiry",
   "consume_item",
   "mark_low",
+  "mark_out",
   "throw_away",
   "add_to_buy",
   "query_inventory",
@@ -147,6 +148,9 @@ export const AnnotationPhraseFamilies = {
     "need_more_soon",
     "quantity_running_low",
   ],
+  mark_out: [
+    "state_out_of_entity",
+  ],
   throw_away: [
     "explicit_discard_request",
     "spoiled_item_discard",
@@ -166,7 +170,6 @@ export const AnnotationPhraseFamilies = {
     "expiry_inventory_query",
   ],
   needs_clarification: [
-    "state_out_of_entity",
     "unresolved_reference",
     "vague_category_request",
     "usual_items_request",
@@ -365,6 +368,7 @@ export const EventTypeSchema = z.enum([
   "item_added",
   "item_consumed",
   "item_marked_low",
+  "item_marked_out",
   "item_thrown_away",
   "item_added_to_buy",
 ]);

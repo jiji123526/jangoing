@@ -18,6 +18,9 @@ Add new entries at the top of the log so the latest state is easy to find.
   so the next sample starts at the beginning of the workflow.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
   new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
+- `mark_out` / `item_marked_out` now exist as first-class runtime actions, so
+  `we have no milk` can drive an explicit inventory-to-zero update instead of
+  being forced into clarification-only handling.
 - The annotation convention now includes explicit overlap-resolution rules for
   phrase families such as `finished_item_report` vs `state_out_of_entity` and
   category-level `add_to_buy` vs `vague_category_request`.
@@ -84,13 +87,44 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 - Prefer explicit action verbs over coarse entity type when separating
   `add_to_buy` from `needs_clarification`.
-- Keep `We're out of ...` conservative as `state_out_of_entity` unless the
-  utterance clearly states a completed consumption event.
+- Keep `We're out of ...` conservative as a `mark_out > state_out_of_entity`
+  observation unless the utterance clearly states a completed consumption event.
 
 ### Next
 
 - Revisit these boundaries after more real annotations accumulate and check
   whether any family should split or merge based on disagreement patterns.
+
+## 2026-08-27 - Out-of-stock action promoted to first-class runtime behavior
+
+### Completed
+
+- Added `mark_out` to the shared intent contract and `item_marked_out` to the
+  event contract.
+- Updated the parser so `we're out of milk`, `we have no eggs`, and similar
+  zero-inventory statements resolve to `mark_out`.
+- Updated event confirmation flows to map `mark_out` into a persisted
+  `item_marked_out` event in both the production Worker and local dev server.
+- Updated inventory projection so `item_marked_out` clears remaining batches and
+  forces status `out`.
+- Moved `state_out_of_entity` from `needs_clarification` to the `mark_out`
+  phrase-family set.
+- Updated annotation, plan, README, and ML concept docs to reflect the new
+  intent.
+
+### Decisions
+
+- Treat `mark_out` as a state observation, not a consumption event. `We have no
+  milk` and `We finished the milk` can both end at zero inventory but should not
+  share the same intent.
+- Keep `mark_out` confirmation-required because it forces inventory to zero and
+  is therefore a high-impact state change.
+
+### Next
+
+- Add multi-action runtime execution later for utterances such as `We're out of
+  milk, add it to the list` so both `mark_out` and `add_to_buy` can be confirmed
+  together from one interpretation.
 
 ## 2026-08-27 - Assistant API flow documented
 
