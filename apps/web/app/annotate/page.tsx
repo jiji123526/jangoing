@@ -158,7 +158,7 @@ export default function AnnotatePage() {
     }]);
     setActiveActionIndex(0);
     setSelection(null);
-    setPurpose("train_candidate");
+    setPurpose(item.queue_type === "evaluation_holdout" ? "evaluation_candidate" : "train_candidate");
     setNotes("");
     setDraft(item.text);
     setQueueItem(item);
@@ -177,7 +177,9 @@ export default function AnnotatePage() {
       loadQueueSample(item);
       const correctedIntent = item.reviewed_interpretation?.intent;
       setNotice(
-        correctedIntent
+        type === "evaluation_holdout"
+          ? "Loaded a reviewed holdout example and preselected it as an evaluation candidate."
+          : correctedIntent
           ? `Loaded a corrected example. Parser predicted ${readable(item.predicted_interpretation.intent)} and the saved correction prefilled ${readable(correctedIntent)}.`
           : `Loaded an item from the ${readable(type)} queue.`,
       );
@@ -300,8 +302,11 @@ export default function AnnotatePage() {
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("confirmed_unannotated")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load confirmed queue
               </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("evaluation_holdout")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load evaluation holdout
+              </button>
             </div>
-            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, or confirmed production samples.</p>
+            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, confirmed production samples, or a deterministic evaluation slice.</p>
           </div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}

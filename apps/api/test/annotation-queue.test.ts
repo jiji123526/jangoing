@@ -97,4 +97,12 @@ describe("annotationQueueQuery", () => {
     expect(queue.query).toContain("il.outcome = 'confirmed'");
     expect(queue.query).toContain("il.corrected_interpretation IS NOT NULL");
   });
+
+  it("uses a deterministic slice of reviewed traffic for evaluation holdout", () => {
+    const queue = annotationQueueQuery("evaluation_holdout");
+
+    expect(queue.reason).toBe("deterministic_holdout_bucket");
+    expect(queue.query).toContain("il.outcome IN ('confirmed', 'corrected')");
+    expect(queue.query).toContain("substr(replace(il.id, '-', ''), 1, 1) IN ('0', '1', '2')");
+  });
 });

@@ -158,6 +158,27 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LIMIT ?`,
         reason: "confirmed_prediction",
       };
+    case "evaluation_holdout":
+      return {
+        query: `SELECT
+          il.id AS inference_id,
+          il.raw_utterance AS text,
+          il.predicted_interpretation,
+          il.corrected_interpretation,
+          il.parser_version,
+          il.outcome,
+          COALESCE(il.resolved_at, il.created_at) AS created_at
+        FROM inference_logs il
+        LEFT JOIN annotations a ON a.inference_id = il.id
+        WHERE
+          a.id IS NULL
+          AND il.outcome IN ('confirmed', 'corrected')
+          AND il.corrected_interpretation IS NOT NULL
+          AND substr(replace(il.id, '-', ''), 1, 1) IN ('0', '1', '2')
+        ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
+        LIMIT ?`,
+        reason: "deterministic_holdout_bucket",
+      };
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);
   }
