@@ -21,30 +21,52 @@ https://<vercel-domain>/annotate
 
 1. 실제로 말할 법한 영어 문장을 입력하고 `Enter` 또는 `Create`를 누른다.
    줄바꿈이 필요하면 `Shift + Enter`를 사용한다.
-2. 규칙 기반 parser의 예측을 참고하되 올바른 intent를 직접 선택한다.
-3. 원문에서 entity 단어를 드래그한다.
-4. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
-5. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
+2. 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
+3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
+4. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
+5. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
+6. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
    선택기를 사용한다.
-6. Training candidate 또는 Evaluation candidate를 고른다.
-7. intent별 dropdown에서 문장 구조에 맞는 phrase family를 선택한다.
-8. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
-9. `Save annotation`을 누른다.
+7. 각 action에서 intent별 phrase family를 선택한다.
+8. Training candidate 또는 Evaluation candidate를 고른다.
+9. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
+10. `Save annotation`을 누른다.
+
+## 여러 intent/action 라벨링
+
+annotation-v2는 한 발화 안의 요청을 action group으로 저장한다.
+
+```text
+Add milk to the list and throw away the spinach.
+```
+
+- Action 1: `add_to_buy`, entity `milk`
+- Action 2: `throw_away`, entity `spinach`
+
+각 action은 자체 intent, phrase family, entities, normalized object를 가진다. entity를
+추가하기 전에 반드시 올바른 action이 활성화됐는지 확인한다. 같은 원문 span이 실제로
+두 action 모두에 필요하면 action별로 반복 선택할 수 있다. 한 action 안에서는 span을
+겹치게 저장할 수 없다.
+
+단순히 목적어가 여러 개인 한 행동은 가능한 한 하나의 action으로 다루되, 서로 다른
+실제 처분이나 독립 정답으로 분리해야 한다면 같은 intent의 action을 여러 개 만들 수
+있다. 판단이 어려우면 notes에 근거를 남긴다.
 
 ## 저장 구조
 
-마이그레이션 `0004_create_annotations.sql`이 `annotations` 테이블을 만든다.
+마이그레이션 `0004_create_annotations.sql`이 `annotations` 테이블을 만들고,
+`0005_add_annotation_actions.sql`이 action-group 저장 필드를 추가한다.
 
 저장 값:
 
 - 연결된 inference ID
-- 최종 intent
-- entity label, 문자 start/end, 원문 text, normalized value
-- normalized object
+- action별 최종 intent와 phrase family
+- action별 entity label, 문자 start/end, 원문 text, normalized value
+- action별 normalized object
 - train/evaluation 후보 구분
 - phrase family
 - notes와 annotator
-- annotation schema version과 생성 시간
+- annotation schema version(`annotation-v2`)과 생성 시간
 
 동일 inference는 한 번만 annotation할 수 있다. API는 entity span이 실제 원문과
 일치하는지, span끼리 겹치지 않는지 다시 검증한다.
@@ -87,7 +109,7 @@ review status를 추가해야 한다.
 
 ## Normalized value 선택 메뉴
 
-annotation-v1은 자유 입력 대신 label별 controlled vocabulary를 사용한다.
+annotation-v2는 자유 입력 대신 label별 controlled vocabulary를 사용한다.
 
 - ITEM과 CATEGORY: `ml/taxonomy/grocery-v1.json`의 canonical ID
 - QUANTITY: 초기 지원 수량 목록의 숫자 값
@@ -144,7 +166,7 @@ npm run db:migrate:remote
 npm run deploy:api
 ```
 
-그다음 기존 Vercel 프로젝트를 재배포한다. 마이그레이션 0004가 적용되지 않으면
+그다음 기존 Vercel 프로젝트를 재배포한다. 마이그레이션 0004와 0005가 적용되지 않으면
 annotation 저장과 통계 조회가 실패한다.
 
 ## 검증 기록

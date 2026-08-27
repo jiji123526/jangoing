@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  AnnotationAction,
   DatasetPurpose,
   EntityAnnotation,
   EntityLabel,
@@ -96,11 +97,10 @@ export default function AnnotatePage() {
   const textRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
   const [sample, setSample] = useState<LoggedInterpretation | null>(null);
-  const [intent, setIntent] = useState<Intent>("unknown");
-  const [entities, setEntities] = useState<EntityAnnotation[]>([]);
+  const [actions, setActions] = useState<AnnotationAction[]>([]);
+  const [activeActionIndex, setActiveActionIndex] = useState(0);
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null);
   const [purpose, setPurpose] = useState<DatasetPurpose>("train_candidate");
-  const [phraseFamily, setPhraseFamily] = useState("");
   const [notes, setNotes] = useState("");
   const [annotated, setAnnotated] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -122,10 +122,9 @@ export default function AnnotatePage() {
     try {
       const result = await interpretCommand(draft.trim());
       setSample(result);
-      setIntent(result.intent);
-      setEntities([]);
+      setActions([{ intent: result.intent, entities: [], phrase_family: null }]);
+      setActiveActionIndex(0);
       setSelection(null);
-      setPhraseFamily("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create sample.");
     } finally {
@@ -150,16 +149,17 @@ export default function AnnotatePage() {
 
   function addEntity(label: EntityLabel) {
     if (!selection) return;
-    const overlaps = entities.some(
+    const activeEntities = actions[activeActionIndex]?.entities ?? [];
+    const overlaps = activeEntities.some(
       (entity) => entity.start < selection.end && selection.start < entity.end,
     );
     if (overlaps) {
       setError("Entity spans cannot overlap. Remove the existing label first.");
       return;
     }
-    setEntities((current) =>
-      [...current, { label, ...selection }].sort((a, b) => a.start - b.start),
-    );
+    setActions((current) => current.map((action, index) => index === activeActionIndex
+      ? { ...action, entities: [...action.entities, { label, ...selection }].sort((a, b) => a.start - b.start) }
+      : action));
     setSelection(null);
     window.getSelection()?.removeAllRanges();
     setError(null);
@@ -172,10 +172,8 @@ export default function AnnotatePage() {
     try {
       await createAnnotation({
         inference_id: sample.inference_id,
-        intent,
-        entities,
+        actions,
         dataset_purpose: purpose,
-        phrase_family: phraseFamily.trim() || null,
         notes: notes.trim() || null,
         annotator: "production-web",
       });
@@ -183,9 +181,9 @@ export default function AnnotatePage() {
       setNotice("Annotation saved. Enter the next sentence.");
       setDraft("");
       setSample(null);
-      setEntities([]);
+      setActions([]);
+      setActiveActionIndex(0);
       setSelection(null);
-      setPhraseFamily("");
       setNotes("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save annotation.");
@@ -234,39 +232,67 @@ export default function AnnotatePage() {
         {sample ? (
           <>
             <section className={styles.card}>
-              <div className={styles.step}><span>2</span><div><b>Choose the intent</b><small>Use clarification when the request is relevant but unsafe to resolve.</small></div></div>
-              <div className={styles.intentGrid}>
-                {intents.map((value) => (
-                  <button key={value} type="button" onClick={() => {
-                    setIntent(value);
-                    setPhraseFamily("");
-                  }}
-                    className={intent === value ? styles.activeIntent : ""}>
-                    {readable(value)}
-                  </button>
+              <div className={styles.step}><span>2</span><div><b>Define the actions</b><small>Add one action for each request, then select the action you want to label.</small></div></div>
+              <div className={styles.actionList}>
+                {actions.map((action, actionIndex) => (
+                  <div key={actionIndex} className={activeActionIndex === actionIndex ? styles.activeAction : ""}>
+                    <button className={styles.actionSelector} type="button" onClick={() => setActiveActionIndex(actionIndex)}>
+                      <b>Action {actionIndex + 1}</b><span>{action.entities.length} entities</span>
+                    </button>
+                    <label><span>Intent</span><select value={action.intent} onChange={(event) => {
+                      const nextIntent = event.target.value as Intent;
+                      setActions((current) => current.map((item, index) => index === actionIndex
+                        ? { ...item, intent: nextIntent, phrase_family: null }
+                        : item));
+                    }}>{intents.map((value) => <option key={value} value={value}>{readable(value)}</option>)}</select></label>
+                    <label><span>Phrase family <small>optional</small></span><select value={action.phrase_family ?? ""} onChange={(event) => {
+                      setActions((current) => current.map((item, index) => index === actionIndex
+                        ? { ...item, phrase_family: event.target.value || null }
+                        : item));
+                    }}><option value="">Select a family</option>{AnnotationPhraseFamilies[action.intent].map((family) => (
+                      <option key={family} value={family}>{readable(family)}</option>
+                    ))}</select></label>
+                    <button className={styles.removeAction} type="button" disabled={actions.length === 1}
+                      aria-label={`Remove action ${actionIndex + 1}`} onClick={() => {
+                        setActions((current) => current.filter((_, index) => index !== actionIndex));
+                        setActiveActionIndex((current) => Math.max(0, current > actionIndex ? current - 1 : Math.min(current, actions.length - 2)));
+                      }}><Trash2 size={16} /></button>
+                  </div>
                 ))}
               </div>
+              <button className={styles.addAction} type="button" disabled={actions.length >= 8} onClick={() => {
+                setActions((current) => [...current, { intent: "unknown", entities: [], phrase_family: null }]);
+                setActiveActionIndex(actions.length);
+                setSelection(null);
+              }}><Plus size={16} /> Add action</button>
               <p className={styles.prediction}>Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%</p>
             </section>
 
             <section className={styles.card}>
-              <div className={styles.step}><span>3</span><div><b>Label entity spans</b><small>Select exact words below, then choose a label. No entity is valid for unknown sentences.</small></div></div>
+              <div className={styles.step}><span>3</span><div><b>Label entity spans for Action {activeActionIndex + 1}</b><small>Select an action above, select exact words below, then choose a label.</small></div></div>
               <div ref={textRef} onMouseUp={captureSelection} className={styles.annotationText}>{sample.raw_utterance}</div>
               <div className={styles.labelBar}>
                 {labels.map((label) => <button type="button" key={label} disabled={!selection} onClick={() => addEntity(label)}>{label}</button>)}
               </div>
               {selection && <p className={styles.selection}>Selected: “{selection.text}” [{selection.start}, {selection.end}]</p>}
               <div className={styles.entityList}>
-                {entities.map((entity, index) => (
-                  <div key={`${entity.start}-${entity.end}-${entity.label}`}>
-                    <code>{entity.label}</code><span>“{entity.text}”</span><small>{entity.start}:{entity.end}</small>
-                    <NormalizedValueControl entity={entity}
-                      onChange={(value) => setEntities((current) => current.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, normalized_value: value } : item))} />
-                    <button type="button" aria-label="Remove entity" onClick={() => setEntities((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button>
-                  </div>
+                {actions.map((action, actionIndex) => (
+                  <section key={actionIndex} className={activeActionIndex === actionIndex ? styles.activeEntityGroup : ""}>
+                    <header><b>Action {actionIndex + 1}</b><span>{readable(action.intent)}</span></header>
+                    {action.entities.map((entity, entityIndex) => (
+                      <div key={`${entity.start}-${entity.end}-${entity.label}`}>
+                        <code>{entity.label}</code><span>“{entity.text}”</span><small>{entity.start}:{entity.end}</small>
+                        <NormalizedValueControl entity={entity}
+                          onChange={(value) => setActions((current) => current.map((item, itemIndex) =>
+                            itemIndex === actionIndex ? { ...item, entities: item.entities.map((existing, index) =>
+                              index === entityIndex ? { ...existing, normalized_value: value } : existing) } : item))} />
+                        <button type="button" aria-label="Remove entity" onClick={() => setActions((current) => current.map((item, itemIndex) =>
+                          itemIndex === actionIndex ? { ...item, entities: item.entities.filter((_, index) => index !== entityIndex) } : item))}><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                    {action.entities.length === 0 && <p>No entity spans for this action.</p>}
+                  </section>
                 ))}
-                {entities.length === 0 && <p>No entity spans labeled yet.</p>}
               </div>
             </section>
 
@@ -275,12 +301,6 @@ export default function AnnotatePage() {
               <div className={styles.metaGrid}>
                 <label><span>Purpose</span><select value={purpose} onChange={(event) => setPurpose(event.target.value as DatasetPurpose)}>
                   <option value="train_candidate">Training candidate</option><option value="evaluation_candidate">Evaluation candidate</option>
-                </select></label>
-                <label><span>Phrase family <small>optional</small></span><select value={phraseFamily} onChange={(event) => setPhraseFamily(event.target.value)}>
-                  <option value="">Select a family</option>
-                  {AnnotationPhraseFamilies[intent].map((family) => (
-                    <option key={family} value={family}>{readable(family)}</option>
-                  ))}
                 </select></label>
                 <label className={styles.full}><span>Notes <small>optional</small></span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ambiguity or labeling rationale" /></label>
               </div>

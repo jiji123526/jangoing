@@ -61,7 +61,7 @@ running `npm run dev:api`. To export reviewed production records from D1, use:
 npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
 ```
 
-After applying migration 0004, the production annotation workspace is available
+After applying migrations 0004 and 0005, the production annotation workspace is available
 at `/annotate`. Its reviewed entity spans are included in subsequent exports.
 
 To test with Wrangler's local D1 runtime on a compatible machine:

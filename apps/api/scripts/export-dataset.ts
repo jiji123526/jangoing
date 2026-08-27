@@ -11,7 +11,8 @@ const query = `SELECT il.id, il.raw_utterance, il.predicted_interpretation,
   il.corrected_interpretation, il.parser_version, il.outcome, il.created_at,
   a.intent AS annotation_intent, a.entities AS annotation_entities,
   a.normalized AS annotation_normalized, a.dataset_purpose,
-  a.phrase_family AS annotation_phrase_family, a.created_at AS annotation_created_at
+  a.phrase_family AS annotation_phrase_family, a.actions AS annotation_actions,
+  a.annotation_schema_version, a.created_at AS annotation_created_at
   FROM inference_logs il
   LEFT JOIN annotations a ON a.inference_id = il.id
   WHERE a.id IS NOT NULL OR (
@@ -65,15 +66,22 @@ for (const row of rows) {
     ? (JSON.parse(row.corrected_interpretation) as {
         intent: string;
         slots?: Record<string, unknown>;
+        actions?: Array<Record<string, unknown> & { intent: string }>;
       })
     : null;
-  const corrected = {
-    intent: row.annotation_intent ?? correctedPayload?.intent,
-    slots: row.annotation_normalized
-      ? JSON.parse(row.annotation_normalized)
-      : correctedPayload?.slots ?? {},
-  };
-  if (!corrected.intent || !row.predicted_interpretation || !row.raw_utterance) {
+  const annotationActions = row.annotation_actions
+    ? (JSON.parse(row.annotation_actions) as Array<Record<string, unknown> & { intent: string }>)
+    : row.annotation_intent
+      ? [{
+          intent: row.annotation_intent,
+          entities: row.annotation_entities ? JSON.parse(row.annotation_entities) : [],
+          normalized: row.annotation_normalized ? JSON.parse(row.annotation_normalized) : {},
+          phrase_family: row.annotation_phrase_family,
+        }]
+      : correctedPayload?.actions ?? (correctedPayload?.intent
+        ? [{ intent: correctedPayload.intent, normalized: correctedPayload.slots ?? {}, entities: [] }]
+        : []);
+  if (!annotationActions.length || !row.predicted_interpretation || !row.raw_utterance) {
     continue;
   }
   const predicted = JSON.parse(row.predicted_interpretation);
@@ -81,18 +89,27 @@ for (const row of rows) {
     .update(row.raw_utterance.toLowerCase().replace(/[a-z0-9]+/g, "_"))
     .digest("hex")
     .slice(0, 12);
+  const isSingleAction = annotationActions.length === 1;
+  const phraseFamily = isSingleAction
+    ? String(annotationActions[0].phrase_family ?? generatedPhraseFamily)
+    : `multi:${annotationActions.map((action) => action.phrase_family ?? action.intent).join("+")}`;
   lines.push(
     JSON.stringify({
       id: row.id,
       text: row.raw_utterance,
-      intent: corrected.intent,
-      slots: corrected.slots,
-      entities: row.annotation_entities ? JSON.parse(row.annotation_entities) : [],
+      intents: annotationActions.map((action) => action.intent),
+      actions: annotationActions,
+      ...(isSingleAction ? {
+        intent: annotationActions[0].intent,
+        slots: annotationActions[0].normalized ?? {},
+        entities: annotationActions[0].entities ?? [],
+      } : {}),
       predicted,
       outcome: row.outcome,
       parser_version: row.parser_version,
       dataset_purpose: row.dataset_purpose ?? "train_candidate",
-      phrase_family: row.annotation_phrase_family ?? generatedPhraseFamily,
+      phrase_family: phraseFamily,
+      annotation_schema_version: row.annotation_schema_version ?? null,
       reviewed_at: row.annotation_created_at ?? row.created_at,
     }),
   );

@@ -7,7 +7,7 @@
 라벨링하더라도 intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
 것이 이 문서의 목표다.
 
-- convention version: `annotation-v1`
+- convention version: `annotation-v2`
 - 기본 언어/locale: 영어, `en-US`
 - 적용 범위: 실제 사용자 표현과 사람이 검토하는 영어 문장
 - 우선순위: 원문 의미 > 대화 맥락 > parser 예측
@@ -20,12 +20,13 @@
 항상 다음 순서로 판단한다.
 
 1. 원문을 수정하거나 문법을 교정하지 않고 그대로 입력한다.
-2. 화자가 지금 원하는 행동 하나를 intent로 선택한다.
-3. 그 행동에 필요한 원문 표현만 entity로 선택한다.
-4. 각 entity를 canonical value로 정규화한다.
-5. 문장 구조를 나타내는 phrase family를 지정한다.
-6. 독립 평가용인지 학습용인지 선택한다.
-7. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
+2. 화자가 원하는 독립 행동마다 action을 하나 만든다.
+3. 각 action의 intent를 선택한다.
+4. 해당 action에 필요한 원문 표현만 entity로 연결한다.
+5. 각 entity를 canonical value로 정규화한다.
+6. action별 문장 구조를 나타내는 phrase family를 지정한다.
+7. 발화 전체가 독립 평가용인지 학습용인지 선택한다.
+8. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
 
 ## 원문 보존 규칙
 
@@ -38,9 +39,14 @@
 
 ## Intent convention
 
-Intent는 키워드가 아니라 **화자의 주된 목표**로 결정한다. 한 문장에 여러 행동이
-명시된 경우 현재 스키마는 multi-intent를 지원하지 않으므로 문장을 분리한다. 분리할
-수 없는 실제 발화라면 `needs_clarification`으로 두고 notes에 이유를 적는다.
+Intent는 키워드가 아니라 **화자의 목표**로 결정한다. 한 문장에 여러 독립 행동이
+명시된 경우 action을 추가하고 각 action에 intent와 entity를 연결한다. 여러 절이 있어도
+실제로는 하나의 목표라면 action을 불필요하게 나누지 않는다.
+
+예를 들어 `Add milk to the list and throw away the spinach`는 두 action이다. 반면
+`Add milk and eggs to the list`는 하나의 쇼핑-list 행동으로 볼 수 있다. 현재 normalized
+object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에는 같은 intent action을
+항목별로 나누고 notes에 이유를 남긴다.
 
 | Intent | 선택 기준 | 예시 |
 |---|---|---|
@@ -73,9 +79,9 @@ Intent는 키워드가 아니라 **화자의 주된 목표**로 결정한다. �
 
 ## Entity convention
 
-문장에 등장한 모든 명사를 표시하는 작업이 아니다. 현재 행동을 실행하거나 평가할 때
-필요한 정보만 표시한다. entity가 없는 `unknown`이나 `needs_clarification`도 정상적인
-annotation이다.
+문장에 등장한 모든 명사를 표시하는 작업이 아니다. **현재 선택된 action**을 실행하거나
+평가할 때 필요한 정보만 그 action에 표시한다. entity가 없는 `unknown`이나
+`needs_clarification` action도 정상적인 annotation이다.
 
 | Label | 선택 기준 | 원문 예 | normalized value 예 |
 |---|---|---|---|
@@ -94,7 +100,8 @@ annotation이다.
 - 복합 상품명은 의미 단위 전체를 선택한다: `[peanut butter]`.
 - 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`.
 - 단순 상태 표현은 entity에 포함하지 않는다: `low on`, `out of`, `expired`.
-- entity span끼리는 겹치거나 중첩할 수 없다.
+- 같은 action의 entity span끼리는 겹치거나 중첩할 수 없다.
+- 동일 span이 실제로 여러 action에 필요하면 action별로 한 번씩 연결할 수 있다.
 - 원문에 없는 생략된 대상을 entity로 만들어내지 않는다.
 
 ### ITEM과 CATEGORY
@@ -129,7 +136,7 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 확실하지 않은 정규화 값을 추측하지 않는다. 비워 두고 notes에 후보를 기록한다.
 
 `/annotate`는 이 규칙을 지키도록 label별 선택 메뉴를 제공한다. ITEM과 CATEGORY는
-`grocery-v1`, LOCATION은 API contract, QUANTITY와 UNIT은 annotation-v1의 controlled
+`grocery-v1`, LOCATION은 API contract, QUANTITY와 UNIT은 annotation-v2의 controlled
 value 목록을 사용한다. EXPIRY_DATE는 ISO 형식을 보장하는 날짜 선택기를 사용한다.
 필요한 값이 메뉴에 없으면 가까운 값을 대신 선택하지 말고 비워 둔 뒤 notes에 남긴다.
 

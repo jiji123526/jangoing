@@ -71,7 +71,7 @@ export const EntityLabelSchema = z.enum([
   "EXPIRY_DATE",
 ]);
 
-// Controlled values used by annotation-v1. Keep these aligned with
+// Controlled values used by annotation-v2. Keep these aligned with
 // ml/taxonomy/grocery-v1.json and the command contract.
 export const AnnotationNormalizedValues = {
   ITEM: [
@@ -187,28 +187,34 @@ export const DatasetPurposeSchema = z.enum([
   "evaluation_candidate",
 ]);
 
-export const CreateAnnotationRequestSchema = z
+export const AnnotationActionSchema = z
   .object({
-    inference_id: z.string().uuid(),
     intent: IntentSchema,
     entities: z.array(EntityAnnotationSchema),
-    dataset_purpose: DatasetPurposeSchema,
     phrase_family: z.string().trim().max(120).nullable().optional(),
-    notes: z.string().trim().max(1000).nullable().optional(),
-    annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
   })
   .strict()
-  .superRefine((annotation, context) => {
-    if (!annotation.phrase_family) return;
-    const allowedFamilies: readonly string[] = AnnotationPhraseFamilies[annotation.intent];
-    if (!allowedFamilies.includes(annotation.phrase_family)) {
+  .superRefine((action, context) => {
+    if (!action.phrase_family) return;
+    const allowedFamilies: readonly string[] = AnnotationPhraseFamilies[action.intent];
+    if (!allowedFamilies.includes(action.phrase_family)) {
       context.addIssue({
         code: "custom",
         path: ["phrase_family"],
-        message: `Phrase family is not valid for intent ${annotation.intent}`,
+        message: `Phrase family is not valid for intent ${action.intent}`,
       });
     }
   });
+
+export const CreateAnnotationRequestSchema = z
+  .object({
+    inference_id: z.string().uuid(),
+    actions: z.array(AnnotationActionSchema).min(1).max(8),
+    dataset_purpose: DatasetPurposeSchema,
+    notes: z.string().trim().max(1000).nullable().optional(),
+    annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
+  })
+  .strict();
 
 export const AnnotationQueueItemSchema = z.object({
   inference_id: z.string().uuid(),
@@ -300,6 +306,7 @@ export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
 export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
 export type EntityLabel = z.infer<typeof EntityLabelSchema>;
 export type EntityAnnotation = z.infer<typeof EntityAnnotationSchema>;
+export type AnnotationAction = z.infer<typeof AnnotationActionSchema>;
 export type DatasetPurpose = z.infer<typeof DatasetPurposeSchema>;
 export type CreateAnnotationRequest = z.infer<typeof CreateAnnotationRequestSchema>;
 export type AnnotationQueueItem = z.infer<typeof AnnotationQueueItemSchema>;

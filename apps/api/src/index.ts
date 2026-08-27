@@ -18,7 +18,7 @@ const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
-const annotationSchemaVersion = "annotation-v1";
+const annotationSchemaVersion = "annotation-v2";
 
 function normalizedFromEntities(entities: Array<{
   label: string;
@@ -172,36 +172,47 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
     "SELECT raw_utterance FROM inference_logs WHERE id = ?",
   ).bind(parsed.data.inference_id).first<{ raw_utterance: string }>();
   if (!inference) return json(request, env, { error: "Inference not found" }, 404);
-  const entities = [...parsed.data.entities].sort((a, b) => a.start - b.start);
-  for (let index = 0; index < entities.length; index += 1) {
-    const entity = entities[index];
-    if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
-      return json(request, env, { error: `Entity span does not match: ${entity.text}` }, 400);
-    }
-    if (index > 0 && entities[index - 1].end > entity.start) {
-      return json(request, env, { error: "Entity spans cannot overlap" }, 400);
+  const actions = parsed.data.actions.map((action) => ({
+    ...action,
+    entities: [...action.entities].sort((a, b) => a.start - b.start),
+  }));
+  for (const action of actions) {
+    for (let index = 0; index < action.entities.length; index += 1) {
+      const entity = action.entities[index];
+      if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
+        return json(request, env, { error: `Entity span does not match: ${entity.text}` }, 400);
+      }
+      if (index > 0 && action.entities[index - 1].end > entity.start) {
+        return json(request, env, { error: "Entity spans cannot overlap within an action" }, 400);
+      }
     }
   }
-  const normalized = normalizedFromEntities(entities);
+  const enrichedActions = actions.map((action) => ({
+    ...action,
+    normalized: normalizedFromEntities(action.entities),
+  }));
+  const legacyAction = enrichedActions[0];
   const createdAt = new Date().toISOString();
   try {
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO annotations (
           id, inference_id, intent, entities, normalized, dataset_purpose,
-          phrase_family, notes, annotator, annotation_schema_version, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          phrase_family, notes, annotator, annotation_schema_version, created_at,
+          actions
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
-        crypto.randomUUID(), parsed.data.inference_id, parsed.data.intent,
-        JSON.stringify(entities), JSON.stringify(normalized), parsed.data.dataset_purpose,
-        parsed.data.phrase_family ?? null, parsed.data.notes ?? null,
-        parsed.data.annotator, annotationSchemaVersion, createdAt,
+        crypto.randomUUID(), parsed.data.inference_id, legacyAction.intent,
+        JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
+        parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
+        parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
+        createdAt, JSON.stringify(enrichedActions),
       ),
       env.DB.prepare(
         `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
          resolved_at = ? WHERE id = ?`,
       ).bind(
-        JSON.stringify({ intent: parsed.data.intent, entities, normalized }),
+        JSON.stringify({ actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       ),
     ]);

@@ -3,7 +3,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-REQUIRED_FIELDS = {"id", "text", "intent", "phrase_family"}
+REQUIRED_FIELDS = {"id", "text", "phrase_family"}
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -15,6 +15,8 @@ def load_jsonl(path: Path) -> list[dict]:
         missing = REQUIRED_FIELDS - record.keys()
         if missing:
             raise ValueError(f"line {line_number}: missing {sorted(missing)}")
+        if "intent" not in record and not record.get("intents"):
+            raise ValueError(f"line {line_number}: missing intent or intents")
         records.append(record)
     if not records:
         raise ValueError("dataset is empty")

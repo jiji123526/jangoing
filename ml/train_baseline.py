@@ -22,6 +22,13 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     records = load_jsonl(args.dataset)
+    multi_action_count = sum(len(record.get("intents", [record.get("intent")])) > 1 for record in records)
+    records = [
+        record for record in records
+        if len(record.get("intents", [record.get("intent")])) == 1 and record.get("intent")
+    ]
+    if not records:
+        raise ValueError("single-intent baseline has no single-action records to train on")
     splits = grouped_split(records, args.seed)
     if len({record["intent"] for record in splits["train"]}) < 2:
         raise ValueError("training split needs at least two intent classes")
@@ -63,6 +70,7 @@ def main() -> None:
         ).stdout.strip(),
         "python": platform.python_version(),
         "split_counts": {key: len(value) for key, value in splits.items()},
+        "excluded_multi_action_records": multi_action_count,
         "labels": labels,
         "metrics": metrics,
         "confusion_matrix": confusion_matrix(

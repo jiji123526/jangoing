@@ -37,6 +37,10 @@ const annotationMigrationPath = resolve(
   apiDirectory,
   "migrations/0004_create_annotations.sql",
 );
+const annotationActionsMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0005_add_annotation_actions.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -63,10 +67,14 @@ const annotationMigration = readFileSync(annotationMigrationPath, "utf8")
   .replace("CREATE TABLE annotations", "CREATE TABLE IF NOT EXISTS annotations")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
 database.exec(annotationMigration);
+const annotationColumns = database.prepare("PRAGMA table_info(annotations)").all() as Array<{ name: string }>;
+if (!annotationColumns.some((column) => column.name === "actions")) {
+  database.exec(readFileSync(annotationActionsMigrationPath, "utf8"));
+}
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
-const annotationSchemaVersion = "annotation-v1";
+const annotationSchemaVersion = "annotation-v2";
 
 function normalizedFromEntities(entities: Array<{
   label: string;
@@ -238,38 +246,49 @@ async function route(
       sendJson(response, origin, { error: "Inference not found" }, 404);
       return;
     }
-    const entities = [...parsed.data.entities].sort((a, b) => a.start - b.start);
-    for (let index = 0; index < entities.length; index += 1) {
-      const entity = entities[index];
-      if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
-        sendJson(response, origin, { error: `Entity span does not match: ${entity.text}` }, 400);
-        return;
-      }
-      if (index > 0 && entities[index - 1].end > entity.start) {
-        sendJson(response, origin, { error: "Entity spans cannot overlap" }, 400);
-        return;
+    const actions = parsed.data.actions.map((action) => ({
+      ...action,
+      entities: [...action.entities].sort((a, b) => a.start - b.start),
+    }));
+    for (const action of actions) {
+      for (let index = 0; index < action.entities.length; index += 1) {
+        const entity = action.entities[index];
+        if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
+          sendJson(response, origin, { error: `Entity span does not match: ${entity.text}` }, 400);
+          return;
+        }
+        if (index > 0 && action.entities[index - 1].end > entity.start) {
+          sendJson(response, origin, { error: "Entity spans cannot overlap within an action" }, 400);
+          return;
+        }
       }
     }
-    const normalized = normalizedFromEntities(entities);
+    const enrichedActions = actions.map((action) => ({
+      ...action,
+      normalized: normalizedFromEntities(action.entities),
+    }));
+    const legacyAction = enrichedActions[0];
     const createdAt = new Date().toISOString();
     try {
       database.exec("BEGIN");
       database.prepare(
         `INSERT INTO annotations (
           id, inference_id, intent, entities, normalized, dataset_purpose,
-          phrase_family, notes, annotator, annotation_schema_version, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          phrase_family, notes, annotator, annotation_schema_version, created_at,
+          actions
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
-        crypto.randomUUID(), parsed.data.inference_id, parsed.data.intent,
-        JSON.stringify(entities), JSON.stringify(normalized), parsed.data.dataset_purpose,
-        parsed.data.phrase_family ?? null, parsed.data.notes ?? null,
-        parsed.data.annotator, annotationSchemaVersion, createdAt,
+        crypto.randomUUID(), parsed.data.inference_id, legacyAction.intent,
+        JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
+        parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
+        parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
+        createdAt, JSON.stringify(enrichedActions),
       );
       database.prepare(
         `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
          resolved_at = ? WHERE id = ?`,
       ).run(
-        JSON.stringify({ intent: parsed.data.intent, entities, normalized }),
+        JSON.stringify({ actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       );
       database.exec("COMMIT");

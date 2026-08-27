@@ -2,6 +2,24 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Multi-action annotation-v2 implemented
+
+### Completed
+
+- Replaced the single intent annotation payload with one-to-eight action groups.
+- Connected intent, phrase family, entities, and normalized values per action.
+- Added D1 migration 0005 while preserving legacy v1 columns and records.
+- Updated local and Worker APIs, reviewed-dataset export, and baseline filtering.
+- Added action selection, action creation/removal, and action-specific spans to UI.
+
+### Decisions
+
+- Store `{ intent, phrase_family, entities, normalized }` per action.
+- Allow a source span to be reused across actions but not overlap within one action.
+- Do not mislabel a multi-action record with only its first intent during export.
+- Exclude multi-action records from the existing single-intent baseline and log the count.
+- Retain legacy columns populated from the first action for operational compatibility.
+
 ## 2026-08-27 - Annotation keyboard submission added
 
 ### Completed
