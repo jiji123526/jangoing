@@ -9,6 +9,10 @@ Add new entries at the top of the log so the latest state is easy to find.
   train/evaluation dataset export validation, task-aware reviewed export
   filtering, dynamic normalized-value suggestions, and assistant-draft proposal
   plumbing.
+- `/annotate` now auto-loads one `generated_review` sample on first page entry
+  so annotation can start immediately from pregenerated coverage data.
+- Korean docs now describe the exact assistant-draft API path from browser to
+  Worker to OpenAI and back to `annotation_proposals` / `annotations`.
 - Production D1 migrations are confirmed through 0005. Migration 0006 and
   redeploy are required before production can persist assistant proposals.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
@@ -52,6 +56,52 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Evaluate whether span prefill quality is good enough to justify continued API cost.
 - Add lightweight analytics later if you want per-provider acceptance rate,
   edit distance, or annotator throughput comparisons.
+
+## 2026-08-27 - Assistant API flow documented
+
+### Completed
+
+- Added a Korean explanation of the assistant-draft API path to
+  `ANNOTATION_GUIDE_KO.md`.
+- Documented that the browser only calls the project Worker, not OpenAI
+  directly.
+- Logged the exact proposal lifecycle: Worker lookup from `inference_logs`,
+  optional OpenAI request, span reconstruction, `annotation_proposals` insert,
+  `Apply AI draft`, and final `accepted_as_is` / `accepted_with_edits` update.
+- Documented parser fallback behavior and the conservative exact-substring span
+  reconstruction rule.
+
+### Decisions
+
+- Keep the OpenAI integration server-side so the browser never needs the API key.
+- Treat dropped unmatched spans as safer than guessed offsets because training
+  label precision matters more than aggressive recall in this stage.
+
+### Next
+
+- After production migration 0006, verify one end-to-end proposal row in D1 and
+  confirm that `status`, `resolution`, and `applied_annotation_id` update as expected.
+
+## 2026-08-27 - Generated review auto-load enabled
+
+### Completed
+
+- Updated `/annotate` to automatically load one `generated_review` queue item on
+  first page entry.
+- Documented that pregenerated review is now the default starting queue for a
+  fresh annotation session.
+
+### Decisions
+
+- Auto-load only once on initial page entry instead of forcing a queue reload
+  after every save.
+- Keep manual queue buttons unchanged so the annotator can immediately switch to
+  correction, expiry, confirmed, or evaluation-focused work.
+
+### Next
+
+- If this default proves too repetitive, add a user-selectable default queue
+  preference later.
 
 ## 2026-08-27 - Generated review queue added
 

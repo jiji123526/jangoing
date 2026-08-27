@@ -89,7 +89,8 @@ https://jangoing-web.vercel.app/annotate
 ## 사용 순서
 
 1. 실제로 말할 법한 영어 문장을 직접 입력하거나 queue 버튼으로 기존 inference
-   샘플 하나를 불러온다. 직접 입력 후에는 `Enter` 또는 `Create`를 누른다.
+   샘플 하나를 불러온다. 페이지에 처음 들어오면 가능할 때 `generated_review`
+   샘플을 기본으로 한 번 자동 로드한다. 직접 입력 후에는 `Enter` 또는 `Create`를 누른다.
    줄바꿈이 필요하면 `Shift + Enter`를 사용한다.
 2. 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
 3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
@@ -118,6 +119,53 @@ https://jangoing-web.vercel.app/annotate
   draft를 반환한다. 이 경우 보통 intent 1개와 빈 entity로 시작한다.
 - AI/provider 응답은 보조 정보일 뿐이며, ground truth는 저장된 human annotation이다.
 
+### Assistant draft API 흐름
+
+이 기능은 브라우저가 OpenAI를 직접 호출하는 구조가 아니다. 실제 흐름은 다음과 같다.
+
+1. annotator가 `/annotate`에서 `Draft with AI`를 누른다.
+2. web app이 현재 `inference_id`를 담아 `POST /annotations/proposal`을 Worker로 보낸다.
+3. Worker는 `inference_logs`에서 해당 발화의 `raw_utterance`와 현재 parser의
+   `predicted_interpretation`을 읽는다.
+4. Worker에 `OPENAI_API_KEY`가 있으면 OpenAI Chat Completions API
+   `POST https://api.openai.com/v1/chat/completions`를 호출한다.
+5. 요청에는 다음 정보가 들어간다.
+   - system prompt:
+     grocery annotation draft를 만들고 JSON만 반환하라는 규칙
+   - user prompt:
+     `raw_utterance`, `parser_prediction`, `allowed_intents`
+   - model:
+     `OPENAI_MODEL`이 있으면 그 값, 없으면 기본값 `gpt-4.1-mini`
+   - decoding:
+     `temperature: 0.2`, `response_format: json_object`
+6. OpenAI가 action/entity draft JSON을 반환하면 Worker가 Zod schema로 구조를 검증한다.
+7. entity는 model이 문자 offset을 직접 주는 방식이 아니라, model이 돌려준 `text`를
+   원문에서 다시 찾아 `start/end` span으로 복원한다.
+8. 복원 과정에서 원문과 일치하지 않는 entity text는 버린다. intent에 맞지 않는
+   phrase family도 저장하지 않고 `null`로 떨어뜨린다.
+9. 정리된 proposal은 `annotation_proposals` 테이블에 저장된다.
+   저장 항목:
+   `provider`, `model`, `prompt_version`, `proposal`, `note`, `status`,
+   `created_at`
+10. Worker는 정리된 proposal을 브라우저에 돌려준다.
+11. annotator가 `Apply AI draft`를 누르면 그 proposal이 현재 편집 상태에 복사된다.
+12. 최종 저장 시 web app은 필요하면 `assistant_proposal_id`와
+   `assistant_resolution`을 함께 `POST /annotations`로 보낸다.
+13. Worker는 annotation 저장 후 해당 proposal row를 `applied` 상태로 바꾸고,
+   `accepted_as_is` 또는 `accepted_with_edits`를 기록한다.
+
+### Fallback과 한계
+
+- `OPENAI_API_KEY`가 없으면 Worker는 외부 AI API를 호출하지 않고
+  `provider = parser-fallback`, `model = rules-v1`로 proposal을 만든다.
+- 이 fallback draft는 현재 parser intent를 그대로 시작점으로 쓰고 entity는 비워 둔다.
+- 즉, annotation 화면은 항상 동작하지만 초안 품질은 OpenAI 사용 여부에 따라 크게
+  달라질 수 있다.
+- 현재 span 복원은 exact substring match 기반이므로, model이 원문에 없는 축약형이나
+  paraphrase를 반환하면 그 entity는 자동으로 사라진다.
+- 이 구조는 의도적으로 보수적이다. 잘못된 span을 억지로 저장하는 것보다, 비워 둔 뒤
+  사람이 다시 잡는 편이 dataset 품질에 더 안전하다.
+
 ## Queue 버튼
 
 `/annotate`는 새 문장을 직접 만드는 것 외에 우선순위 queue에서 샘플을 하나씩
@@ -130,6 +178,9 @@ https://jangoing-web.vercel.app/annotate
 - `Load generated review`: pregenerated dataset에서 가져온 broad-coverage 문장
 - `Load confirmed queue`: 실사용에서 맞았고 confirmed된 문장
 - `Load evaluation holdout`: evaluation 후보로 분리하려는 reviewed 문장
+
+페이지 첫 진입 시에는 annotator가 바로 시작할 수 있도록 `generated_review` queue를
+한 번 자동으로 불러온다. 이후에는 각 버튼으로 원하는 queue를 수동 전환하면 된다.
 
 queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편집한다. correction이
 이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation

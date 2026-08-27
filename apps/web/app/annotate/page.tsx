@@ -290,6 +290,7 @@ function NormalizedValueControl({
 
 export default function AnnotatePage() {
   const textRef = useRef<HTMLDivElement>(null);
+  const initialGeneratedQueueLoadedRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [sample, setSample] = useState<LoggedInterpretation | null>(null);
   const [actions, setActions] = useState<AnnotationAction[]>([]);
@@ -321,6 +322,15 @@ export default function AnnotatePage() {
     void getAnnotationNormalizedValues()
       .then(setNormalizedOptions)
       .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (initialGeneratedQueueLoadedRef.current) {
+      return;
+    }
+
+    initialGeneratedQueueLoadedRef.current = true;
+    void loadQueue("generated_review");
   }, []);
 
   async function createSample(event: FormEvent) {
