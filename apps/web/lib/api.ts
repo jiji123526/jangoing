@@ -1,10 +1,13 @@
 import {
   AnnotationStatsSchema,
+  AnnotationQueueResponseSchema,
   EventRecordSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
+  type AnnotationQueueItem,
+  type AnnotationQueueType,
   type AnnotationStats,
   type CreateAnnotationRequest,
   type EventRecord,
@@ -91,6 +94,16 @@ export async function createAnnotation(
 export async function getAnnotationStats(): Promise<AnnotationStats> {
   const body = await apiRequest("/annotations/stats");
   return AnnotationStatsSchema.parse(body);
+}
+
+export async function getAnnotationQueue(
+  type: AnnotationQueueType,
+  limit = 1,
+): Promise<AnnotationQueueItem[]> {
+  const body = await apiRequest(
+    `/annotations/queue?type=${encodeURIComponent(type)}&limit=${limit}`,
+  );
+  return AnnotationQueueResponseSchema.parse(body).items;
 }
 
 const InventoryResponseSchema = z.object({

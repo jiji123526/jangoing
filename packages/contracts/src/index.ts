@@ -222,12 +222,33 @@ export const CreateAnnotationRequestSchema = z
   })
   .strict();
 
+export const AnnotationQueueTypeSchema = z.enum([
+  "correction",
+  "expiry",
+  "low_confidence",
+  "confirmed_unannotated",
+  "evaluation_holdout",
+]);
+
 export const AnnotationQueueItemSchema = z.object({
   inference_id: z.string().uuid(),
   text: z.string(),
+  queue_type: AnnotationQueueTypeSchema,
+  queue_reason: z.string(),
   predicted_interpretation: InterpretationSchema,
+  reviewed_interpretation: InterpretationSchema.optional(),
+  outcome: InferenceOutcomeSchema,
   parser_version: z.string(),
   created_at: z.string(),
+});
+
+export const AnnotationQueueQuerySchema = z.object({
+  type: AnnotationQueueTypeSchema.default("correction"),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+});
+
+export const AnnotationQueueResponseSchema = z.object({
+  items: z.array(AnnotationQueueItemSchema),
 });
 
 export const UpdateInferenceOutcomeRequestSchema = z
@@ -316,7 +337,10 @@ export type AnnotationAction = z.infer<typeof AnnotationActionSchema>;
 export type DatasetPurpose = z.infer<typeof DatasetPurposeSchema>;
 export type AnnotationStats = z.infer<typeof AnnotationStatsSchema>;
 export type CreateAnnotationRequest = z.infer<typeof CreateAnnotationRequestSchema>;
+export type AnnotationQueueType = z.infer<typeof AnnotationQueueTypeSchema>;
 export type AnnotationQueueItem = z.infer<typeof AnnotationQueueItemSchema>;
+export type AnnotationQueueQuery = z.infer<typeof AnnotationQueueQuerySchema>;
+export type AnnotationQueueResponse = z.infer<typeof AnnotationQueueResponseSchema>;
 export type UpdateInferenceOutcomeRequest = z.infer<
   typeof UpdateInferenceOutcomeRequestSchema
 >;

@@ -6,6 +6,12 @@ import {
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
 } from "@jangoing/contracts";
+import {
+  annotationQueueQuery,
+  type AnnotationQueueRow,
+  buildAnnotationQueueItems,
+  parseAnnotationQueueQuery,
+} from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { parseCommand } from "./nlp/parse-command";
 
@@ -168,6 +174,33 @@ async function handleAnnotationStats(request: Request, env: Env): Promise<Respon
     train_candidates: Number(counts?.train_candidates ?? 0),
     evaluation_candidates: Number(counts?.evaluation_candidates ?? 0),
   });
+}
+
+async function handleAnnotationQueue(request: Request, env: Env): Promise<Response> {
+  let queueInput;
+  try {
+    queueInput = parseAnnotationQueueQuery(
+      Object.fromEntries(new URL(request.url).searchParams.entries()),
+    );
+  } catch {
+    return json(request, env, { error: "Invalid annotation queue request" }, 400);
+  }
+
+  try {
+    const definition = annotationQueueQuery(queueInput.type);
+    const result = await env.DB.prepare(definition.query)
+      .bind(queueInput.limit)
+      .all<AnnotationQueueRow>();
+
+    return json(request, env, {
+      items: buildAnnotationQueueItems(queueInput.type, result.results),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("not implemented yet")) {
+      return json(request, env, { error: error.message }, 400);
+    }
+    throw error;
+  }
 }
 
 async function handleCreateAnnotation(request: Request, env: Env): Promise<Response> {
@@ -373,6 +406,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/annotations/stats") {
     return handleAnnotationStats(request, env);
+  }
+
+  if (request.method === "GET" && url.pathname === "/annotations/queue") {
+    return handleAnnotationQueue(request, env);
   }
 
   if (request.method === "POST" && url.pathname === "/annotations") {

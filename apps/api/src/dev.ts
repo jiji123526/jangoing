@@ -15,6 +15,12 @@ import {
 import { resolve, dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import {
+  annotationQueueQuery,
+  type AnnotationQueueRow,
+  buildAnnotationQueueItems,
+  parseAnnotationQueueQuery,
+} from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { parseCommand } from "./nlp/parse-command";
 
@@ -240,6 +246,35 @@ async function route(
       evaluation_candidates: Number(row.evaluation_candidates ?? 0),
     });
     return;
+  }
+
+  if (request.method === "GET" && path === "/annotations/queue") {
+    let queueInput;
+    try {
+      queueInput = parseAnnotationQueueQuery(
+        Object.fromEntries(
+          new URL(request.url ?? "/", `http://localhost:${port}`).searchParams.entries(),
+        ),
+      );
+    } catch {
+      sendJson(response, origin, { error: "Invalid annotation queue request" }, 400);
+      return;
+    }
+
+    try {
+      const definition = annotationQueueQuery(queueInput.type);
+      const rows = database.prepare(definition.query).all(queueInput.limit) as unknown as AnnotationQueueRow[];
+      sendJson(response, origin, {
+        items: buildAnnotationQueueItems(queueInput.type, rows),
+      });
+      return;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not implemented yet")) {
+        sendJson(response, origin, { error: error.message }, 400);
+        return;
+      }
+      throw error;
+    }
   }
 
   if (request.method === "POST" && path === "/annotations") {

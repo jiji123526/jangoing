@@ -2,6 +2,7 @@
 
 import type {
   AnnotationAction,
+  AnnotationQueueItem,
   AnnotationStats,
   DatasetPurpose,
   EntityAnnotation,
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createAnnotation,
+  getAnnotationQueue,
   getAnnotationStats,
   interpretCommand,
 } from "../../lib/api";
@@ -109,6 +111,7 @@ export default function AnnotatePage() {
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null);
   const [purpose, setPurpose] = useState<DatasetPurpose>("train_candidate");
   const [notes, setNotes] = useState("");
+  const [queueItem, setQueueItem] = useState<AnnotationQueueItem | null>(null);
   const [stats, setStats] = useState<AnnotationStats>(emptyStats);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,8 +135,53 @@ export default function AnnotatePage() {
       setActions([{ intent: result.intent, entities: [], phrase_family: null }]);
       setActiveActionIndex(0);
       setSelection(null);
+      setQueueItem(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create sample.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function loadQueueSample(item: AnnotationQueueItem) {
+    setSample({
+      ...item.predicted_interpretation,
+      inference_id: item.inference_id,
+      parser_version: item.parser_version,
+      latency_ms: 0,
+    });
+    setActions([{
+      intent: item.reviewed_interpretation?.intent ?? item.predicted_interpretation.intent,
+      entities: [],
+      phrase_family: null,
+    }]);
+    setActiveActionIndex(0);
+    setSelection(null);
+    setPurpose("train_candidate");
+    setNotes("");
+    setDraft(item.text);
+    setQueueItem(item);
+  }
+
+  async function loadCorrectionQueue() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const [item] = await getAnnotationQueue("correction", 1);
+      if (!item) {
+        setNotice("No unreviewed corrected examples are waiting in the correction queue.");
+        return;
+      }
+      loadQueueSample(item);
+      const correctedIntent = item.reviewed_interpretation?.intent;
+      setNotice(
+        correctedIntent
+          ? `Loaded a corrected example. Parser predicted ${readable(item.predicted_interpretation.intent)} and the saved correction prefilled ${readable(correctedIntent)}.`
+          : "Loaded a corrected example from the correction queue.",
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not load the correction queue.");
     } finally {
       setBusy(false);
     }
@@ -197,6 +245,7 @@ export default function AnnotatePage() {
       setActiveActionIndex(0);
       setSelection(null);
       setNotes("");
+      setQueueItem(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save annotation.");
     } finally {
@@ -236,6 +285,12 @@ export default function AnnotatePage() {
       <div className={styles.workspace}>
         <section className={styles.card}>
           <div className={styles.step}><span>1</span><div><b>Create a sample</b><small>Write it as you would actually say it.</small></div></div>
+          <div className={styles.queueActions}>
+            <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadCorrectionQueue()}>
+              {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load correction queue
+            </button>
+            <p>Start with corrected examples that still need span labels.</p>
+          </div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}
               onKeyDown={(event) => {
@@ -290,7 +345,10 @@ export default function AnnotatePage() {
                 setActiveActionIndex(actions.length);
                 setSelection(null);
               }}><Plus size={16} /> Add action</button>
-              <p className={styles.prediction}>Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%</p>
+              <p className={styles.prediction}>
+                Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
+                {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
+              </p>
             </section>
 
             <section className={styles.card}>
