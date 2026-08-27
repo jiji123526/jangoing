@@ -973,7 +973,7 @@ confidence와 n-best 후보를 기록해야 한다.
 5. 실제 영어 validation/test 데이터 수집
 6. frozen test set 확정
 7. DistilBERT intent 모델과 동일 조건 비교
-8. span annotation UI와 slot model 구축
+8. `/annotate`에서 실제 span을 수집하고 slot model 구축
 9. category resolver와 context evaluation 추가
 10. 충분한 interaction 데이터 이후 recommendation baseline 구축
 ```

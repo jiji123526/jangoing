@@ -1,5 +1,6 @@
 import {
   ConfirmActionRequestSchema,
+  CreateAnnotationRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
@@ -17,6 +18,28 @@ const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
+const annotationSchemaVersion = "annotation-v1";
+
+function normalizedFromEntities(entities: Array<{
+  label: string;
+  text: string;
+  normalized_value?: string | number;
+}>): Record<string, string | number> {
+  const keys: Record<string, string> = {
+    ITEM: "item_name",
+    CATEGORY: "category",
+    QUANTITY: "quantity",
+    UNIT: "unit",
+    LOCATION: "location",
+    EXPIRY_DATE: "expiration_date",
+  };
+  return Object.fromEntries(
+    entities.map((entity) => [
+      keys[entity.label],
+      entity.normalized_value ?? entity.text,
+    ]),
+  );
+}
 
 function configuredOrigins(env: Env): string[] {
   return env.ALLOWED_ORIGINS
@@ -131,6 +154,64 @@ async function handleInferenceOutcome(request: Request, env: Env): Promise<Respo
     return json(request, env, { error: "Pending inference not found" }, 404);
   }
   return json(request, env, { success: true });
+}
+
+async function handleAnnotationStats(request: Request, env: Env): Promise<Response> {
+  const annotated = await env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM annotations",
+  ).first<{ count: number }>();
+  return json(request, env, { annotated: Number(annotated?.count ?? 0) });
+}
+
+async function handleCreateAnnotation(request: Request, env: Env): Promise<Response> {
+  const parsed = CreateAnnotationRequestSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return json(request, env, { error: "Invalid annotation", details: parsed.error.flatten() }, 400);
+  }
+  const inference = await env.DB.prepare(
+    "SELECT raw_utterance FROM inference_logs WHERE id = ?",
+  ).bind(parsed.data.inference_id).first<{ raw_utterance: string }>();
+  if (!inference) return json(request, env, { error: "Inference not found" }, 404);
+  const entities = [...parsed.data.entities].sort((a, b) => a.start - b.start);
+  for (let index = 0; index < entities.length; index += 1) {
+    const entity = entities[index];
+    if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
+      return json(request, env, { error: `Entity span does not match: ${entity.text}` }, 400);
+    }
+    if (index > 0 && entities[index - 1].end > entity.start) {
+      return json(request, env, { error: "Entity spans cannot overlap" }, 400);
+    }
+  }
+  const normalized = normalizedFromEntities(entities);
+  const createdAt = new Date().toISOString();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO annotations (
+          id, inference_id, intent, entities, normalized, dataset_purpose,
+          phrase_family, notes, annotator, annotation_schema_version, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        crypto.randomUUID(), parsed.data.inference_id, parsed.data.intent,
+        JSON.stringify(entities), JSON.stringify(normalized), parsed.data.dataset_purpose,
+        parsed.data.phrase_family ?? null, parsed.data.notes ?? null,
+        parsed.data.annotator, annotationSchemaVersion, createdAt,
+      ),
+      env.DB.prepare(
+        `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
+         resolved_at = ? WHERE id = ?`,
+      ).bind(
+        JSON.stringify({ intent: parsed.data.intent, entities, normalized }),
+        createdAt, parsed.data.inference_id,
+      ),
+    ]);
+  } catch (error) {
+    if (String(error).includes("UNIQUE")) {
+      return json(request, env, { error: "Inference is already annotated" }, 409);
+    }
+    throw error;
+  }
+  return json(request, env, { success: true }, 201);
 }
 
 async function handleCreateEvent(
@@ -270,6 +351,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "POST" && url.pathname === "/inferences/outcome") {
     return handleInferenceOutcome(request, env);
+  }
+
+  if (request.method === "GET" && url.pathname === "/annotations/stats") {
+    return handleAnnotationStats(request, env);
+  }
+
+  if (request.method === "POST" && url.pathname === "/annotations") {
+    return handleCreateAnnotation(request, env);
   }
 
   if (request.method === "GET" && url.pathname === "/events") {

@@ -98,6 +98,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 - [구현 내용과 기술적 의사결정 설명서](./IMPLEMENTATION_NOTES_KO.md)
 - [영어 synthetic-v1 생성 및 의사결정 기록](./SYNTHETIC_V1_KO.md)
 - [머신러닝·자연어 처리·언어학 개념 안내서](./ML_NLP_CONCEPTS_KO.md)
+- [Production annotation 화면 사용 및 의사결정 기록](./ANNOTATION_GUIDE_KO.md)
 
 ## MVP Commands
 

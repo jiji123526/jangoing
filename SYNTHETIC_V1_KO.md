@@ -180,7 +180,7 @@ taxonomy는 처음부터 다국어 확장형으로 만드는 방식을 선택했
 - taxonomy는 초기 소규모 목록이며 정식 식품 ontology가 아니다.
 - phrase family는 scenario template 기반이다.
 - category resolver는 아직 production parser에 연결되지 않았다.
-- entity span은 생성 데이터에는 있지만 production correction UI에는 span 라벨링이 없다.
+- 일반 correction UI와 별도로 production `/annotate` 화면에서 span 라벨링을 지원한다.
 - baseline은 intent만 학습하며 entities와 normalized 값은 사용하지 않는다.
 - 실제 frozen test set은 아직 없다.
 

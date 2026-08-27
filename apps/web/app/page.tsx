@@ -15,9 +15,11 @@ import {
   Refrigerator,
   Send,
   ShoppingBasket,
+  Tags,
   X,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import {
   createEvent,
   getDashboardData,
@@ -274,16 +276,21 @@ export default function Home() {
           <span className="brand">jangoing</span>
           <span className="phase">Text MVP</span>
         </div>
-        <button
-          className="icon-button"
-          type="button"
-          onClick={() => void loadDashboard()}
-          disabled={loading}
-          title="Refresh kitchen data"
-          aria-label="Refresh kitchen data"
-        >
-          <RefreshCw size={18} className={loading ? "spin" : undefined} />
-        </button>
+        <div className="top-actions">
+          <Link className="annotation-link" href="/annotate">
+            <Tags size={16} /> Annotate
+          </Link>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => void loadDashboard()}
+            disabled={loading}
+            title="Refresh kitchen data"
+            aria-label="Refresh kitchen data"
+          >
+            <RefreshCw size={18} className={loading ? "spin" : undefined} />
+          </button>
+        </div>
       </header>
 
       <section className="command-band" aria-labelledby="command-heading">

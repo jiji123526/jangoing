@@ -59,7 +59,52 @@ export const InferenceOutcomeSchema = z.enum([
   "corrected",
   "cancelled",
   "rejected",
+  "annotated",
 ]);
+
+export const EntityLabelSchema = z.enum([
+  "ITEM",
+  "CATEGORY",
+  "QUANTITY",
+  "UNIT",
+  "LOCATION",
+  "EXPIRY_DATE",
+]);
+
+export const EntityAnnotationSchema = z
+  .object({
+    label: EntityLabelSchema,
+    start: z.number().int().nonnegative(),
+    end: z.number().int().positive(),
+    text: z.string().min(1),
+    normalized_value: z.union([z.string(), z.number()]).optional(),
+  })
+  .refine((entity) => entity.end > entity.start, "Entity end must follow start");
+
+export const DatasetPurposeSchema = z.enum([
+  "train_candidate",
+  "evaluation_candidate",
+]);
+
+export const CreateAnnotationRequestSchema = z
+  .object({
+    inference_id: z.string().uuid(),
+    intent: IntentSchema,
+    entities: z.array(EntityAnnotationSchema),
+    dataset_purpose: DatasetPurposeSchema,
+    phrase_family: z.string().trim().max(120).nullable().optional(),
+    notes: z.string().trim().max(1000).nullable().optional(),
+    annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
+  })
+  .strict();
+
+export const AnnotationQueueItemSchema = z.object({
+  inference_id: z.string().uuid(),
+  text: z.string(),
+  predicted_interpretation: InterpretationSchema,
+  parser_version: z.string(),
+  created_at: z.string(),
+});
 
 export const UpdateInferenceOutcomeRequestSchema = z
   .object({
@@ -141,6 +186,11 @@ export type InterpretCommandRequest = z.infer<
 export type Interpretation = z.infer<typeof InterpretationSchema>;
 export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
 export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
+export type EntityLabel = z.infer<typeof EntityLabelSchema>;
+export type EntityAnnotation = z.infer<typeof EntityAnnotationSchema>;
+export type DatasetPurpose = z.infer<typeof DatasetPurposeSchema>;
+export type CreateAnnotationRequest = z.infer<typeof CreateAnnotationRequestSchema>;
+export type AnnotationQueueItem = z.infer<typeof AnnotationQueueItemSchema>;
 export type UpdateInferenceOutcomeRequest = z.infer<
   typeof UpdateInferenceOutcomeRequestSchema
 >;

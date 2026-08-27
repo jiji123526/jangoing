@@ -2,6 +2,39 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - Production annotation workspace added
+
+### Completed
+
+- Added a dedicated `/annotate` page linked from the kitchen dashboard.
+- Added intent labeling, exact text selection, entity labels, normalized values,
+  train/evaluation purpose, phrase family, and notes.
+- Added D1 annotation schema with server-side span and overlap validation.
+- Included annotation entities and metadata in local and remote dataset export.
+- Added a non-sensitive annotation count without exposing prior raw utterances.
+
+### Decisions
+
+- Publish the annotation input page without login as explicitly requested.
+- Do not expose an unauthenticated queue of existing conversational text.
+- Treat evaluation selection as a candidate until separate frozen-set approval.
+
+### Validation
+
+- TypeScript tests, typecheck, Worker build, and Next.js build pass.
+- A local annotation with ITEM span and normalized value persisted successfully.
+- The saved span, dataset purpose, and phrase family exported to JSONL.
+
+### Blockers
+
+- Public write access permits low-quality or abusive annotations.
+- No annotation edit, adjudication, or authenticated review queue exists yet.
+
+### Next
+
+- Apply migration 0004 and redeploy API and web.
+- Use `/annotate` to collect independent real English evaluation candidates.
+
 ## 2026-08-26 - English synthetic-v1 bootstrap generated
 
 ### Completed

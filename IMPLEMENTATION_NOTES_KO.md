@@ -281,7 +281,6 @@ baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 �
 다음 항목은 계획에는 있지만 아직 동작하지 않는다.
 
 - DistilBERT intent 모델
-- BIO entity span annotation UI
 - slot extraction 모델
 - `drink -> beverage` 형태의 production category resolver
 - multi-turn 대화 context retrieval
@@ -291,10 +290,9 @@ baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 �
 - 온라인 A/B 평가 및 모델 registry dashboard
 - Python 모델의 production inference 배포
 
-특히 현재 correction UI는 normalized slot 값은 저장하지만, 원문에서 item이나
-date가 차지한 정확한 문자 범위는 저장하지 않는다. 따라서 intent baseline은
-학습할 수 있지만 정식 token-level slot 모델을 학습하려면 span annotation 기능이
-추가로 필요하다.
+일반 correction UI는 normalized slot 값만 저장하지만, 별도 `/annotate` 화면에서
+원문의 정확한 문자 범위와 entity label을 저장할 수 있다. 이 데이터는 향후
+token-level slot 모델 학습 후보로 export된다.
 
 ## 7. 현재 한계와 주의사항
 
@@ -387,7 +385,7 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 4. pending timeout과 idempotent/atomic 저장을 보강한다.
 5. phrase family를 검토하고 frozen test set을 만든다.
 6. TF-IDF baseline 결과를 첫 기준점으로 저장한다.
-7. entity span annotation과 category taxonomy를 구현한다.
+7. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
 8. 같은 test set으로 DistilBERT와 baseline을 비교한다.
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,

@@ -4,6 +4,7 @@ import {
   InventoryItemSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
+  type CreateAnnotationRequest,
   type EventRecord,
   type LoggedInterpretation,
   type UpdateInferenceOutcomeRequest,
@@ -74,6 +75,20 @@ export async function createEvent(
   });
 
   return EventRecordSchema.parse(body);
+}
+
+export async function createAnnotation(
+  annotation: CreateAnnotationRequest,
+): Promise<void> {
+  await apiRequest("/annotations", {
+    method: "POST",
+    body: JSON.stringify(annotation),
+  });
+}
+
+export async function getAnnotationStats(): Promise<{ annotated: number }> {
+  const body = await apiRequest("/annotations/stats");
+  return z.object({ annotated: z.number().nonnegative() }).parse(body);
 }
 
 const InventoryResponseSchema = z.object({

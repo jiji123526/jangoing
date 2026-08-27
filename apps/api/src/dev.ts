@@ -1,5 +1,6 @@
 import {
   ConfirmActionRequestSchema,
+  CreateAnnotationRequestSchema,
   EventRecordSchema,
   InterpretCommandRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
@@ -32,6 +33,10 @@ const inferenceMigrationPath = resolve(
   apiDirectory,
   "migrations/0003_create_inference_logs.sql",
 );
+const annotationMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0004_create_annotations.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -54,9 +59,32 @@ const inferenceMigration = readFileSync(inferenceMigrationPath, "utf8")
   .replace("CREATE TABLE inference_logs", "CREATE TABLE IF NOT EXISTS inference_logs")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
 database.exec(inferenceMigration);
+const annotationMigration = readFileSync(annotationMigrationPath, "utf8")
+  .replace("CREATE TABLE annotations", "CREATE TABLE IF NOT EXISTS annotations")
+  .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
+database.exec(annotationMigration);
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
+const annotationSchemaVersion = "annotation-v1";
+
+function normalizedFromEntities(entities: Array<{
+  label: string;
+  text: string;
+  normalized_value?: string | number;
+}>): Record<string, string | number> {
+  const keys: Record<string, string> = {
+    ITEM: "item_name",
+    CATEGORY: "category",
+    QUANTITY: "quantity",
+    UNIT: "unit",
+    LOCATION: "location",
+    EXPIRY_DATE: "expiration_date",
+  };
+  return Object.fromEntries(
+    entities.map((entity) => [keys[entity.label], entity.normalized_value ?? entity.text]),
+  );
+}
 
 function readBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolveBody, reject) => {
@@ -188,6 +216,72 @@ async function route(
       parsed.data.inference_id,
     );
     sendJson(response, origin, result.changes ? { success: true } : { error: "Pending inference not found" }, result.changes ? 200 : 404);
+    return;
+  }
+
+  if (request.method === "GET" && path === "/annotations/stats") {
+    const row = database.prepare("SELECT COUNT(*) AS count FROM annotations").get() as { count: number };
+    sendJson(response, origin, { annotated: Number(row.count) });
+    return;
+  }
+
+  if (request.method === "POST" && path === "/annotations") {
+    const parsed = CreateAnnotationRequestSchema.safeParse(await readBody(request));
+    if (!parsed.success) {
+      sendJson(response, origin, { error: "Invalid annotation", details: parsed.error.flatten() }, 400);
+      return;
+    }
+    const inference = database.prepare(
+      "SELECT raw_utterance FROM inference_logs WHERE id = ?",
+    ).get(parsed.data.inference_id) as { raw_utterance: string } | undefined;
+    if (!inference) {
+      sendJson(response, origin, { error: "Inference not found" }, 404);
+      return;
+    }
+    const entities = [...parsed.data.entities].sort((a, b) => a.start - b.start);
+    for (let index = 0; index < entities.length; index += 1) {
+      const entity = entities[index];
+      if (inference.raw_utterance.slice(entity.start, entity.end) !== entity.text) {
+        sendJson(response, origin, { error: `Entity span does not match: ${entity.text}` }, 400);
+        return;
+      }
+      if (index > 0 && entities[index - 1].end > entity.start) {
+        sendJson(response, origin, { error: "Entity spans cannot overlap" }, 400);
+        return;
+      }
+    }
+    const normalized = normalizedFromEntities(entities);
+    const createdAt = new Date().toISOString();
+    try {
+      database.exec("BEGIN");
+      database.prepare(
+        `INSERT INTO annotations (
+          id, inference_id, intent, entities, normalized, dataset_purpose,
+          phrase_family, notes, annotator, annotation_schema_version, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        crypto.randomUUID(), parsed.data.inference_id, parsed.data.intent,
+        JSON.stringify(entities), JSON.stringify(normalized), parsed.data.dataset_purpose,
+        parsed.data.phrase_family ?? null, parsed.data.notes ?? null,
+        parsed.data.annotator, annotationSchemaVersion, createdAt,
+      );
+      database.prepare(
+        `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
+         resolved_at = ? WHERE id = ?`,
+      ).run(
+        JSON.stringify({ intent: parsed.data.intent, entities, normalized }),
+        createdAt, parsed.data.inference_id,
+      );
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      if (String(error).includes("UNIQUE")) {
+        sendJson(response, origin, { error: "Inference is already annotated" }, 409);
+        return;
+      }
+      throw error;
+    }
+    sendJson(response, origin, { success: true }, 201);
     return;
   }
 
