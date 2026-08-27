@@ -2,6 +2,7 @@
 
 import type {
   AnnotationAction,
+  AnnotationNormalizedValuesResponse,
   AnnotationQueueItem,
   AnnotationQueueType,
   AnnotationStats,
@@ -20,6 +21,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createAnnotation,
+  getAnnotationNormalizedValues,
   getAnnotationQueue,
   getAnnotationStats,
   interpretCommand,
@@ -59,6 +61,11 @@ const normalizedValueRequiredLabels = new Set<EntityLabel>([
   "LOCATION",
   "EXPIRY_DATE",
 ]);
+const freeformNormalizedValueLabels = new Set<EntityLabel>([
+  "ITEM",
+  "CATEGORY",
+  "UNIT",
+]);
 
 function readable(value: string): string {
   return value
@@ -88,6 +95,73 @@ function missingNormalizedValueError(actions: AnnotationAction[]): string | null
   return null;
 }
 
+function initialNormalizedValueOptions(): AnnotationNormalizedValuesResponse {
+  return {
+    ITEM: [...AnnotationNormalizedValues.ITEM],
+    CATEGORY: [...AnnotationNormalizedValues.CATEGORY],
+    QUANTITY: [...AnnotationNormalizedValues.QUANTITY],
+    UNIT: [...AnnotationNormalizedValues.UNIT],
+    LOCATION: [...AnnotationNormalizedValues.LOCATION],
+    EXPIRY_DATE: [...AnnotationNormalizedValues.EXPIRY_DATE],
+  };
+}
+
+function mergeNormalizedValueOptions(
+  current: AnnotationNormalizedValuesResponse,
+  actions: AnnotationAction[],
+): AnnotationNormalizedValuesResponse {
+  const stringBuckets = {
+    ITEM: new Set(current.ITEM),
+    CATEGORY: new Set(current.CATEGORY),
+    UNIT: new Set(current.UNIT),
+    LOCATION: new Set(current.LOCATION),
+    EXPIRY_DATE: new Set(current.EXPIRY_DATE),
+  };
+  const quantityBucket = new Set(current.QUANTITY);
+
+  for (const action of actions) {
+    for (const entity of action.entities) {
+      if (entity.normalized_value === undefined) {
+        continue;
+      }
+
+      if (entity.label === "QUANTITY") {
+        const quantity = typeof entity.normalized_value === "number"
+          ? entity.normalized_value
+          : Number(entity.normalized_value);
+        if (Number.isFinite(quantity) && quantity > 0) {
+          quantityBucket.add(quantity);
+        }
+        continue;
+      }
+
+      if (typeof entity.normalized_value !== "string") {
+        continue;
+      }
+
+      const normalizedValue = entity.normalized_value.trim();
+      if (!normalizedValue) {
+        continue;
+      }
+
+      if (entity.label === "ITEM") stringBuckets.ITEM.add(normalizedValue);
+      if (entity.label === "CATEGORY") stringBuckets.CATEGORY.add(normalizedValue);
+      if (entity.label === "UNIT") stringBuckets.UNIT.add(normalizedValue);
+      if (entity.label === "LOCATION") stringBuckets.LOCATION.add(normalizedValue);
+      if (entity.label === "EXPIRY_DATE") stringBuckets.EXPIRY_DATE.add(normalizedValue);
+    }
+  }
+
+  return {
+    ITEM: [...stringBuckets.ITEM].sort((left, right) => left.localeCompare(right)),
+    CATEGORY: [...stringBuckets.CATEGORY].sort((left, right) => left.localeCompare(right)),
+    QUANTITY: [...quantityBucket].sort((left, right) => left - right),
+    UNIT: [...stringBuckets.UNIT].sort((left, right) => left.localeCompare(right)),
+    LOCATION: [...stringBuckets.LOCATION].sort((left, right) => left.localeCompare(right)),
+    EXPIRY_DATE: [...stringBuckets.EXPIRY_DATE].sort((left, right) => left.localeCompare(right)),
+  };
+}
+
 function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
   if (!item || item.queue_type !== "expiry") {
     return null;
@@ -108,9 +182,13 @@ function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
 
 function NormalizedValueControl({
   entity,
+  options,
+  listId,
   onChange,
 }: {
   entity: EntityAnnotation;
+  options: AnnotationNormalizedValuesResponse;
+  listId: string;
   onChange: (value: string | number | undefined) => void;
 }) {
   if (entity.label === "EXPIRY_DATE") {
@@ -127,26 +205,79 @@ function NormalizedValueControl({
     );
   }
 
-  const options = AnnotationNormalizedValues[entity.label];
+  if (entity.label === "LOCATION") {
+    return (
+      <label className={styles.normalizedControl}>
+        <span>Normalized value</span>
+        <select
+          aria-label={`Normalized value for ${entity.text}`}
+          value={entity.normalized_value ?? ""}
+          onChange={(event) => onChange(event.target.value || undefined)}
+        >
+          <option value="">Select a value</option>
+          {AnnotationNormalizedValues.LOCATION.map((option) => (
+            <option key={option} value={option}>{readable(String(option))}</option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  if (entity.label === "QUANTITY") {
+    return (
+      <label className={styles.normalizedControl}>
+        <span>Normalized value</span>
+        <input
+          aria-label={`Normalized value for ${entity.text}`}
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="any"
+          list={listId}
+          value={
+            entity.normalized_value === undefined
+              ? ""
+              : String(entity.normalized_value)
+          }
+          onChange={(event) => {
+            if (!event.target.value) {
+              onChange(undefined);
+              return;
+            }
+            const nextValue = Number(event.target.value);
+            onChange(Number.isFinite(nextValue) ? nextValue : undefined);
+          }}
+        />
+        <datalist id={listId}>
+          {options.QUANTITY.map((option) => (
+            <option key={option} value={String(option)} />
+          ))}
+        </datalist>
+      </label>
+    );
+  }
+
+  const labelOptions = options[entity.label];
   return (
     <label className={styles.normalizedControl}>
       <span>Normalized value</span>
-      <select
+      <input
         aria-label={`Normalized value for ${entity.text}`}
-        value={entity.normalized_value ?? ""}
-        onChange={(event) => {
-          if (!event.target.value) {
-            onChange(undefined);
-            return;
-          }
-          onChange(entity.label === "QUANTITY" ? Number(event.target.value) : event.target.value);
-        }}
-      >
-        <option value="">Select a value</option>
-        {options.map((option) => (
-          <option key={option} value={option}>{readable(String(option))}</option>
+        type="text"
+        list={listId}
+        placeholder={
+          freeformNormalizedValueLabels.has(entity.label)
+            ? "existing canonical value or new snake_case value"
+            : "normalized value"
+        }
+        value={typeof entity.normalized_value === "string" ? entity.normalized_value : ""}
+        onChange={(event) => onChange(event.target.value || undefined)}
+      />
+      <datalist id={listId}>
+        {labelOptions.map((option) => (
+          <option key={option} value={String(option)}>{readable(String(option))}</option>
         ))}
-      </select>
+      </datalist>
     </label>
   );
 }
@@ -162,6 +293,9 @@ export default function AnnotatePage() {
   const [notes, setNotes] = useState("");
   const [queueItem, setQueueItem] = useState<AnnotationQueueItem | null>(null);
   const [stats, setStats] = useState<AnnotationStats>(emptyStats);
+  const [normalizedOptions, setNormalizedOptions] = useState<AnnotationNormalizedValuesResponse>(
+    initialNormalizedValueOptions(),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -170,6 +304,12 @@ export default function AnnotatePage() {
   useEffect(() => {
     void getAnnotationStats()
       .then(setStats)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    void getAnnotationNormalizedValues()
+      .then(setNormalizedOptions)
       .catch(() => undefined);
   }, []);
 
@@ -318,13 +458,14 @@ export default function AnnotatePage() {
         notes: notes.trim() || null,
         annotator: "production-web",
       });
+      setNormalizedOptions((current) => mergeNormalizedValueOptions(current, actions));
       setStats((current) => ({
         ...current,
         annotated: current.annotated + 1,
         train_candidates: current.train_candidates + (purpose === "train_candidate" ? 1 : 0),
         evaluation_candidates: current.evaluation_candidates + (purpose === "evaluation_candidate" ? 1 : 0),
       }));
-      setNotice("Annotation saved. Enter the next sentence.");
+      setNotice("Annotation saved. New normalized values from this review are now reusable in the next sample.");
       setDraft("");
       setSample(null);
       setActions([]);
@@ -474,6 +615,8 @@ export default function AnnotatePage() {
                       <div key={`${entity.start}-${entity.end}-${entity.label}`}>
                         <code>{entity.label}</code><span>“{entity.text}”</span><small>{entity.start}:{entity.end}</small>
                         <NormalizedValueControl entity={entity}
+                          options={normalizedOptions}
+                          listId={`normalized-${actionIndex}-${entityIndex}-${entity.label}`}
                           onChange={(value) => setActions((current) => current.map((item, itemIndex) =>
                             itemIndex === actionIndex ? { ...item, entities: item.entities.map((existing, index) =>
                               index === entityIndex ? { ...existing, normalized_value: value } : existing) } : item))} />

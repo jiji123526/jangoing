@@ -1,4 +1,5 @@
 import {
+  AnnotationNormalizedValuesResponseSchema,
   AnnotationStatsSchema,
   AnnotationQueueResponseSchema,
   EventRecordSchema,
@@ -8,6 +9,7 @@ import {
   type ConfirmActionRequest,
   type AnnotationQueueItem,
   type AnnotationQueueType,
+  type AnnotationNormalizedValuesResponse,
   type AnnotationStats,
   type CreateAnnotationRequest,
   type EventRecord,
@@ -118,6 +120,11 @@ export async function getAnnotationQueue(
     `/annotations/queue?type=${encodeURIComponent(type)}&limit=${limit}`,
   );
   return AnnotationQueueResponseSchema.parse(body).items;
+}
+
+export async function getAnnotationNormalizedValues(): Promise<AnnotationNormalizedValuesResponse> {
+  const body = await apiRequest("/annotations/normalized-values");
+  return AnnotationNormalizedValuesResponseSchema.parse(body);
 }
 
 const InventoryResponseSchema = z.object({

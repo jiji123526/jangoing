@@ -59,7 +59,7 @@ The text MVP is implemented and deployable:
 - Public production `/annotate` workspace with exact spans
 - `annotation-v2` multi-action groups with action-specific intent, phrase family,
   entities, and normalized values
-- Controlled dropdown vocabularies for normalized values and phrase families
+- Dynamic normalized-value suggestions with controlled phrase families
 - Prioritized annotation queues for correction, expiry-heavy, low-confidence,
   confirmed, and evaluation-holdout samples
 - Production counters for training candidates (100–200 target) and evaluation
@@ -98,8 +98,10 @@ These limitations are acceptable only while every state-changing action requires
 - `reference_date` and `timezone` are now persisted through inference request
   context and reviewed export, but they are not yet surfaced in the annotation
   UI or used for deeper timezone-aware normalization logic.
-- Reviewed annotations do not yet enforce normalized-value completeness for
-  labels such as ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
+- Reviewed annotations now enforce normalized-value completeness for
+  ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
+- ITEM, CATEGORY, and UNIT normalized values can now grow directly from
+  reviewed annotation history, but canonical drift governance is still manual.
 - The single-action baseline gate is still implicit in ML code rather than a
   first-class export or annotation flag.
 

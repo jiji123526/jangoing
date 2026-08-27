@@ -5,17 +5,48 @@ Add new entries at the top of the log so the latest state is easy to find.
 ## Current state as of 2026-08-27
 
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
-  queues, split train/evaluation dataset export validation, and task-aware
-  reviewed export filtering.
+  queues, split train/evaluation dataset export validation, task-aware
+  reviewed export filtering, and dynamic normalized-value suggestions.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
-- Recent validation: 30 TypeScript tests and repo-wide typecheck pass.
+- Recent validation: 38 TypeScript tests, repo-wide typecheck, and web build
+  pass after the dynamic normalized-value update.
 - Active work: collect 100–200 human training candidates and 100+ independent
-  evaluation candidates, then strengthen normalized-value quality rules and
-  build the first slot-training dataset and baseline.
+  evaluation candidates, monitor canonical drift in newly added normalized
+  values, and build the first slot-training dataset and baseline.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Dynamic normalized annotation values added
+
+### Completed
+
+- Added `GET /annotations/normalized-values` for both the Worker and local API.
+- Merged shared seed values with distinct normalized values already present in
+  reviewed annotations.
+- Updated `/annotate` so ITEM, CATEGORY, and UNIT can reuse suggestions or
+  accept new canonical values directly.
+- Kept LOCATION constrained to contract values and EXPIRY_DATE constrained to
+  the ISO date picker.
+- Updated annotation docs to replace the old "leave blank and propose later"
+  workflow with immediate canonical-value entry.
+
+### Decisions
+
+- Use shared contracts only as the seed vocabulary, not the full long-term
+  closed list for item-style labels.
+- Let reviewed annotation history grow the reusable vocabulary automatically
+  instead of creating a separate approval queue first.
+- Keep strict controls for LOCATION and EXPIRY_DATE because they must remain
+  aligned with product contract semantics, not annotator creativity.
+
+### Next
+
+- Add monitoring or lightweight review for canonical drift such as duplicate
+  forms (`oatmilk` vs `oat_milk`) once more real data accumulates.
+- Consider surfacing normalized-value search or taxonomy cleanup tools if the
+  dynamic list grows noisy.
 
 ## 2026-08-27 - Reference date and timezone persistence added
 

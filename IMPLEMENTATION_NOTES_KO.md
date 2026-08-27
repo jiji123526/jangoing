@@ -287,19 +287,26 @@ confirmed, evaluation holdout이다. 따라서 대량 browse 위험은 줄이되
 현재 TF-IDF 모델은 single-intent classifier다. multi-action record를 첫 intent로
 왜곡하지 않으며 학습에서 제외하고 제외 개수를 metrics에 남긴다.
 
-### 4.11 Controlled annotation values
+### 4.11 Dynamic annotation normalized values
 
-normalized value와 phrase family를 자유 입력하면 같은 개념이 서로 다른 문자열로
-쌓이므로 shared contract의 dropdown으로 제한했다.
+normalized value를 완전 자유 입력으로 두면 drift가 생기고, 완전 고정 dropdown으로
+두면 실제 item coverage가 너무 좁아진다. 현재는 두 극단 사이의 절충 구조를 쓴다.
 
-- ITEM/CATEGORY: `grocery-v1` canonical IDs
-- LOCATION: `fridge`, `freezer`, `pantry`
-- QUANTITY/UNIT: annotation-v2 controlled values
+- ITEM/CATEGORY/UNIT: 기존 canonical 값 추천 + 새 canonical 값 직접 입력
+- QUANTITY: 숫자 입력 + 기존 숫자 추천
+- LOCATION: `fridge`, `freezer`, `pantry` 고정
 - EXPIRY_DATE: ISO date picker
-- phrase family: 선택한 intent에 맞는 semantic family
+- phrase family: 선택한 intent에 맞는 semantic family 고정
 
-필요한 값이 없으면 유사한 값을 억지로 선택하지 않고 비워 둔 뒤 notes에 후보를
-기록하고 taxonomy/convention을 먼저 확장한다.
+shared contract의 `AnnotationNormalizedValues`는 초기 seed 목록으로 유지한다. 동시에
+API의 `GET /annotations/normalized-values`가 reviewed annotation의 `actions` JSON을
+읽어 label별 distinct normalized value를 모은다. `/annotate`는 이 응답을 받아 추천값
+목록을 만들고, annotator가 새 ITEM/CATEGORY/UNIT 값을 저장하면 같은 세션과 이후
+annotation에서 바로 재사용할 수 있다.
+
+즉, 새 canonical 값은 approval queue를 기다리지 않는다. 다만 의미가 불확실한데
+값만 새로 만드는 것은 금지한다. 그 경우는 normalized value 사전 확장이 아니라
+annotation 판단 문제로 보고 span 또는 intent부터 다시 본다.
 
 ### 4.12 입력 및 진행률 UX
 

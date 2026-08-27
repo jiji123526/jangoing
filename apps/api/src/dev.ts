@@ -1,4 +1,5 @@
 import {
+  AnnotationNormalizedValuesResponseSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
@@ -15,6 +16,10 @@ import {
 import { resolve, dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import {
+  collectAnnotationNormalizedValues,
+  type AnnotationNormalizedValueRow,
+} from "./annotations/normalized-values";
 import {
   annotationQueueQuery,
   type AnnotationQueueRow,
@@ -279,6 +284,20 @@ async function route(
       }
       throw error;
     }
+  }
+
+  if (request.method === "GET" && path === "/annotations/normalized-values") {
+    const rows = database.prepare(
+      "SELECT actions, entities FROM annotations ORDER BY created_at ASC, id ASC",
+    ).all() as unknown as AnnotationNormalizedValueRow[];
+    sendJson(
+      response,
+      origin,
+      AnnotationNormalizedValuesResponseSchema.parse(
+        collectAnnotationNormalizedValues(rows),
+      ),
+    );
+    return;
   }
 
   if (request.method === "POST" && path === "/annotations") {

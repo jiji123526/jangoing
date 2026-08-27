@@ -141,7 +141,11 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 상대 날짜는 annotation 날짜와 timezone이 명확할 때만 ISO 날짜로 변환한다.
   확신할 수 없으면 원문 표현을 유지하고 notes에 기록한다.
 - taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
-- 확실하지 않은 정규화 값을 추측하지 않는다. 비워 두고 notes에 후보를 기록한다.
+- ITEM, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
+  annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
+  추천값으로 다시 나타난다.
+- 확실하지 않은 정규화 값을 추측하지 않는다. 이 경우 새 값을 만들어 넣지 말고
+  span 또는 intent 판단을 다시 검토하고 notes에 이유를 남긴다.
 
 ### reviewed annotation에서 normalized value 필수 규칙
 
@@ -152,10 +156,16 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 필수 label의 normalized value가 확실하지 않다면 억지로 틀린 값을 넣지 말고,
   span 또는 intent 판단 자체를 다시 검토한 뒤 notes에 이유를 남긴다.
 
-`/annotate`는 이 규칙을 지키도록 label별 선택 메뉴를 제공한다. ITEM과 CATEGORY는
-`grocery-v1`, LOCATION은 API contract, QUANTITY와 UNIT은 annotation-v2의 controlled
-value 목록을 사용한다. EXPIRY_DATE는 ISO 형식을 보장하는 날짜 선택기를 사용한다.
-필요한 값이 메뉴에 없으면 가까운 값을 대신 선택하지 말고 비워 둔 뒤 notes에 남긴다.
+`/annotate`는 이 규칙을 지키도록 label별 normalized value 입력 방식을 구분한다.
+
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
+- QUANTITY: 숫자 입력 + 기존 숫자 추천
+- LOCATION: `fridge`, `freezer`, `pantry` 중 선택
+- EXPIRY_DATE: ISO 형식을 보장하는 날짜 선택기
+
+ITEM, CATEGORY, UNIT은 추천 목록에 없는 새 canonical 값을 바로 입력할 수 있다.
+저장되면 이후 annotation에서 자동 추천 목록에 합쳐진다. LOCATION은 product contract
+제약 때문에 새 값을 만들지 않는다.
 
 ## Phrase family convention
 

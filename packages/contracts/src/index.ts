@@ -305,6 +305,15 @@ export const AnnotationQueueResponseSchema = z.object({
   items: z.array(AnnotationQueueItemSchema),
 });
 
+export const AnnotationNormalizedValuesResponseSchema = z.object({
+  ITEM: z.array(z.string().trim().min(1)),
+  CATEGORY: z.array(z.string().trim().min(1)),
+  QUANTITY: z.array(z.number()),
+  UNIT: z.array(z.string().trim().min(1)),
+  LOCATION: z.array(z.string().trim().min(1)),
+  EXPIRY_DATE: z.array(IsoDateSchema),
+});
+
 export const UpdateInferenceOutcomeRequestSchema = z
   .object({
     inference_id: z.string().uuid(),
@@ -395,6 +404,9 @@ export type AnnotationQueueType = z.infer<typeof AnnotationQueueTypeSchema>;
 export type AnnotationQueueItem = z.infer<typeof AnnotationQueueItemSchema>;
 export type AnnotationQueueQuery = z.infer<typeof AnnotationQueueQuerySchema>;
 export type AnnotationQueueResponse = z.infer<typeof AnnotationQueueResponseSchema>;
+export type AnnotationNormalizedValuesResponse = z.infer<
+  typeof AnnotationNormalizedValuesResponseSchema
+>;
 export type UpdateInferenceOutcomeRequest = z.infer<
   typeof UpdateInferenceOutcomeRequestSchema
 >;

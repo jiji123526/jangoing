@@ -1,4 +1,5 @@
 import {
+  AnnotationNormalizedValuesResponseSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
@@ -6,6 +7,10 @@ import {
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
 } from "@jangoing/contracts";
+import {
+  collectAnnotationNormalizedValues,
+  type AnnotationNormalizedValueRow,
+} from "./annotations/normalized-values";
 import {
   annotationQueueQuery,
   type AnnotationQueueRow,
@@ -205,6 +210,23 @@ async function handleAnnotationQueue(request: Request, env: Env): Promise<Respon
     }
     throw error;
   }
+}
+
+async function handleAnnotationNormalizedValues(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const result = await env.DB.prepare(
+    "SELECT actions, entities FROM annotations ORDER BY created_at ASC, id ASC",
+  ).all<AnnotationNormalizedValueRow>();
+
+  return json(
+    request,
+    env,
+    AnnotationNormalizedValuesResponseSchema.parse(
+      collectAnnotationNormalizedValues(result.results),
+    ),
+  );
 }
 
 async function handleCreateAnnotation(request: Request, env: Env): Promise<Response> {
@@ -414,6 +436,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/annotations/queue") {
     return handleAnnotationQueue(request, env);
+  }
+
+  if (request.method === "GET" && url.pathname === "/annotations/normalized-values") {
+    return handleAnnotationNormalizedValues(request, env);
   }
 
   if (request.method === "POST" && url.pathname === "/annotations") {

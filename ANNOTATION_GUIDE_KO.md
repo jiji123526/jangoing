@@ -214,18 +214,22 @@ review status를 추가해야 한다.
 - `drinks`처럼 상위 개념이면 ITEM이 아니라 CATEGORY를 사용한다.
 - normalized value에는 canonical ID를 사용한다.
 
-## Normalized value 선택 메뉴
+## Normalized value 입력 방식
 
-annotation-v2는 자유 입력 대신 label별 controlled vocabulary를 사용한다.
+annotation-v2는 label별로 다른 입력 방식을 사용한다.
 
-- ITEM과 CATEGORY: `ml/taxonomy/grocery-v1.json`의 canonical ID
-- QUANTITY: 초기 지원 수량 목록의 숫자 값
-- UNIT: 단수형 영문 canonical unit
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
+- QUANTITY: 숫자 입력 + 기존 숫자 추천
 - LOCATION: API contract가 지원하는 `fridge`, `freezer`, `pantry`
 - EXPIRY_DATE: ISO 날짜를 만드는 날짜 선택기
 
-목록에 필요한 값이 없다면 비슷한 값을 임의로 고르지 않는다. normalized value를
-비워 두고 notes에 필요한 후보를 기록한 다음 taxonomy/convention을 먼저 확장한다.
+ITEM, CATEGORY, UNIT은 추천 목록에 값이 없더라도 annotator가 새 canonical 값을 바로
+입력할 수 있다. 가능하면 영문 소문자 `snake_case`를 사용한다. 저장이 끝나면 그 값은
+이후 annotation에서 자동으로 재사용 후보에 포함된다.
+
+의미가 불확실한데 단순히 목록에 없다는 이유로 새 값을 만들지는 않는다. 이 경우에는
+틀린 normalized value를 넣기보다 span 또는 intent를 다시 보고, 판단 근거를 notes에
+남긴다.
 
 ## Phrase family 선택 메뉴
 
