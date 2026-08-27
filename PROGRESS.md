@@ -2,6 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Annotation convention v1 documented
+
+### Completed
+
+- Added a Korean annotation convention separate from the UI operation guide.
+- Defined intent boundaries, entity span rules, ITEM/CATEGORY decisions,
+  canonical normalization, phrase families, and train/evaluation candidates.
+- Added conservative rules for implicit out-of-stock statements and missing context.
+- Added a checklist and a versioned process for resolving future edge cases.
+
+### Decisions
+
+- Treat the raw utterance as immutable annotation evidence.
+- Do not infer an explicit shopping-list action from `We're out of ...` alone.
+- Use `needs_clarification` when the current sentence lacks enough context.
+- Keep category-level expressions generalized for the later recommendation system.
+
 ## 2026-08-26 - Production annotation workspace added
 
 ### Completed

@@ -6,6 +6,9 @@
 일반 주방 UI와 분리해 intent, 원문 entity span, 정규화 값, 데이터 용도를 정확히
 기록하는 데 집중한다.
 
+이 문서는 화면 사용법과 운영 결정을 설명한다. 실제 intent/entity/normalization을
+어떻게 결정할지는 `ANNOTATION_CONVENTIONS_KO.md`를 기준으로 한다.
+
 ## 접근 위치
 
 ```text
