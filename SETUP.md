@@ -33,6 +33,48 @@ the event, correction, inference-log, and annotation schemas through migration
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
+## Production-Only Annotation Mode
+
+If you want the Vercel annotation page to always reflect the same DB you are
+collecting from, do not use `npm run dev:api` or local SQLite for annotation
+operations. In this mode:
+
+- Vercel `/annotate` reads the deployed Worker and production D1.
+- Queue seeding must use `--remote`.
+- Reviewed dataset export must use `--remote`.
+- Local API and local SQLite are only for isolated development or debugging.
+
+Production-only command cheat sheet:
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+
+# Seed the production annotation queues
+npm run annotation:seed-queues -- --remote
+
+# Seed the production annotation queues with a custom mix
+npm run annotation:seed-queues -- --remote \
+  --correction 50 \
+  --expiry 120 \
+  --low-confidence 70 \
+  --confirmed 40 \
+  --evaluation 20
+
+# Annotate on the production page
+# https://jangoing-web.vercel.app/annotate
+
+# Export reviewed production data to local JSONL files
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+
+# Deploy API changes
+npm run deploy:api
+
+# Deploy web changes
+git push origin main
+```
+
 To prefill `/annotate` with deterministic reviewed samples for each queue, run:
 
 ```bash

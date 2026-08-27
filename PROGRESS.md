@@ -11,7 +11,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
-- Recent validation: 38 TypeScript tests, repo-wide typecheck, and web build
+- Recent validation: 40 TypeScript tests, repo-wide typecheck, and web build
   pass after the dynamic normalized-value update.
 - Active work: collect 100–200 human training candidates and 100+ independent
   evaluation candidates, monitor canonical drift in newly added normalized
@@ -32,6 +32,10 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Made the local seeding path auto-create the SQLite database and apply
   migrations through 0005 when needed.
 - Documented how to prefill queue data for annotation sessions.
+- Documented the production-only annotation rule: Vercel `/annotate` must be
+  paired with remote seeding and remote export, not local SQLite.
+- Added a production-only command cheat sheet for multi-laptop annotation
+  workflow.
 
 ### Decisions
 

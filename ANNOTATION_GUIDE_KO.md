@@ -25,6 +25,53 @@ https://<vercel-domain>/annotate
 저장 직후 선택한 purpose의 카운터가 증가하며, 새로고침하면 production 집계값을 다시
 불러온다. 목표치는 초기 데이터 수집 가이드이며 품질이나 intent별 균형을 대신하지 않는다.
 
+## Production-only 운영 규칙
+
+production annotation page를 기준 DB 하나로 운영하려면 다음 규칙을 고정한다.
+
+- annotation 작업은 Vercel `/annotate`에서만 한다.
+- queue seed는 항상 `--remote`로 production D1에 넣는다.
+- reviewed dataset export도 항상 `--remote`를 사용한다.
+- `npm run dev:api`와 `apps/api/.local/jangoing.sqlite`는 production annotation
+  운영 대상이 아니라 로컬 개발·디버깅용으로만 쓴다.
+
+즉, production 화면에서 바로 보이길 원하는 데이터는 반드시 production D1에 들어가야
+한다. 로컬 SQLite에만 넣은 queue sample은 Vercel 페이지에서 보이지 않는다.
+
+### Production-only 명령 치트시트
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+
+# production annotation queue seed
+npm run annotation:seed-queues -- --remote
+
+# production annotation queue seed with a custom mix
+npm run annotation:seed-queues -- --remote \
+  --correction 50 \
+  --expiry 120 \
+  --low-confidence 70 \
+  --confirmed 40 \
+  --evaluation 20
+
+# reviewed production dataset export
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+
+# API deploy after backend changes
+npm run deploy:api
+
+# Web deploy after frontend changes
+git push origin main
+```
+
+annotation 화면 주소:
+
+```text
+https://jangoing-web.vercel.app/annotate
+```
+
 ## 사용 순서
 
 1. 실제로 말할 법한 영어 문장을 직접 입력하거나 queue 버튼으로 기존 inference
@@ -79,6 +126,10 @@ npm run annotation:seed-queues
 ```bash
 npm run annotation:seed-queues -- --remote
 ```
+
+주의: 여기서 넣는 숫자는 **queue에서 최종적으로 보이는 개수**가 아니라 seed로 넣는
+reviewed inference record 개수다. queue 조건이 겹치기 때문에 하나의 record가 여러
+queue에 동시에 잡힐 수 있다.
 
 ### Queue별 데이터 의미와 목적
 
