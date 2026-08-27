@@ -158,7 +158,7 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 
 | 문장 | Phrase family |
 |---|---|
-| `We're low on milk.` / `We're low on eggs.` | `state_low_on_item` |
+| `We're low on milk.` / `We're low on eggs.` | `state_low_on_entity` |
 | `We're out of milk.` / `We're out of drinks.` | `state_out_of_entity` |
 | `Add milk to the list.` / `Put eggs on the list.` | `explicit_add_to_list` |
 | `Do we have milk?` / `Do we have apples?` | `yes_no_inventory_query` |
@@ -166,6 +166,216 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 
 새 family가 필요한지 애매하면 기존 데이터의 문장 구조를 먼저 비교한다. 단순 동의어
 교체라면 같은 family, 문장 행위나 구문 구조가 달라지면 새 family로 분리한다.
+
+### Phrase family 선택 원칙
+
+- phrase family는 **intent를 먼저 확정한 뒤** 고른다. intent가 달라지면 family도 다시 고른다.
+- family 이름의 `entity`는 `ITEM`과 `CATEGORY`를 모두 포함한다.
+- 표면 단어보다 **문장의 기능**을 본다. 예를 들어 `need`가 들어 있어도 실제 기능이
+  쇼핑 요청이면 `add_to_buy`, 재고 부족 상태 보고면 `mark_low` 계열 family를 고른다.
+- 더 구체적인 family가 명시되면 더 일반적인 family보다 우선한다.
+  예: `expired`가 명시되면 generic discard family보다 `expired_item_discard`를 우선한다.
+- 시제와 화행이 분명하면 그대로 반영한다.
+  예: 명령은 request 계열, 이미 일어난 일의 보고는 report 계열 family를 우선한다.
+- 같은 의미라도 item, category, 수량만 바뀐 문장은 같은 family를 유지한다.
+
+### Intent별 family 경계
+
+#### `add_item`
+
+- `explicit_add_to_inventory`
+  재고에 넣으라는 **직접적 추가 요청**이다.
+  예: `Add milk.`, `Put two cartons of milk in the fridge.`
+  `bought`, `picked up`, `got`처럼 이미 확보한 사실을 보고하면 이 family가 아니라
+  `purchased_item_report`를 쓴다. 문장의 핵심이 저장 위치 지시라면
+  `storage_instruction`이 더 맞다.
+
+- `purchased_item_report`
+  이미 사 왔거나 들어왔다는 **사후 보고**다.
+  예: `I bought milk.`, `We picked up eggs today.`
+  명령형으로 지금 넣으라는 말은 아니다. quantity가 있다는 이유만으로 자동으로
+  `quantity_addition`으로 바꾸지 않는다.
+
+- `storage_instruction`
+  핵심이 **어디에 보관할지**에 있다.
+  예: `Put the yogurt in the fridge.`, `Store the meat in the freezer.`
+  location이 있어도 핵심이 단순 inventory 추가라면 `explicit_add_to_inventory`를
+  유지한다.
+
+- `quantity_addition`
+  핵심이 **얼마나 더 들어왔는지** 또는 **얼마를 더할지**에 있다.
+  예: `Add one more carton of milk.`, `We added three more eggs.`
+  단순히 quantity가 포함된 일반 add 문장은 아니다. 수량이 문장의 중심이 아닐 때는
+  `explicit_add_to_inventory` 또는 `purchased_item_report`를 쓴다.
+
+#### `consume_item`
+
+- `consumed_item_report`
+  먹거나 마셔서 재고가 줄었다는 **직접 소비 보고**다.
+  예: `I ate two yogurts.`, `We drank the juice.`
+  요리나 재료 사용에 초점이 있으면 `used_item_report`가 더 맞다.
+
+- `used_item_report`
+  먹었다기보다 **요리, 조리, 사용**에 초점이 있다.
+  예: `I used one egg.`, `We used half the milk for pancakes.`
+  실제 섭취를 말하면 `consumed_item_report`를 쓴다.
+
+- `finished_item_report`
+  특정 item을 **다 써서 끝냈다**는 완료 상태 보고다.
+  예: `We finished the milk.`, `I used up the yogurt.`
+  단순 low 상태는 `mark_low`이고, `We're out of milk`처럼 결과 상태만 있고 실제
+  소비 event가 명시되지 않으면 `needs_clarification`의 `state_out_of_entity`를 쓴다.
+
+- `quantity_consumed`
+  소비나 사용의 핵심이 **정확한 소모량**에 있다.
+  예: `I used half a carton of milk.`, `We ate three eggs.`
+  수량이 있어도 단순 report로 읽히면 generic family를 유지한다. 이 family는 “양을
+  빼는 구조”가 문장 중심일 때만 쓴다.
+
+#### `mark_low`
+
+- `state_low_on_entity`
+  `low on`, `running low on`처럼 **명시적 부족 상태**를 말한다.
+  예: `We're low on milk.`, `We're running low on drinks.`
+  거의 다 떨어졌다는 뉘앙스면 `state_almost_out`이 더 맞다.
+
+- `state_almost_out`
+  `almost out`, `almost gone`, `barely any left`처럼 **임박한 고갈**을 말한다.
+  예: `We're almost out of eggs.`, `The milk is almost gone.`
+  완전히 0이 되었고 그 상태만 말하면 `state_out_of_entity` 쪽이다.
+
+- `need_more_soon`
+  핵심이 **곧 더 필요해질 것**이라는 전망/판단이다.
+  예: `We'll need more milk soon.`, `We should get more eggs soon.`
+  실제 쇼핑 요청으로 해석해 `add_to_buy` intent를 줬다면 이 family를 쓰지 않는다.
+  명시적 low-state 표현이 있으면 `state_low_on_entity`를 우선한다.
+
+- `quantity_running_low`
+  현재 남은 양이 적다는 점이 **수량 표현으로 직접 드러난다**.
+  예: `We only have one egg left.`, `There's half a carton left.`
+  단순 yes/no 질문은 query이고, 완전 소진이면 `state_out_of_entity`다.
+
+#### `throw_away`
+
+- `explicit_discard_request`
+  핵심이 **버리라는 직접 요청**이다.
+  예: `Throw away the spinach.`, `Discard the old yogurt.`
+  `expired`, `spoiled`, `moldy` 같은 이유가 중심이면 각각 더 구체적인 family를 쓴다.
+
+- `spoiled_item_discard`
+  버리는 이유가 **상함, 부패, 맛/냄새 이상**이다.
+  예: `Throw away the spoiled milk.`, `The spinach went bad, toss it.`
+  날짜가 지나서 버리는 경우는 `expired_item_discard`다.
+
+- `thrown_away_report`
+  이미 **버렸다는 완료 보고**다.
+  예: `I threw away the spinach.`, `We tossed the old bread.`
+  완료 보고이면서 동시에 `expired`/`spoiled`가 핵심이면 generic report보다 이유
+  중심 family를 우선한다.
+
+- `expired_item_discard`
+  버리는 이유가 **유통기한 경과 또는 expiry 판단**이다.
+  예: `Throw away the expired yogurt.`, `I tossed the milk because it expired.`
+  단순히 오래돼 보여서 버린다면 `spoiled_item_discard`가 더 맞을 수 있다.
+
+#### `add_to_buy`
+
+- `explicit_add_to_list`
+  쇼핑 목록에 넣으라는 **명시적 list 조작**이다.
+  예: `Add milk to the list.`, `Put eggs on the shopping list.`
+  `buy milk`처럼 list를 말하지 않고 구매 자체를 요청하면 `purchase_request` 또는
+  `need_to_buy`를 쓴다.
+
+- `purchase_request`
+  화자가 **지금 사 오거나 가져오라**고 직접 요청한다.
+  예: `Buy milk.`, `Pick up eggs.`, `Get more yogurt.`
+  necessity statement라면 `need_to_buy`, reminder 구조라면 `shopping_reminder`다.
+
+- `need_to_buy`
+  화자가 **사야 한다는 필요성**을 진술한다.
+  예: `We need to buy milk.`, `I need eggs.`
+  imperative tone이 강하면 `purchase_request`가 더 맞다. 단순 부족 상태 보고만 있고
+  구매 요청이 명시되지 않으면 `mark_low` 또는 `needs_clarification`을 본다.
+
+- `shopping_reminder`
+  나중 쇼핑을 위한 **메모/리마인더**다.
+  예: `Remind me to buy milk.`, `Don't let me forget eggs.`
+  지금 즉시 구매를 시키는 직접 요청은 아니다.
+
+#### `query_inventory`
+
+- `yes_no_inventory_query`
+  존재 여부를 묻는 **예/아니오형 질문**이다.
+  예: `Do we have milk?`, `Is there any yogurt?`
+  남은 양을 묻는다면 `quantity_inventory_query`다.
+
+- `quantity_inventory_query`
+  남은 **양, 개수, 분량**을 묻는다.
+  예: `How much milk is left?`, `How many eggs do we have?`
+  `Do we have any milk left?`는 존재 확인이 중심이면 `yes_no_inventory_query`다.
+
+- `location_inventory_query`
+  물건이 **어디 있는지**를 묻는다.
+  예: `Where is the yogurt?`, `Did we put the juice in the fridge or pantry?`
+  location이 언급돼도 질문 초점이 존재 여부면 `yes_no_inventory_query`다.
+
+- `expiry_inventory_query`
+  유통기한이나 expiry status를 묻는다.
+  예: `When does the milk expire?`, `Is the yogurt still good?`
+  단순 재고 존재 여부와 expiry 질문이 함께 있으면, 실제 질문 초점이 무엇인지 보고
+  하나를 고른다. 둘 다 독립 질문이면 action을 나눈다.
+
+#### `needs_clarification`
+
+- `state_out_of_entity`
+  `We're out of ...`처럼 **0개 상태는 보이지만 시스템이 취할 행동이 명시되지 않은**
+  경우다.
+  예: `We're out of milk.`, `We're out of drinks.`
+  `Add it to the list`가 이어지면 해당 action은 `add_to_buy`로 따로 라벨링한다.
+  실제로 다 먹었음을 보고하는 완결 event라면 `finished_item_report`를 검토한다.
+
+- `unresolved_reference`
+  `that`, `it`, `the usual one`처럼 **지시 대상이 현재 문장만으로 복원되지 않는다**.
+  예: `Put that on the list.`, `Use that one.`
+  action은 보이지만 object가 불명확한 경우다.
+
+- `vague_category_request`
+  category는 보이지만 **무엇을 어떻게 하라는지 충분히 구체적이지 않다**.
+  예: `We need some drinks.`, `Get something sweet.`
+  category 수준의 명시적 list action으로 보지 않는 현재 규칙 때문에 여기로 간다.
+
+- `usual_items_request`
+  household-specific routine set을 요구하지만 **구성원이 현재 문장에 없다**.
+  예: `Buy the usual.`, `Get our regular groceries.`
+  annotator 개인 상식으로 usual set을 상상하지 않는다.
+
+- `ambiguous_action`
+  대상은 비교적 분명하지만 **무슨 행동을 원하는지** 불명확하다.
+  예: `Milk.`, `Eggs next.`, `Handle the yogurt.`
+  domain과 관련은 있으나 add/query/discard/consume 중 무엇인지 고를 근거가 부족하다.
+
+#### `unknown`
+
+- `preference_statement`
+  취향, 선호, 일반 의견 표현이다.
+  예: `I like coffee.`, `We prefer oat milk.`
+  재고를 바꾸거나 목록에 넣으라는 요청이 아니다.
+
+- `unrelated_question`
+  주방 inventory/shopping domain과 무관한 질문이다.
+  예: `What's the weather?`, `When is the meeting?`
+  domain 관련이지만 현재 intent set 밖 기능이면 `unsupported_request`를 본다.
+
+- `unrelated_statement`
+  domain과 무관한 평서문이다.
+  예: `I'm tired today.`, `The movie was good.`
+  preference나 capability request도 아니다.
+
+- `unsupported_request`
+  domain 관련성은 있지만 **현재 지원 intent 바깥의 명확한 요청**이다.
+  예: `What should I cook tonight?`, `Find the cheapest milk brand.`
+  이 경우는 불명확해서 clarification이 필요한 것이 아니라, 요청 의미는 명확하지만
+  현재 시스템 capability 밖이기 때문에 `unknown`으로 둔다.
 
 ## Train/Evaluation convention
 
