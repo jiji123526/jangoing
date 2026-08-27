@@ -2,7 +2,11 @@
 
 ## Product Summary
 
-jangoing is a voice-first kitchen inventory assistant. It converts short English commands into structured kitchen actions, stores those actions as append-only events, and presents current inventory, expiry, shopping-list, and activity information in a phone-friendly web app.
+jangoing is a model-first conversational kitchen intelligence system. Its primary
+purpose is to train, validate, and compare language and recommendation models on
+real reviewed interactions. The product converts requests found in everyday
+conversation into contextual, explainable proposals for kitchen actions and
+recommendations.
 
 The project begins as a text-based product. Raspberry Pi audio and a trained language-understanding model will be added only after the command, confirmation, storage, and correction workflow has been validated.
 
@@ -13,6 +17,28 @@ The project begins as a text-based product. Raspberry Pi audio and a trained lan
 - Support an optional expiry date for individual inventory batches.
 - Keep every state-changing action reviewable and correctable.
 - Collect high-quality English command data for later model training.
+- Log every inference and outcome by default so model progress is reproducible
+  and visible across versions.
+- Detect relevant requests and resolve context across natural multi-turn
+  conversation, including goals, preferences, household state, and ambiguity.
+- Provide explainable recommendations for meals, products, substitutions, and
+  shopping deals while respecting dietary, budget, freshness, and safety rules.
+- Quantify every release with frozen offline sets, slice metrics, calibration,
+  latency, correction behavior, and monitored online outcomes.
+
+## Engineering Priority
+
+The model evaluation loop is the main system, not a later analytics feature:
+
+```text
+interaction -> versioned inference log -> user review/correction
+            -> versioned dataset -> reproducible training run
+            -> frozen + slice evaluation -> deployment decision
+            -> production outcome monitoring -> next dataset
+```
+
+See [MODEL_EVALUATION.md](./MODEL_EVALUATION.md) for the required records,
+metrics, privacy constraints, and promotion gates.
 
 ## Current Implementation Status
 
@@ -26,6 +52,7 @@ The text MVP is implemented and deployable:
 - Command interpretation preview and explicit confirmation
 - Optional expiry date picker
 - Deterministic English parser with unit tests
+- Editable interpretation review and correction records
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -38,7 +65,8 @@ The language layer is currently rule-based. It recognizes a small set of sentenc
 - Number words are limited to one through ten, plus `a`, `an`, digits, and decimals.
 - Item alias normalization is intentionally small.
 - Pattern confidence scores are constants and are not statistically calibrated.
-- There is no correction interface or labeled utterance store yet.
+- Interpretation attempts that are cancelled or rejected are not yet logged;
+  current correction records are created when an action is confirmed.
 
 These limitations are acceptable only while every state-changing action requires user review.
 
@@ -65,6 +93,8 @@ These limitations are acceptable only while every state-changing action requires
 - Barcode or camera input
 - Native mobile apps
 - Automatic shelf-life prediction
+- Multi-turn conversational context and recommendation ranking in the MVP only;
+  both remain core post-MVP goals.
 
 ## Primary User Flow
 
@@ -340,6 +370,57 @@ Store both the proposed interpretation and the user's corrected interpretation. 
 
 Raw spans and normalized values remain separate so model errors and normalization errors can be evaluated independently.
 
+## Contextual Conversation Architecture
+
+The final system must find actionable requests inside ordinary dialogue rather
+than require command-shaped sentences. Context is structured and permissioned,
+not an unbounded transcript pasted into a model.
+
+```text
+current turn + recent turns + confirmed household state + user constraints
+                              |
+                              v
+              request detection and context retrieval
+                              |
+                              v
+          intent, entities, goals, ambiguity, and action proposal
+                              |
+                              v
+               clarification, confirmation, or recommendation
+```
+
+Context sources include recent conversational turns, inventory and expiry,
+shopping list, dietary restrictions, preferences, goals, budget, location, and
+time. Each prediction must log which context records influenced its result so a
+failure can be reproduced and an explanation can be audited.
+
+The system distinguishes among:
+
+- an explicit state-changing request
+- an implicit but sufficiently grounded request
+- an informational question
+- a recommendation request
+- casual conversation with no kitchen action
+- an ambiguous request that needs clarification
+
+## Recommendation Architecture
+
+Recommendation is a separate candidate-generation and ranking pipeline built on
+top of contextual understanding.
+
+1. Translate the conversation into goals and hard constraints.
+2. Retrieve candidates from inventory, expiry, shopping list, preferences, and
+   explicitly connected product/deal sources.
+3. Filter allergens, dietary conflicts, stale deals, unavailable items, and
+   budget violations.
+4. Rank remaining candidates and attach evidence for the ranking.
+5. Ask for confirmation before changing lists or creating purchases.
+6. Log impressions, acceptance, dismissal, correction, and downstream outcomes.
+
+Start with auditable rules and retrieval. Add learned ranking only after enough
+unbiased impression and outcome data exists. The system must not train only on
+clicked items because position and availability create selection bias.
+
 ## Milestones
 
 ### M0: Repository Foundation
@@ -410,6 +491,17 @@ Dataset targets:
 
 Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
 
+### M5.5: Experiment and Observability Foundation
+
+- Log all interpretation attempts, including unknown, cancelled, and rejected
+- Version model, parser, normalizer, schema, dataset, and context snapshot
+- Add immutable run metadata, artifact hashes, seeds, and split manifests
+- Build a comparison dashboard for aggregate, slice, calibration, and latency metrics
+- Define privacy retention, deletion, redaction, and training-export policies
+
+Completion: any production prediction and any reported experiment can be traced
+to its code, model, data, configuration, context, and user outcome.
+
 ### M6: English NLP Model
 
 - Fine-tune `distilbert-base-uncased` for intent classification.
@@ -439,6 +531,28 @@ Completion: the deployed pipeline meets accuracy targets without bypassing confi
 
 Completion: voice input follows the same confirmed event path as web text input.
 
+### M9: Contextual Conversation Understanding
+
+- Detect kitchen requests inside multi-turn everyday conversation
+- Resolve references and entities across turns
+- Retrieve only relevant, permitted household and user context
+- Represent goals, preferences, dietary constraints, budget, and uncertainty
+- Add clarification behavior and context-specific evaluation sets
+
+Completion: contextual exact match and request-detection targets are met on
+frozen tests containing unseen conversations, distractor turns, and stale state.
+
+### M10: Recommendation and Deal Ranking
+
+- Generate meal, product, and substitution candidates from grounded context
+- Add constraint filtering and explainable ranking
+- Integrate one deal source with freshness and provenance metadata
+- Establish offline ranking benchmarks and unbiased impression logging
+- Run guarded online evaluation with rollback and safety monitoring
+
+Completion: recommendations improve user outcomes against a rules baseline
+without regressing dietary safety, deal freshness, privacy, or user control.
+
 ## Testing Strategy
 
 - Unit tests for command patterns, normalization, quantities, and expiry
@@ -447,6 +561,9 @@ Completion: voice input follows the same confirmed event path as web text input.
 - Web interaction tests
 - Manual mobile viewport checks
 - End-to-end tests for interpretation, confirmation, persistence, and refresh
+- Frozen offline language and recommendation benchmarks
+- Context, ambiguity, ASR-noise, unseen-entity, and safety slices
+- Calibration, latency, drift, leakage, and rollback tests by model version
 
 ## Initial Success Metrics
 
@@ -457,6 +574,12 @@ Completion: voice input follows the same confirmed event path as web text input.
 - Zero unconfirmed state-changing actions
 - A typical command can be confirmed in under five seconds
 - Incorrect actions are identifiable in event history
+- 100% of inference attempts carry parser/model, normalizer, schema, and context versions
+- 100% of training runs carry immutable dataset splits, commit, seed, and artifact hashes
+- Contextual request detection and exact-match results are reported separately
+  from single-turn command results
+- Recommendation releases report Recall@K, NDCG@K, constraint violations,
+  coverage, deal freshness, and online accept/dismiss outcomes
 
 ## Known Risks
 

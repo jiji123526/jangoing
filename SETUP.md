@@ -62,9 +62,22 @@ npm run db:migrate:remote
 
 ### 4. Deploy the Worker
 
+Run this from the repository root:
+
 ```bash
 npm run deploy:api
 ```
+
+Alternatively, target the API workspace directly:
+
+```bash
+cd apps/api
+npx wrangler deploy
+```
+
+Do not run `npx wrangler deploy` from the repository root. Wrangler detects the
+npm workspace but cannot choose between `apps/web` and `apps/api`, which produces
+the "root of a workspace" application-detection error.
 
 Record the generated URL, similar to:
 

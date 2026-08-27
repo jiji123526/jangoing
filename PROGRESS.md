@@ -2,6 +2,37 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - Model-first north star and evaluation standard defined
+
+### Completed
+
+- Reframed jangoing around model training, validation, and measurable progress.
+- Defined default inference, correction, experiment, latency, and outcome logging.
+- Added contextual conversation understanding and explainable recommendation roadmaps.
+- Added offline, slice, calibration, ranking, safety, and online evaluation metrics.
+- Documented the correct monorepo-specific Wrangler deployment commands.
+
+### Decisions
+
+- Treat the product as the model data and evaluation environment.
+- Require reproducible evidence and release gates for every model promotion.
+- Keep context structured, permissioned, versioned, and auditable.
+- Begin recommendations with rules and retrieval before learned ranking.
+
+### Validation
+
+- Documentation agrees on the north star, staged milestones, and deployment path.
+
+### Blockers
+
+- All-attempt inference logging and an experiment dashboard are designed but not implemented.
+- Deal recommendations require an explicit external data-provider decision.
+
+### Next
+
+- Implement all-attempt inference logging before collecting the first model dataset.
+- Apply D1 migrations and deploy the API from the API workspace.
+
 ## 2026-08-26 - Editable interpretation review added
 
 ### Completed

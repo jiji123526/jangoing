@@ -1,6 +1,27 @@
 # jangoing
 
-A voice-first kitchen inventory assistant that turns natural-language commands into fridge, expiry, and shopping-list updates.
+A model-first conversational kitchen intelligence project. It measures how well
+language systems can recover requests and relevant context from everyday
+conversation, then turns that understanding into safe inventory actions and
+personalized recommendations.
+
+## North Star
+
+The product is the data-collection and evaluation environment for the model.
+Every parser or model version must be reproducible and quantitatively comparable.
+Inference, corrections, failures, latency, confidence, dataset version, and
+evaluation results are logged by default rather than added later as diagnostics.
+
+The long-term interaction should work inside ordinary conversation, not only
+commands written in a fixed format. For example:
+
+- `I want to lose weight. What should I eat this week?` uses dietary goals,
+  preferences, inventory, expiry, and recent behavior to recommend meals or items.
+- An existing shopping list can be enriched with relevant deals, substitutions,
+  and lower-cost bundles, with an explanation of why each result is relevant.
+- `We're making pasta tonight, but I think the spinach is old` should identify
+  the meal context, inspect inventory and expiry, and propose the appropriate
+  action without silently mutating data.
 
 ## Current Milestone
 
@@ -11,7 +32,10 @@ The first milestone is a text-based MVP:
 3. Confirm the action before it changes inventory.
 4. See the updated inventory, shopping list, and event history.
 
-An optional expiry date can be attached to added items. Raspberry Pi audio, speech-to-text, and a trained NLP model will be added after this workflow is reliable.
+An optional expiry date can be attached to added items. The correction flow is
+also the first labeled-data source. Trained contextual models, recommendation
+ranking, Raspberry Pi audio, and speech-to-text follow once the evaluation and
+logging foundation is reliable.
 
 ## Stack
 
@@ -50,6 +74,7 @@ Local development uses Node's SQLite API and stores data in `apps/api/.local/`. 
 - [MVP and product plan](./PLAN.md)
 - [Local, Cloudflare, and Vercel setup](./SETUP.md)
 - [Development progress log](./PROGRESS.md)
+- [Model evaluation and logging standard](./MODEL_EVALUATION.md)
 
 ## MVP Commands
 
@@ -73,7 +98,9 @@ The current language layer is a deterministic regular-expression parser, not a t
 - Quantities support digits, decimals, `a`, `an`, and English number words from one through ten.
 - Confidence values are fixed per parser pattern; they are not calibrated model probabilities.
 - Item normalization currently contains only a small alias list.
-- Shopping-list removal, event correction, authentication, and multiple households are not implemented.
+- Shopping-list removal, authentication, and multiple households are not implemented.
+- Multi-turn context, user goals, recommendation ranking, and deal-provider
+  integrations are roadmap items, not current capabilities.
 - The parser may incorrectly include unsupported date or unit phrases in `item_name`. Always review the interpretation before confirming.
 
 The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.
