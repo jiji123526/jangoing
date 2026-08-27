@@ -18,6 +18,8 @@ Add new entries at the top of the log so the latest state is easy to find.
   so the next sample starts at the beginning of the workflow.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
   new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
+- Newly added entity cards now appear at the top of the current action group
+  instead of being reordered to the bottom by text span position.
 - `mark_out` / `item_marked_out` now exist as first-class runtime actions, so
   `we have no milk` can drive an explicit inventory-to-zero update instead of
   being forced into clarification-only handling.

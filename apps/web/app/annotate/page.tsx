@@ -594,7 +594,7 @@ export default function AnnotatePage() {
       return;
     }
     setActions((current) => current.map((action, index) => index === activeActionIndex
-      ? { ...action, entities: [...action.entities, { label, ...selection }].sort((a, b) => a.start - b.start) }
+      ? { ...action, entities: [{ label, ...selection }, ...action.entities] }
       : action));
     setSelection(null);
     window.getSelection()?.removeAllRanges();

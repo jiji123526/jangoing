@@ -468,6 +468,7 @@ review status를 추가해야 한다.
 - 정확히 원문에 보이는 글자만 선택한다.
 - 앞뒤 공백과 문장부호는 의미가 없으면 제외한다.
 - 서로 겹치는 span은 만들지 않는다.
+- 새로 추가한 entity card는 현재 action의 entity 목록 맨 위에 바로 나타난다.
 - `drinks`처럼 상위 개념이면 ITEM이 아니라 CATEGORY를 사용한다.
 - normalized value에는 canonical ID를 사용한다.
 
