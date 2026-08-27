@@ -2,6 +2,35 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - Generalized item and category language planned
+
+### Completed
+
+- Added category-level language such as `we're out of drink` to the model roadmap.
+- Defined a versioned product taxonomy for aliases, brands, category hierarchies,
+  regional terms, and household-specific vocabulary.
+- Added category ambiguity, clarification, dataset coverage, and evaluation requirements.
+
+### Decisions
+
+- Preserve the original surface phrase separately from the resolved entity.
+- Use household context and confidence thresholds instead of expanding broad
+  categories into arbitrary products.
+- Require confirmation before a category interpretation changes inventory or a list.
+
+### Validation
+
+- The requirement is represented in language schema, dataset, contextual-model,
+  success-metric, and risk sections of the plan.
+
+### Blockers
+
+- The initial taxonomy format and canonical grocery category source are not selected.
+
+### Next
+
+- Define the taxonomy contract and baseline category resolver before model training.
+
 ## 2026-08-26 - Model-first north star and evaluation standard defined
 
 ### Completed

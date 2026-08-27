@@ -147,6 +147,30 @@ Example:
 
 Later intents include `remove_from_buy`, `update_expiry`, `query_expiring`, and `correct_event`.
 
+### Generalized Item and Category Understanding
+
+Requests may refer to a product, an alias, or a broader category. For example,
+`we're out of drink` should not require an inventory item literally named
+`drink`. The language layer should extract the user's surface phrase and resolve
+it through a versioned item taxonomy:
+
+```text
+drink -> beverage
+beverage -> water, milk, juice, soda, tea, coffee, ...
+```
+
+The taxonomy must support singular/plural forms, synonyms, regional vocabulary,
+brands, category hierarchies, and household-specific aliases. The system keeps
+the original phrase, resolved canonical entity or category, candidate matches,
+and resolution confidence in the inference log.
+
+Category references must be grounded against context rather than expanded
+blindly. For `we're out of drinks`, the system can inspect the household's known
+beverage inventory and recent purchases, then either propose the relevant
+category action or ask a focused clarification such as `Which drink—water,
+milk, or juice?` It must not mark every beverage as out or add arbitrary products
+without confirmation.
+
 ## Expiry Model
 
 Expiry belongs to an inventory batch, not the canonical item. Two cartons of milk purchased on different days may have different expiry dates.
@@ -487,6 +511,8 @@ Dataset targets:
 - 800 to 1,500 total utterances
 - At least 200 expiry-date examples
 - Commands with different word orders, units, politeness, and ASR-like errors
+- Product aliases, unseen brands, category-level phrases, singular/plural forms,
+  and ambiguous terms such as `drink`, `snack`, `greens`, or `something sweet`
 - Train, validation, and test split by phrasing family rather than random template copies
 
 Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
@@ -537,6 +563,9 @@ Completion: voice input follows the same confirmed event path as web text input.
 - Resolve references and entities across turns
 - Retrieve only relevant, permitted household and user context
 - Represent goals, preferences, dietary constraints, budget, and uncertainty
+- Resolve product mentions through a versioned item/category taxonomy, including
+  aliases, brands, hierarchical categories, and household vocabulary
+- Clarify category-level requests when context cannot identify a safe action
 - Add clarification behavior and context-specific evaluation sets
 
 Completion: contextual exact match and request-detection targets are met on
@@ -578,6 +607,8 @@ without regressing dietary safety, deal freshness, privacy, or user control.
 - 100% of training runs carry immutable dataset splits, commit, seed, and artifact hashes
 - Contextual request detection and exact-match results are reported separately
   from single-turn command results
+- Entity-resolution accuracy is reported separately for exact products, aliases,
+  unseen brands, and category-level references
 - Recommendation releases report Recall@K, NDCG@K, constraint violations,
   coverage, deal freshness, and online accept/dismiss outcomes
 
@@ -590,6 +621,11 @@ Users may forget to log actions. The MVP uses coarse state and visible history r
 ### Command Ambiguity
 
 `Add milk` could mean inventory or shopping list. The parser only selects an intent for supported patterns and otherwise returns `unknown`.
+
+Category phrases introduce another ambiguity: `we're out of drink` may mean a
+specific preferred beverage, all beverages, or a request for a recommendation.
+Category resolution uses known household context and confidence thresholds; low
+confidence triggers clarification instead of a broad state change.
 
 ### Batch Expiry Complexity
 
