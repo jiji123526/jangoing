@@ -1,0 +1,57 @@
+{
+  "add_item": [
+    "Add {item}", "Put {item} in the fridge", "We bought {item}",
+    "Store {item} for later", "I just picked up {item}",
+    "Add {quantity} {unit} of {item}", "Please put {item} in the pantry",
+    "We have new {item} to add", "Log {item} in the kitchen inventory",
+    "Can you record the {item} I bought"
+  ],
+  "consume_item": [
+    "I used {item}", "We finished the {item}", "I ate {item}",
+    "I drank the {item}", "Take {item} out of inventory",
+    "I used {quantity} {unit} of {item}", "The kids finished the {item}",
+    "We used up our {item}", "I just consumed the {item}",
+    "Deduct {item} from what we have"
+  ],
+  "mark_low": [
+    "We're low on {item}", "{item} is almost gone", "We're running out of {item}",
+    "There is barely any {item} left", "We may need more {item} soon",
+    "We're low on {category}", "There isn't much {category} left",
+    "Our supply of {category} is getting low", "We are nearly out of {category}",
+    "It looks like we need more {category}"
+  ],
+  "throw_away": [
+    "Throw away the {item}", "Discard the {item}", "The {item} went bad",
+    "Remove the spoiled {item}", "I tossed the {item}",
+    "The {item} expired so get rid of it", "Please log the {item} as thrown away",
+    "We had to dispose of the {item}", "Delete the rotten {item} from inventory",
+    "The {item} is no longer usable"
+  ],
+  "add_to_buy": [
+    "Buy {item}", "Add {item} to the shopping list", "We need {item}",
+    "Put {item} on the grocery list", "Remember to get {item}",
+    "Please pick up {quantity} {unit} of {item}", "Can you add {item} to our list",
+    "We should buy more {item}", "Make sure {item} is on the list",
+    "Next time we shop, get {item}"
+  ],
+  "query_inventory": [
+    "Do we have {item}", "Is there any {item} left", "How much {item} do we have",
+    "Check whether we have {item}", "Can you see if {item} is in the kitchen",
+    "Are we stocked up on {item}", "What's our {item} situation",
+    "Tell me whether {item} is available", "Did we run out of {item}",
+    "Is {item} currently in inventory"
+  ],
+  "unknown": [
+    "I like {topic}", "We talked about {topic} yesterday", "{topic} sounds good",
+    "Maybe {topic} later", "The weather makes me think of {topic}",
+    "I saw an ad about {topic}", "My friend mentioned {topic}",
+    "There is a story about {topic}", "I wonder who invented {topic}",
+    "Let's discuss {topic} another time"
+  ],
+  "needs_clarification": [
+    "We're out of {category}", "Get some {category}", "Add the usual {category}",
+    "We need more {category}", "There is no {category} left",
+    "Put that on the list", "We're out of it", "Get the usual stuff",
+    "Add what we normally buy", "We need something for later"
+  ]
+}

@@ -96,6 +96,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 - [Development progress log](./PROGRESS.md)
 - [Model evaluation and logging standard](./MODEL_EVALUATION.md)
 - [구현 내용과 기술적 의사결정 설명서](./IMPLEMENTATION_NOTES_KO.md)
+- [영어 synthetic-v1 생성 및 의사결정 기록](./SYNTHETIC_V1_KO.md)
 
 ## MVP Commands
 

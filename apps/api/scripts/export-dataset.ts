@@ -10,7 +10,7 @@ const repositoryRoot = resolve(apiDirectory, "../..");
 const query = `SELECT id, raw_utterance, predicted_interpretation,
   corrected_interpretation, parser_version, outcome, created_at
   FROM inference_logs
-  WHERE outcome IN ('confirmed', 'corrected')
+  WHERE outcome IN ('confirmed', 'corrected', 'rejected')
     AND corrected_interpretation IS NOT NULL
   ORDER BY created_at ASC, id ASC`;
 const args = process.argv.slice(2);
@@ -55,9 +55,13 @@ const rows = remote ? remoteRows() : localRows();
 
 const lines: string[] = [];
 for (const row of rows) {
-  const corrected = JSON.parse(row.corrected_interpretation) as {
+  const correctedPayload = JSON.parse(row.corrected_interpretation) as {
     intent: string;
     slots: Record<string, unknown>;
+  };
+  const corrected = {
+    intent: correctedPayload.intent,
+    slots: correctedPayload.slots,
   };
   const predicted = JSON.parse(row.predicted_interpretation);
   const phraseFamily = createHash("sha256")

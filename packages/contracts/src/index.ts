@@ -14,6 +14,7 @@ export const IntentSchema = z.enum([
   "throw_away",
   "add_to_buy",
   "query_inventory",
+  "needs_clarification",
   "unknown",
 ]);
 
@@ -64,6 +65,7 @@ export const UpdateInferenceOutcomeRequestSchema = z
   .object({
     inference_id: z.string().uuid(),
     outcome: InferenceOutcomeSchema.exclude(["pending"]),
+    reviewed_interpretation: InterpretationSchema.optional(),
   })
   .strict();
 

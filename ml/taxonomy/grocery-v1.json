@@ -1,0 +1,27 @@
+{
+  "version": "grocery-v1",
+  "categories": [
+    {"id":"beverage","aliases":{"en":["drinks","beverages"],"ko":["음료","마실 것"]}},
+    {"id":"snack","aliases":{"en":["snacks","something to snack on"],"ko":["간식","주전부리"]}},
+    {"id":"produce","aliases":{"en":["produce","fresh food"],"ko":["농산물","신선식품"]}},
+    {"id":"breakfast","aliases":{"en":["breakfast food","breakfast stuff"],"ko":["아침거리","아침 식재료"]}},
+    {"id":"dairy","aliases":{"en":["dairy","dairy products"],"ko":["유제품"]}},
+    {"id":"sweet","aliases":{"en":["something sweet","sweet food"],"ko":["단 것","디저트"]}},
+    {"id":"healthy_food","aliases":{"en":["healthy food","something healthy"],"ko":["건강식","건강한 음식"]}},
+    {"id":"greens","aliases":{"en":["greens","green vegetables"],"ko":["채소","잎채소"]}},
+    {"id":"protein","aliases":{"en":["protein","protein food"],"ko":["단백질 식품"]}},
+    {"id":"staple","aliases":{"en":["staples","basic groceries"],"ko":["기본 식재료"]}}
+  ],
+  "products": [
+    {"id":"milk","category_id":"dairy","aliases":{"en":["milk"],"ko":["우유"]}},
+    {"id":"egg","category_id":"protein","aliases":{"en":["eggs"],"ko":["달걀","계란"]}},
+    {"id":"yogurt","category_id":"dairy","aliases":{"en":["yogurt"],"ko":["요거트"]}},
+    {"id":"apple","category_id":"produce","aliases":{"en":["apples"],"ko":["사과"]}},
+    {"id":"banana","category_id":"produce","aliases":{"en":["bananas"],"ko":["바나나"]}},
+    {"id":"bread","category_id":"staple","aliases":{"en":["bread"],"ko":["빵"]}},
+    {"id":"rice","category_id":"staple","aliases":{"en":["rice"],"ko":["쌀","밥"]}},
+    {"id":"water","category_id":"beverage","aliases":{"en":["water"],"ko":["물"]}},
+    {"id":"juice","category_id":"beverage","aliases":{"en":["juice"],"ko":["주스"]}},
+    {"id":"coffee","category_id":"beverage","aliases":{"en":["coffee"],"ko":["커피"]}}
+  ]
+}

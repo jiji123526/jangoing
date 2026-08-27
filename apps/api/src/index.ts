@@ -117,9 +117,16 @@ async function handleInferenceOutcome(request: Request, env: Env): Promise<Respo
     return json(request, env, { error: "Invalid inference outcome" }, 400);
   }
   const result = await env.DB.prepare(
-    `UPDATE inference_logs SET outcome = ?, resolved_at = ?
+    `UPDATE inference_logs SET outcome = ?, corrected_interpretation = ?, resolved_at = ?
      WHERE id = ? AND outcome = 'pending'`,
-  ).bind(parsed.data.outcome, new Date().toISOString(), parsed.data.inference_id).run();
+  ).bind(
+    parsed.data.outcome,
+    parsed.data.reviewed_interpretation
+      ? JSON.stringify(parsed.data.reviewed_interpretation)
+      : null,
+    new Date().toISOString(),
+    parsed.data.inference_id,
+  ).run();
   if (!result.meta.changes) {
     return json(request, env, { error: "Pending inference not found" }, 404);
   }

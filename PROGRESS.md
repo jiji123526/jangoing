@@ -2,6 +2,42 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-26 - English synthetic-v1 bootstrap generated
+
+### Completed
+
+- Added `needs_clarification` as a distinct intent and reviewable non-event outcome.
+- Added a multilingual-ready grocery taxonomy with canonical IDs and en/ko aliases.
+- Generated 800 English records across eight balanced intents.
+- Added exact entity spans, normalized values, locale, phrase families, difficulty,
+  source, generator version, and taxonomy version.
+- Added deterministic generation, duplicate/span validation, and a dataset manifest.
+- Changed grouped splitting to remain balanced by intent.
+
+### Decisions
+
+- Start training with English while keeping schema and taxonomy multilingual-ready.
+- Use deterministic scenarios and seed for v1 reproducibility.
+- Keep `unknown` separate from requests that require clarification.
+- Use synthetic-v1 only for bootstrap training, never as the final human test set.
+
+### Validation
+
+- 800 total records; 100 per intent.
+- Zero duplicate texts and zero entity-span errors.
+- Grouped split test keeps phrase families isolated and all intents represented.
+- TF-IDF grouped-holdout smoke Macro-F1: 0.1875 on 80 records.
+
+### Blockers
+
+- No real frozen human test set exists yet.
+- Production correction UI does not support entity-span annotation.
+
+### Next
+
+- Collect real English interactions for validation and final testing.
+- Review taxonomy coverage before connecting a category resolver to production.
+
 ## 2026-08-26 - First measurable model-learning loop built
 
 ### Completed

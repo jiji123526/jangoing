@@ -46,6 +46,7 @@ const editableIntents: Intent[] = [
   "mark_low",
   "throw_away",
   "add_to_buy",
+  "needs_clarification",
 ];
 
 type EditableInterpretation = {
@@ -154,7 +155,45 @@ export default function Home() {
   }
 
   async function handleConfirm() {
-    if (!interpretation || !edited?.itemName.trim()) return;
+    if (!interpretation || !edited) return;
+    const reviewedInterpretation = {
+      intent: edited.intent,
+      slots: {
+        ...(edited.itemName.trim()
+          ? { item_name: edited.itemName.trim().toLowerCase() }
+          : {}),
+        ...(edited.quantity ? { quantity: Number(edited.quantity) } : {}),
+        ...(edited.unit.trim() ? { unit: edited.unit.trim().toLowerCase() } : {}),
+        ...(edited.location ? { location: edited.location } : {}),
+        ...(edited.expirationDate
+          ? { expiration_date: edited.expirationDate }
+          : {}),
+      },
+      confidence: interpretation.confidence,
+      requires_confirmation: true,
+      raw_utterance: interpretation.raw_utterance,
+    };
+    if (edited.intent === "needs_clarification") {
+      setSubmitting(true);
+      setError(null);
+      try {
+        await updateInferenceOutcome({
+          inference_id: interpretation.inference_id,
+          outcome: "rejected",
+          reviewed_interpretation: reviewedInterpretation,
+        });
+        setInterpretation(null);
+        setEdited(null);
+        setCommand("");
+        setNotice("Saved as a request that needs clarification.");
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Could not save review.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+    if (!edited.itemName.trim()) return;
     const eventType = eventTypeByIntent[edited.intent];
     if (!eventType) return;
 
@@ -183,7 +222,13 @@ export default function Home() {
       await createEvent({
         inference_id: interpretation.inference_id,
         event: payload,
-        original_interpretation: interpretation,
+        original_interpretation: {
+          intent: interpretation.intent,
+          slots: interpretation.slots,
+          confidence: interpretation.confidence,
+          requires_confirmation: interpretation.requires_confirmation,
+          raw_utterance: interpretation.raw_utterance,
+        },
         parser_version: "rules-v1",
       });
       setCommand("");
@@ -219,8 +264,8 @@ export default function Home() {
   const canConfirm =
     interpretation &&
     edited &&
-    edited.itemName.trim() &&
-    eventTypeByIntent[edited.intent];
+    (edited.intent === "needs_clarification" ||
+      (edited.itemName.trim() && eventTypeByIntent[edited.intent]));
 
   return (
     <main>
@@ -447,7 +492,9 @@ export default function Home() {
                   disabled={submitting}
                 >
                   <Check size={18} />
-                  Confirm
+                  {edited?.intent === "needs_clarification"
+                    ? "Save review"
+                    : "Confirm"}
                 </button>
               )}
             </div>

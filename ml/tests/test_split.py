@@ -6,10 +6,10 @@ def test_phrase_families_do_not_cross_splits():
         {
             "id": str(index),
             "text": f"text {index}",
-            "intent": "x",
+            "intent": "x" if index < 20 else "y",
             "phrase_family": f"group-{index // 2}",
         }
-        for index in range(20)
+        for index in range(40)
     ]
     splits = grouped_split(records)
     ownership = {}
@@ -17,3 +17,6 @@ def test_phrase_families_do_not_cross_splits():
         for item in items:
             previous = ownership.setdefault(item["phrase_family"], split)
             assert previous == split
+
+    for split in splits.values():
+        assert {item["intent"] for item in split} == {"x", "y"}

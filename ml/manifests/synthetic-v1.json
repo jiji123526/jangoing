@@ -1,0 +1,28 @@
+{
+  "dataset_version": "synthetic-v1",
+  "created_at": "2026-08-27T04:48:34.205385+00:00",
+  "language": "en",
+  "locale": "en-US",
+  "seed": 20260826,
+  "record_count": 800,
+  "intent_counts": {
+    "add_item": 100,
+    "add_to_buy": 100,
+    "consume_item": 100,
+    "mark_low": 100,
+    "needs_clarification": 100,
+    "query_inventory": 100,
+    "throw_away": 100,
+    "unknown": 100
+  },
+  "dataset_sha256": "4f3c80696fb9b6561a7691adf3a4dbd0e3c8d3d153dbfb5fa53d93617a04ce95",
+  "taxonomy_version": "grocery-v1",
+  "scenario_file": "ml/data_generation/scenarios-v1.json",
+  "generator_file": "ml/data_generation/generate_synthetic.py",
+  "validation": {
+    "duplicates": 0,
+    "span_errors": 0,
+    "balanced_intents": true
+  },
+  "usage": "training bootstrap only; never use as the final human test set"
+}

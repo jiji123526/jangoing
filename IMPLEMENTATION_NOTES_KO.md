@@ -192,7 +192,13 @@ TF-IDF baseline을 먼저 선택한 이유:
 - 이후 DistilBERT나 다른 모델이 실제로 개선됐는지 비교할 기준이 된다.
 - 적은 데이터에서 복잡한 모델을 먼저 사용해 생기는 과적합을 피할 수 있다.
 
-### 4.7 표현군 기준 데이터 분할
+### 4.7 영어 synthetic-v1
+
+영어 800개 bootstrap 데이터, 다국어 확장형 taxonomy, entity span, manifest,
+자동 검증기를 추가했다. `needs_clarification`을 별도 intent로 저장할 수 있도록
+웹 검토 흐름도 확장했다. 상세 결정과 결과는 `SYNTHETIC_V1_KO.md`에 기록한다.
+
+### 4.8 표현군 기준 데이터 분할
 
 `ml/src/jangoing_ml/split.py`는 동일한 `phrase_family`가 train과 test에 동시에
 들어가지 않게 그룹 단위로 분할한다.
@@ -277,7 +283,7 @@ baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 �
 - DistilBERT intent 모델
 - BIO entity span annotation UI
 - slot extraction 모델
-- `drink -> beverage` 형태의 정식 카테고리 taxonomy 및 resolver
+- `drink -> beverage` 형태의 production category resolver
 - multi-turn 대화 context retrieval
 - 사용자 목표, 선호, 알레르기, 예산 프로필
 - 식단 또는 상품 추천 ranking
@@ -377,7 +383,7 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 
 1. production에 최신 D1 마이그레이션을 적용한다.
 2. 웹에서 실제 표현을 입력하고 잘못된 결과를 수정·확인한다.
-3. 250~400개의 검토 데이터를 여러 intent에 걸쳐 수집한다.
+3. synthetic-v1과 별도로 250~400개의 실제 검토 데이터를 수집한다.
 4. pending timeout과 idempotent/atomic 저장을 보강한다.
 5. phrase family를 검토하고 frozen test set을 만든다.
 6. TF-IDF baseline 결과를 첫 기준점으로 저장한다.
