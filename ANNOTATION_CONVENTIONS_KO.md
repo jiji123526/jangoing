@@ -224,6 +224,67 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   예: 명령은 request 계열, 이미 일어난 일의 보고는 report 계열 family를 우선한다.
 - 같은 의미라도 item, category, 수량만 바뀐 문장은 같은 family를 유지한다.
 
+### 자주 겹치는 family 판정 규칙
+
+- `finished_item_report` vs `mark_low` vs `state_out_of_entity`
+  `finished`, `used up`, `ate the last`, `drank the last`처럼 **완결된 소비 event**가
+  직접 말해지면 `consume_item > finished_item_report`다.
+  `low on`, `almost out`, `only one left`처럼 **아직 조금 남은 상태**면 `mark_low`다.
+  `out of`처럼 **0개 상태만 보이고 event나 다음 action이 명시되지 않으면**
+  `needs_clarification > state_out_of_entity`다.
+
+- `consumed_item_report` vs `used_item_report` vs `quantity_consumed`
+  `ate`, `drank`처럼 **섭취**가 중심이면 `consumed_item_report`,
+  `used for cooking`, `used in pancakes`처럼 **조리/사용**이 중심이면
+  `used_item_report`다.
+  수량이 들어 있어도 문장 핵심이 “얼마나 썼는가”가 아니면 family를 바꾸지 않는다.
+  양을 뺀 사실이 문장 중심일 때만 `quantity_consumed`를 쓴다.
+
+- `state_low_on_entity` vs `state_almost_out` vs `quantity_running_low`
+  `low on`, `running low on`은 `state_low_on_entity`,
+  `almost out`, `almost gone`, `barely any left`는 `state_almost_out`,
+  `one left`, `half a carton left`처럼 **남은 양이 직접 드러나면**
+  `quantity_running_low`다.
+  다만 `0 left`처럼 사실상 소진이면 `state_out_of_entity` 쪽을 우선한다.
+
+- `explicit_add_to_list` vs `purchase_request` vs `need_to_buy` vs `shopping_reminder`
+  `add ... to the list`, `put ... on the shopping list`처럼 **list 조작이 직접
+  명시되면** `explicit_add_to_list`다.
+  `buy`, `pick up`, `get`처럼 **지금 사 오라는 직접 요청**이면 `purchase_request`,
+  `need to buy`처럼 **구매 필요성 진술**이면 `need_to_buy`,
+  `remind me`, `don't let me forget`처럼 **나중 행동 메모**면 `shopping_reminder`다.
+
+- `need_more_soon` vs `need_to_buy`
+  `We'll need more milk soon`처럼 **가까운 미래 부족 전망**이면 `mark_low > need_more_soon`이다.
+  `We need to buy milk`처럼 **구매 행동 필요성 자체를 말하면**
+  `add_to_buy > need_to_buy`다.
+  `need`가 들어 있어도 실제 행동이 아니라 상태 판단이면 `need_more_soon`을 우선한다.
+
+- `vague_category_request` vs category-level `add_to_buy`
+  category만 언급돼도 `add`, `put on the list`, `buy` 같은 **행동 동사**가 분명하면
+  `add_to_buy` intent를 주고 `CATEGORY` entity를 쓴다.
+  예: `Add drinks to the list.` -> `add_to_buy > explicit_add_to_list`
+  행동은 불명확하고 막연히 필요만 말하면 `vague_category_request`다.
+  예: `We need some drinks.` -> `needs_clarification > vague_category_request`
+
+- `yes_no_inventory_query` vs `quantity_inventory_query`
+  `Do we have milk?`처럼 **존재 여부**가 핵심이면 `yes_no_inventory_query`,
+  `How much milk is left?`처럼 **남은 양**이 핵심이면 `quantity_inventory_query`다.
+  `Do we have any milk left?`는 yes/no 판정을 요청하므로 기본적으로
+  `yes_no_inventory_query`로 둔다.
+
+- `storage_instruction` vs `explicit_add_to_inventory`
+  location이 있어도 핵심이 “추가해라”면 `explicit_add_to_inventory`다.
+  location 결정이 문장 중심일 때만 `storage_instruction`을 쓴다.
+
+- `expiry_metadata_report` vs `expired_item_discard`
+  expiry 사실만 **보고/기록**하면 `expiry_metadata_report`다.
+  expiry를 이유로 **버리라는 요청 또는 버린 보고**가 되면 `expired_item_discard`다.
+
+- `spoiled_item_discard` vs `expired_item_discard`
+  부패, 냄새, 상함, 곰팡이 등 **품질 이상**이 핵심이면 `spoiled_item_discard`,
+  날짜 경과나 expiry 판단이 핵심이면 `expired_item_discard`다.
+
 ### Intent별 family 경계
 
 #### `add_item`
@@ -346,6 +407,8 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 - `explicit_add_to_list`
   쇼핑 목록에 넣으라는 **명시적 list 조작**이다.
   예: `Add milk to the list.`, `Put eggs on the shopping list.`
+  item뿐 아니라 category도 올 수 있다.
+  예: `Add drinks to the list.` -> `CATEGORY: beverage`
   `buy milk`처럼 list를 말하지 않고 구매 자체를 요청하면 `purchase_request` 또는
   `need_to_buy`를 쓴다.
 
@@ -405,7 +468,8 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
 - `vague_category_request`
   category는 보이지만 **무엇을 어떻게 하라는지 충분히 구체적이지 않다**.
   예: `We need some drinks.`, `Get something sweet.`
-  category 수준의 명시적 list action으로 보지 않는 현재 규칙 때문에 여기로 간다.
+  다만 `Add drinks to the list`, `Buy some fruit`처럼 category에 대해서도 행동 동사가
+  명시되면 `add_to_buy` 계열로 보내고, 이 family는 행동이 막연한 경우에만 쓴다.
 
 - `usual_items_request`
   household-specific routine set을 요구하지만 **구성원이 현재 문장에 없다**.

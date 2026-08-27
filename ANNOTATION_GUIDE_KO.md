@@ -107,7 +107,8 @@ https://jangoing-web.vercel.app/annotate
 10. Training candidate 또는 Evaluation candidate를 고른다.
 11. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
 12. `Save annotation`을 누른다.
-13. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열린다.
+13. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열리고,
+    화면 스크롤도 다시 맨 위로 돌아간다.
     직접 입력한 수동 샘플이었다면 기본적으로 `generated_review` queue의 다음 샘플을
     자동으로 시도한다.
 

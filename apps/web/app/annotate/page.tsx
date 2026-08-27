@@ -464,6 +464,10 @@ export default function AnnotatePage() {
     setAssistantApplied(false);
   }
 
+  function resetPageScroll() {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
   function saveNormalizedOption(label: EntityLabel, value: string, alreadyExists: boolean) {
     if (!value) {
       setError("Enter a canonical normalized value before saving it to the list.");
@@ -697,6 +701,7 @@ export default function AnnotatePage() {
         evaluation_candidates: current.evaluation_candidates + (purpose === "evaluation_candidate" ? 1 : 0),
       }));
       const loadedNext = await loadNextQueueSampleAfterSave(nextQueueType);
+      resetPageScroll();
       if (loadedNext) {
         setNotice(
           `Annotation saved. Loaded the next ${readable(nextQueueType)} sample, and new normalized values from this review are now reusable.`,

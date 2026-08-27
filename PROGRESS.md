@@ -14,8 +14,13 @@ Add new entries at the top of the log so the latest state is easy to find.
 - After each successful save, `/annotate` now automatically opens the next item
   from the current queue, or falls back to `generated_review` after manual-entry
   annotations.
+- After each successful save, `/annotate` also resets the page scroll to the top
+  so the next sample starts at the beginning of the workflow.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
   new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
+- The annotation convention now includes explicit overlap-resolution rules for
+  phrase families such as `finished_item_report` vs `state_out_of_entity` and
+  category-level `add_to_buy` vs `vague_category_request`.
 - Korean docs now describe the exact assistant-draft API path from browser to
   Worker to OpenAI and back to `annotation_proposals` / `annotations`.
 - Production D1 migrations are confirmed through 0005. Migration 0006 and
@@ -61,6 +66,31 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Evaluate whether span prefill quality is good enough to justify continued API cost.
 - Add lightweight analytics later if you want per-provider acceptance rate,
   edit distance, or annotator throughput comparisons.
+
+## 2026-08-27 - Phrase family overlap rules clarified
+
+### Completed
+
+- Added explicit overlap-resolution rules to `ANNOTATION_CONVENTIONS_KO.md` for
+  the most ambiguous phrase-family boundaries.
+- Clarified `finished_item_report` vs `mark_low` vs `state_out_of_entity`.
+- Clarified `consumed_item_report` vs `used_item_report` vs `quantity_consumed`.
+- Clarified shopping-related boundaries such as `explicit_add_to_list`,
+  `purchase_request`, `need_to_buy`, and `shopping_reminder`.
+- Clarified that category-only requests can still be `add_to_buy` when an action
+  verb such as `add`, `put on the list`, or `buy` is explicit.
+
+### Decisions
+
+- Prefer explicit action verbs over coarse entity type when separating
+  `add_to_buy` from `needs_clarification`.
+- Keep `We're out of ...` conservative as `state_out_of_entity` unless the
+  utterance clearly states a completed consumption event.
+
+### Next
+
+- Revisit these boundaries after more real annotations accumulate and check
+  whether any family should split or merge based on disagreement patterns.
 
 ## 2026-08-27 - Assistant API flow documented
 
