@@ -81,8 +81,10 @@ holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 �
   `EXPIRY_DATE` entity와 date normalization 품질을 끌어올릴 slot-training 후보를
   집중 수집하는 것
 - 주의:
-  expiry signal이 들어간다고 모두 정확한 expiry action은 아니므로, 실제 intent와
-  entity span은 사람이 다시 확정해야 한다.
+  expiry signal이 들어간다고 모두 같은 action은 아니다. 새 item을 넣는 문장은
+  `add_item`, 기존 item의 expiry metadata를 추가·수정하는 문장은 `update_expiry`,
+  만료 때문에 버리는 문장은 `throw_away`가 될 수 있으므로 실제 intent와 entity span은
+  사람이 다시 확정해야 한다.
   expiry queue 샘플에는 parser가 계산한 ISO expiry date가 있으면
   `Apply parsed expiry date` helper 버튼이 나타난다. 먼저 사람이 정확한
   `EXPIRY_DATE` span을 만든 뒤, 그 값이 맞아 보일 때만 적용한다.

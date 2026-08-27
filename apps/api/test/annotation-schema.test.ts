@@ -112,6 +112,30 @@ describe("CreateAnnotationRequestSchema", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("accepts update-expiry actions with expiry-specific phrase families", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      actions: [{
+        intent: "update_expiry",
+        phrase_family: "explicit_set_expiry",
+        entities: [
+          { label: "ITEM", start: 4, end: 8, text: "milk", normalized_value: "milk" },
+          {
+            label: "EXPIRY_DATE",
+            start: 20,
+            end: 30,
+            text: "next Friday",
+            normalized_value: "2026-09-04",
+          },
+        ],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("AnnotationStatsSchema", () => {

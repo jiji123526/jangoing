@@ -9,6 +9,7 @@ export const IsoDateSchema = z.string().regex(
 
 export const IntentSchema = z.enum([
   "add_item",
+  "update_expiry",
   "consume_item",
   "mark_low",
   "throw_away",
@@ -128,6 +129,11 @@ export const AnnotationPhraseFamilies = {
     "purchased_item_report",
     "storage_instruction",
     "quantity_addition",
+  ],
+  update_expiry: [
+    "explicit_set_expiry",
+    "expiry_metadata_report",
+    "expiry_metadata_correction",
   ],
   consume_item: [
     "consumed_item_report",

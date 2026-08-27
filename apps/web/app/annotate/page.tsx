@@ -28,6 +28,7 @@ import styles from "./page.module.css";
 
 const intents: Intent[] = [
   "add_item",
+  "update_expiry",
   "consume_item",
   "mark_low",
   "throw_away",

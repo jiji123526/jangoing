@@ -51,6 +51,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 | Intent | 선택 기준 | 예시 |
 |---|---|---|
 | `add_item` | 물건이 들어왔거나 재고에 추가하라는 요청 | `Add two cartons of milk.` |
+| `update_expiry` | 기존 item의 유통기한 정보를 추가·수정·명시하는 요청/보고 | `The milk expires next Friday.` |
 | `consume_item` | 먹거나 사용해서 재고가 줄었다는 보고 | `I used one egg.` |
 | `mark_low` | 아직 남아 있지만 부족하거나 거의 소진됨 | `We're low on eggs.` |
 | `throw_away` | 버렸거나 폐기하라는 요청 | `Throw away the spinach.` |
@@ -68,6 +69,13 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - `We're out of milk, add it to the list`는 명시적인 최종 요청이 있으므로
   `add_to_buy`다.
 - `We're out of drinks`도 같은 규칙을 적용하며 `drinks`는 `CATEGORY`다.
+
+### `add_item`과 `update_expiry`
+
+- `Add milk expiring next Friday`처럼 **item을 새로 넣는 행동**이 핵심이면 `add_item`이다.
+- `The milk expires next Friday`, `Set the yogurt expiry to Friday`처럼
+  **기존 item의 expiry metadata를 붙이거나 고치는 행동**이 핵심이면 `update_expiry`다.
+- inventory 추가와 expiry 갱신이 한 문장에 둘 다 독립적으로 있으면 action을 나눈다.
 
 ### `unknown`과 `needs_clarification`
 
@@ -216,6 +224,24 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   예: `Add one more carton of milk.`, `We added three more eggs.`
   단순히 quantity가 포함된 일반 add 문장은 아니다. 수량이 문장의 중심이 아닐 때는
   `explicit_add_to_inventory` 또는 `purchased_item_report`를 쓴다.
+
+#### `update_expiry`
+
+- `explicit_set_expiry`
+  핵심이 **기존 item의 expiry date를 설정하거나 기록하는 직접 요청**이다.
+  예: `Set the milk expiry to Friday.`, `Add an expiration date for the yogurt.`
+  item을 새로 넣는 행동이 중심이면 `add_item`으로 간다.
+
+- `expiry_metadata_report`
+  기존 item의 expiry 정보를 **보고하거나 명시**한다.
+  예: `The milk expires next Friday.`, `These eggs are good until Monday.`
+  질문이면 `query_inventory`의 `expiry_inventory_query`, 폐기 판단이면
+  `throw_away`의 `expired_item_discard`를 본다.
+
+- `expiry_metadata_correction`
+  이미 알고 있던 expiry 정보를 **정정**한다.
+  예: `Actually, the yogurt expires tomorrow.`, `The earlier date was wrong; it's Friday.`
+  단순 새 정보 보고인데 correction 맥락이 없으면 `expiry_metadata_report`를 쓴다.
 
 #### `consume_item`
 
