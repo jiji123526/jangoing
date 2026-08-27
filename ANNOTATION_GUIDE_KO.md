@@ -23,7 +23,8 @@ https://<vercel-domain>/annotate
 2. 규칙 기반 parser의 예측을 참고하되 올바른 intent를 직접 선택한다.
 3. 원문에서 entity 단어를 드래그한다.
 4. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
-5. 필요한 경우 canonical/normalized 값을 입력한다.
+5. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
+   선택기를 사용한다.
 6. Training candidate 또는 Evaluation candidate를 고른다.
 7. 같은 표현군을 알고 있다면 phrase family를 입력한다.
 8. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
@@ -82,6 +83,19 @@ review status를 추가해야 한다.
 - 서로 겹치는 span은 만들지 않는다.
 - `drinks`처럼 상위 개념이면 ITEM이 아니라 CATEGORY를 사용한다.
 - normalized value에는 canonical ID를 사용한다.
+
+## Normalized value 선택 메뉴
+
+annotation-v1은 자유 입력 대신 label별 controlled vocabulary를 사용한다.
+
+- ITEM과 CATEGORY: `ml/taxonomy/grocery-v1.json`의 canonical ID
+- QUANTITY: 초기 지원 수량 목록의 숫자 값
+- UNIT: 단수형 영문 canonical unit
+- LOCATION: API contract가 지원하는 `fridge`, `freezer`, `pantry`
+- EXPIRY_DATE: ISO 날짜를 만드는 날짜 선택기
+
+목록에 필요한 값이 없다면 비슷한 값을 임의로 고르지 않는다. normalized value를
+비워 두고 notes에 필요한 후보를 기록한 다음 taxonomy/convention을 먼저 확장한다.
 
 예:
 

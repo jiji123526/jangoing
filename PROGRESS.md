@@ -2,6 +2,22 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Controlled normalized values added
+
+### Completed
+
+- Replaced free-text normalized values with label-specific dropdown menus.
+- Reused grocery-v1 canonical product/category IDs and contract locations.
+- Added controlled quantity and unit values, plus an ISO date picker for expiry.
+- Documented the process for values that are not yet in the controlled vocabulary.
+
+### Decisions
+
+- Do not allow arbitrary normalized strings from the annotation UI.
+- Leave a value empty and record it in notes instead of selecting a false match.
+- Keep the controlled values in the shared contracts package so the UI has one
+  typed source of truth.
+
 ## 2026-08-27 - Annotation convention v1 documented
 
 ### Completed

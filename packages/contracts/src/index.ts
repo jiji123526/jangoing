@@ -71,6 +71,55 @@ export const EntityLabelSchema = z.enum([
   "EXPIRY_DATE",
 ]);
 
+// Controlled values used by annotation-v1. Keep these aligned with
+// ml/taxonomy/grocery-v1.json and the command contract.
+export const AnnotationNormalizedValues = {
+  ITEM: [
+    "milk",
+    "egg",
+    "yogurt",
+    "apple",
+    "banana",
+    "bread",
+    "rice",
+    "water",
+    "juice",
+    "coffee",
+  ],
+  CATEGORY: [
+    "beverage",
+    "snack",
+    "produce",
+    "breakfast",
+    "dairy",
+    "sweet",
+    "healthy_food",
+    "greens",
+    "protein",
+    "staple",
+  ],
+  QUANTITY: [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 24],
+  UNIT: [
+    "piece",
+    "bottle",
+    "carton",
+    "bag",
+    "box",
+    "can",
+    "jar",
+    "pack",
+    "gram",
+    "kilogram",
+    "ounce",
+    "pound",
+    "milliliter",
+    "liter",
+    "cup",
+  ],
+  LOCATION: ["fridge", "freezer", "pantry"],
+  EXPIRY_DATE: [],
+} as const satisfies Record<EntityLabel, readonly (string | number)[]>;
+
 export const EntityAnnotationSchema = z
   .object({
     label: EntityLabelSchema,

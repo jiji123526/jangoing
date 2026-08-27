@@ -16,7 +16,7 @@
 .step small { color: #68716b; line-height: 1.4; }
 .sampleForm { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: stretch; }
 .sampleForm textarea, .metaGrid textarea { min-height: 90px; resize: vertical; }
-.sampleForm textarea, .metaGrid input, .metaGrid select, .metaGrid textarea, .entityList input { padding: 11px 12px; border: 1px solid #b9c3bb; border-radius: 6px; color: #17201b; background: white; font: inherit; }
+.sampleForm textarea, .metaGrid input, .metaGrid select, .metaGrid textarea, .entityList input, .entityList select { padding: 11px 12px; border: 1px solid #b9c3bb; border-radius: 6px; color: #17201b; background: white; font: inherit; }
 .sampleForm button, .save { padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 6px; color: white; background: #1f6b45; font-weight: 750; }
 .intentGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
 .intentGrid button { min-height: 42px; padding: 7px; border: 1px solid #d9ded7; border-radius: 6px; background: #f7f8f3; color: #39423c; font-size: .76rem; }
@@ -32,6 +32,9 @@
 .entityList code { color: #1f6b45; font-weight: 800; }
 .entityList small, .entityList > p { color: #68716b; }
 .entityList button { height: 34px; border: 0; color: #a63d40; background: transparent; }
+.normalizedControl { display: grid; gap: 4px; }
+.normalizedControl > span { color: #68716b; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.normalizedControl select, .normalizedControl input { width: 100%; min-width: 0; }
 .metaGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .metaGrid label { display: grid; gap: 7px; color: #39423c; font-size: .78rem; font-weight: 700; }
 .metaGrid small { color: #68716b; font-weight: 500; }
@@ -45,5 +48,5 @@
 .empty p { margin: 5px 0 0; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 700px) { .intentGrid { grid-template-columns: repeat(2,1fr); } .sampleForm { grid-template-columns: 1fr; } .sampleForm button { min-height: 44px; } .entityList > div { grid-template-columns: 90px 1fr 36px; } .entityList small { display: none; } .entityList input { grid-column: 1 / 3; } }
+@media (max-width: 700px) { .intentGrid { grid-template-columns: repeat(2,1fr); } .sampleForm { grid-template-columns: 1fr; } .sampleForm button { min-height: 44px; } .entityList > div { grid-template-columns: 90px 1fr 36px; } .entityList small { display: none; } .normalizedControl { grid-column: 1 / 3; } }
 @media (max-width: 520px) { .header, .intro, .workspace { padding-left: 18px; padding-right: 18px; } .metaGrid { grid-template-columns: 1fr; } .metaGrid .full { grid-column: auto; } }

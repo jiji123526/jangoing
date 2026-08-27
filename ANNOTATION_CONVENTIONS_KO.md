@@ -128,6 +128,11 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
 - 확실하지 않은 정규화 값을 추측하지 않는다. 비워 두고 notes에 후보를 기록한다.
 
+`/annotate`는 이 규칙을 지키도록 label별 선택 메뉴를 제공한다. ITEM과 CATEGORY는
+`grocery-v1`, LOCATION은 API contract, QUANTITY와 UNIT은 annotation-v1의 controlled
+value 목록을 사용한다. EXPIRY_DATE는 ISO 형식을 보장하는 날짜 선택기를 사용한다.
+필요한 값이 메뉴에 없으면 가까운 값을 대신 선택하지 말고 비워 둔 뒤 notes에 남긴다.
+
 ## Phrase family convention
 
 Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화용적 기능**을 묶는다.

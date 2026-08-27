@@ -7,6 +7,7 @@ import type {
   Intent,
   LoggedInterpretation,
 } from "@jangoing/contracts";
+import { AnnotationNormalizedValues } from "@jangoing/contracts";
 import { ArrowLeft, Check, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -41,6 +42,51 @@ function readable(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function NormalizedValueControl({
+  entity,
+  onChange,
+}: {
+  entity: EntityAnnotation;
+  onChange: (value: string | number | undefined) => void;
+}) {
+  if (entity.label === "EXPIRY_DATE") {
+    return (
+      <label className={styles.normalizedControl}>
+        <span>Normalized value</span>
+        <input
+          aria-label={`Normalized value for ${entity.text}`}
+          type="date"
+          value={typeof entity.normalized_value === "string" ? entity.normalized_value : ""}
+          onChange={(event) => onChange(event.target.value || undefined)}
+        />
+      </label>
+    );
+  }
+
+  const options = AnnotationNormalizedValues[entity.label];
+  return (
+    <label className={styles.normalizedControl}>
+      <span>Normalized value</span>
+      <select
+        aria-label={`Normalized value for ${entity.text}`}
+        value={entity.normalized_value ?? ""}
+        onChange={(event) => {
+          if (!event.target.value) {
+            onChange(undefined);
+            return;
+          }
+          onChange(entity.label === "QUANTITY" ? Number(event.target.value) : event.target.value);
+        }}
+      >
+        <option value="">Select a value</option>
+        {options.map((option) => (
+          <option key={option} value={option}>{readable(String(option))}</option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 export default function AnnotatePage() {
@@ -200,9 +246,9 @@ export default function AnnotatePage() {
                 {entities.map((entity, index) => (
                   <div key={`${entity.start}-${entity.end}-${entity.label}`}>
                     <code>{entity.label}</code><span>“{entity.text}”</span><small>{entity.start}:{entity.end}</small>
-                    <input value={entity.normalized_value ?? ""} placeholder="normalized value"
-                      onChange={(event) => setEntities((current) => current.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, normalized_value: event.target.value || undefined } : item))} />
+                    <NormalizedValueControl entity={entity}
+                      onChange={(value) => setEntities((current) => current.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, normalized_value: value } : item))} />
                     <button type="button" aria-label="Remove entity" onClick={() => setEntities((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button>
                   </div>
                 ))}
