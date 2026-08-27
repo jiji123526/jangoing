@@ -8,6 +8,10 @@ Generate the reproducible 800-record English bootstrap dataset:
 python ml/data_generation/generate_synthetic.py
 ```
 
+The current `synthetic-v1` keeps the same 800 balanced records but now draws
+from a broader 33-item grocery taxonomy and rotates English aliases for more
+surface variation.
+
 ```bash
 python3 -m venv ml/.venv
 source ml/.venv/bin/activate

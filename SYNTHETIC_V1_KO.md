@@ -7,6 +7,7 @@
 - 다국어 준비: `language`, `locale`, 언어별 taxonomy alias를 처음부터 포함
 - 데이터 수: 800개
 - intent: 8개, 각 100개로 균형 구성
+- canonical item coverage: 33개 식품/음료 item
 - 용도: 첫 학습 bootstrap 및 파이프라인 검증
 - 금지 용도: 최종 실제 사용자 성능을 주장하는 test set
 
@@ -83,6 +84,15 @@ taxonomy는 canonical ID와 언어별 alias를 분리한다.
 동일한 코드, taxonomy, scenarios, seed를 사용하면 같은 문장과 라벨을 생성한다.
 생성 결과 hash는 manifest에 기록한다.
 
+현재 taxonomy는 초기 10개 item에서 확장되어 총 33개 canonical item을 포함한다.
+예: `milk`, `oat_milk`, `cheese`, `spinach`, `lettuce`, `pasta`, `chicken`,
+`tea`, `sparkling_water`, `ice_cream`, `peanut_butter`.
+
+또한 generator는 더 이상 각 item/category의 첫 alias만 고정 사용하지 않는다.
+template 위치와 intent별 deterministic offset을 이용해 영어 alias를 순환 사용한다.
+예를 들어 같은 canonical item이라도 `milk` / `whole milk`,
+`coffee` / `ground coffee`처럼 표면 표현이 달라질 수 있다.
+
 ## record 구조
 
 각 record에는 다음이 포함된다.
@@ -122,8 +132,31 @@ taxonomy는 canonical ID와 언어별 alias를 분리한다.
 - 잘못된 entity span: 0
 - language: 전부 `en`
 - locale: 전부 `en-US`
+- distinct canonical `item_name`: 33
 
 generator 자체 검증과 `ml/tests/test_synthetic_dataset.py`를 모두 사용한다.
+
+## 이번 확장 업데이트가 왜 중요한가
+
+처음의 synthetic-v1은 pipeline bootstrap 용도로는 충분했지만, 실제로는 너무 작은
+item 집합에 과하게 의존했다. 결과적으로 다음 문제가 있었다.
+
+- annotator가 `generated_review`에서 보는 품목이 반복적으로 비슷했다.
+- baseline이 intent는 배워도 item lexical diversity는 거의 못 봤다.
+- `milk`, `egg`, `bread`처럼 몇 개 surface에 과적합된 것처럼 보일 위험이 있었다.
+- 새 canonical item을 annotation에 넣기 전에 synthetic이 먼저 그 값을 전혀 보여주지
+  못하는 경우가 많았다.
+
+이번 업데이트는 이 약점을 줄이기 위한 것이다.
+
+- canonical item을 10개 수준의 작은 시작점에서 33개로 확장했다.
+- 각 item/category의 첫 alias만 고정 사용하지 않고 deterministic하게 순환시켰다.
+- annotation 기본 suggestion도 같이 늘려 generated review와 UI suggestion 사이의
+  간격을 줄였다.
+
+즉, record 수를 늘리지 않고도 **item coverage**와 **surface variation**을 동시에
+개선했다. 이 방식은 이후 human annotation이 쌓이기 전까지 더 넓은 bootstrap
+lexicon을 확보하는 데 유리하다.
 
 ## 데이터 분할
 
@@ -178,6 +211,7 @@ taxonomy는 처음부터 다국어 확장형으로 만드는 방식을 선택했
 
 - 문장은 사람이 실제 앱에서 말한 문장이 아니라 generator가 만든 문장이다.
 - taxonomy는 초기 소규모 목록이며 정식 식품 ontology가 아니다.
+- 품목 다양성은 넓어졌지만 여전히 미국식 주방 영어 중심의 hand-curated taxonomy다.
 - phrase family는 scenario template 기반이다.
 - category resolver는 아직 production parser에 연결되지 않았다.
 - 일반 correction UI와 별도로 production `/annotate` 화면에서 span 라벨링을 지원한다.

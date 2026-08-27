@@ -18,6 +18,15 @@ def load_json(path: Path):
     return json.loads(path.read_text())
 
 
+def pick(sequence, position, offset=0):
+    return sequence[(offset + position) % len(sequence)]
+
+
+def alias_for(entry, position, offset=0, language="en"):
+    aliases = entry["aliases"][language]
+    return pick(aliases, position, offset)
+
+
 def render(template, values):
     text = template
     entities = []
@@ -85,18 +94,30 @@ def main():
     ]
     records = []
     for intent, templates in scenarios.items():
+        intent_offset = sum(ord(character) for character in intent)
         for template_index, template in enumerate(templates):
             for variant in range(10):
-                product = products[(variant + template_index) % len(products)]
-                category = categories[(variant + template_index) % len(categories)]
-                quantity_surface, quantity_value = quantities[(variant + template_index) % len(quantities)]
-                unit = units[(variant * 2 + template_index) % len(units)]
+                position = template_index * 10 + variant
+                product = pick(products, position, intent_offset)
+                category = pick(categories, position, intent_offset // 3)
+                quantity_surface, quantity_value = pick(quantities, position, intent_offset // 5)
+                unit = pick(units, position, intent_offset // 7)
                 values = {
-                    "item": (product["aliases"]["en"][0], "ITEM", "item_name", product["id"]),
-                    "category": (category["aliases"]["en"][0], "CATEGORY", "category", category["id"]),
+                    "item": (
+                        alias_for(product, position, intent_offset),
+                        "ITEM",
+                        "item_name",
+                        product["id"],
+                    ),
+                    "category": (
+                        alias_for(category, position, intent_offset // 3),
+                        "CATEGORY",
+                        "category",
+                        category["id"],
+                    ),
                     "quantity": (quantity_surface, "QUANTITY", "quantity", quantity_value),
                     "unit": (unit, "UNIT", "unit", unit),
-                    "topic": (topics[(variant + template_index) % len(topics)], None, None, None),
+                    "topic": (pick(topics, position, intent_offset // 11), None, None, None),
                 }
                 effective_template = template
                 if not any(token in template for token in values):

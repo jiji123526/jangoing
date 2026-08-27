@@ -23,9 +23,70 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Browser text selection in `/annotate` now trims leading and trailing
   whitespace before creating an entity span, so double-click word picks do not
   accidentally save the following space.
+- `synthetic-v1` now regenerates against a broader grocery taxonomy with 33
+  canonical food/drink items and rotates English aliases so generated_review
+  coverage is less concentrated on the original tiny item set.
+- The repo now includes a Korean survey of relevant open-source datasets and a
+  practical import priority order, separating general NLU corpora from grocery
+  vocabulary sources and recommendation-only datasets.
 - `mark_out` / `item_marked_out` now exist as first-class runtime actions, so
   `we have no milk` can drive an explicit inventory-to-zero update instead of
   being forced into clarification-only handling.
+
+## 2026-08-27 - Open dataset adoption plan documented
+
+### Completed
+
+- Added `OPEN_DATASETS_KO.md` to document the most relevant open-source dataset
+  candidates for `jangoing`.
+- Separated dataset candidates by real use: NLU bootstrap, grocery vocabulary
+  expansion, multi-turn reference, and later recommendation data.
+- Documented why MASSIVE and SNIPS should be used as general NLU/bootstrap
+  corpora rather than directly merged into `jangoing` intent labels.
+- Documented why grocery-focused datasets such as GroceryList and
+  grocery-ner-dataset are more appropriate for taxonomy and slot/entity support.
+- Added a recommended adoption order and raw-to-mapped provenance guidance.
+
+### Decisions
+
+- Treat public datasets as auxiliary sources, not as replacements for reviewed
+  `jangoing` annotations.
+- Prefer schema-safe partial reuse over aggressive label remapping when intent
+  semantics do not cleanly match the project contract.
+
+## 2026-08-27 - Synthetic grocery coverage expanded
+
+### Completed
+
+- Expanded `ml/taxonomy/grocery-v1.json` from the original tiny starter set to
+  33 canonical products across dairy, produce, greens, protein, breakfast,
+  staple, beverage, snack, and sweet categories.
+- Updated the synthetic generator so it no longer always uses the first alias
+  for each product/category and instead rotates deterministic English surface
+  aliases for broader wording coverage.
+- Regenerated `ml/datasets/synthetic-v1.jsonl` and
+  `ml/manifests/synthetic-v1.json` with the broader vocabulary.
+- Expanded shared annotation ITEM defaults so generated_review annotation has
+  first-class suggestions for the newly introduced canonical items.
+- Added a dataset regression check that now expects at least 20 distinct
+  `item_name` canonical values and specific new foods such as `oat_milk`,
+  `spinach`, `chicken`, `pasta`, and `tea`.
+
+### Decisions
+
+- Keep `synthetic-v1` at 800 balanced records for now instead of inflating the
+  count, so baseline comparisons remain simpler while item variety improves.
+- Prefer broader canonical coverage plus deterministic alias rotation over
+  purely increasing template count, because the current bottleneck was item
+  diversity more than raw record volume.
+
+### Validation
+
+- `python3 ml/data_generation/generate_synthetic.py`
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api`
+- `python3 -m pytest ml/tests/test_synthetic_dataset.py` could not run in this
+  environment because `pytest` is not installed.
 - The annotation convention now includes explicit overlap-resolution rules for
   phrase families such as `finished_item_report` vs `state_out_of_entity` and
   category-level `add_to_buy` vs `vague_category_request`.

@@ -14,3 +14,11 @@ def test_synthetic_v1_is_balanced_unique_and_span_valid():
     for record in records:
         for entity in record["entities"]:
             assert record["text"][entity["start"] : entity["end"]] == entity["text"]
+
+    item_names = {
+        record["normalized"]["item_name"]
+        for record in records
+        if "item_name" in record["normalized"]
+    }
+    assert len(item_names) >= 20
+    assert {"oat_milk", "spinach", "chicken", "pasta", "tea"} <= item_names
