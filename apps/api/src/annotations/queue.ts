@@ -108,6 +108,36 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
         LIMIT ?`,
         reason: "expiry_phrase_detected",
       };
+    case "low_confidence":
+      return {
+        query: `SELECT
+          il.id AS inference_id,
+          il.raw_utterance AS text,
+          il.predicted_interpretation,
+          il.corrected_interpretation,
+          il.parser_version,
+          il.outcome,
+          COALESCE(il.resolved_at, il.created_at) AS created_at
+        FROM inference_logs il
+        LEFT JOIN annotations a ON a.inference_id = il.id
+        WHERE
+          a.id IS NULL
+          AND (
+            json_extract(il.predicted_interpretation, '$.confidence') < 0.85
+            OR json_extract(il.predicted_interpretation, '$.intent') IN ('unknown', 'needs_clarification')
+          )
+        ORDER BY
+          CASE json_extract(il.predicted_interpretation, '$.intent')
+            WHEN 'needs_clarification' THEN 0
+            WHEN 'unknown' THEN 1
+            ELSE 2
+          END,
+          json_extract(il.predicted_interpretation, '$.confidence') ASC,
+          COALESCE(il.resolved_at, il.created_at) ASC,
+          il.id ASC
+        LIMIT ?`,
+        reason: "low_confidence_or_ambiguous_intent",
+      };
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);
   }

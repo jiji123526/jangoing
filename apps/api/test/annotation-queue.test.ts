@@ -80,4 +80,13 @@ describe("annotationQueueQuery", () => {
     expect(expiryQueue.query).toContain("best by");
     expect(expiryQueue.query).toContain("next friday");
   });
+
+  it("prioritizes low-confidence and ambiguous predictions", () => {
+    const queue = annotationQueueQuery("low_confidence");
+
+    expect(queue.reason).toBe("low_confidence_or_ambiguous_intent");
+    expect(queue.query).toContain("$.confidence");
+    expect(queue.query).toContain("needs_clarification");
+    expect(queue.query).toContain("unknown");
+  });
 });
