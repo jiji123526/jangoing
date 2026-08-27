@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterDatasetRecords,
   parseDatasetExportArgs,
   splitAndValidateDataset,
   type DatasetRecord,
@@ -10,6 +11,7 @@ function record(
   purpose: DatasetRecord["dataset_purpose"],
   text: string,
   phraseFamily: string,
+  overrides: Partial<DatasetRecord> = {},
 ): DatasetRecord {
   return {
     id,
@@ -26,6 +28,8 @@ function record(
     phrase_family: phraseFamily,
     annotation_schema_version: "annotation-v2",
     reviewed_at: "2026-08-27T00:00:00.000Z",
+    has_annotation: true,
+    ...overrides,
   };
 }
 
@@ -41,12 +45,31 @@ describe("parseDatasetExportArgs", () => {
       remote: true,
       trainOutput: "ml/data/train.jsonl",
       evaluationOutput: "ml/data/evaluation.jsonl",
+      task: "intent",
+      requireAnnotation: false,
     });
   });
 
   it("rejects the legacy mixed output option", () => {
     expect(() => parseDatasetExportArgs(["--output", "ml/data/reviewed.jsonl"]))
       .toThrow("--output is no longer supported");
+  });
+
+  it("enables annotation-only filtering for slot exports", () => {
+    expect(parseDatasetExportArgs([
+      "--task",
+      "slots",
+      "--train-output",
+      "ml/data/train.jsonl",
+      "--evaluation-output",
+      "ml/data/evaluation.jsonl",
+    ])).toEqual({
+      remote: false,
+      trainOutput: "ml/data/train.jsonl",
+      evaluationOutput: "ml/data/evaluation.jsonl",
+      task: "slots",
+      requireAnnotation: true,
+    });
   });
 });
 
@@ -80,5 +103,64 @@ describe("splitAndValidateDataset", () => {
       record("train-1", "train_candidate", " Add   Milk ", "explicit_add"),
       record("eval-1", "evaluation_candidate", "add milk", "indirect_add"),
     ])).toThrow('Dataset leakage: text "add milk"');
+  });
+});
+
+describe("filterDatasetRecords", () => {
+  it("keeps reviewed corrected records for intent export by default", () => {
+    const correctedOnly = record(
+      "reviewed-1",
+      "train_candidate",
+      "Add milk",
+      "explicit_add",
+      {
+        has_annotation: false,
+        annotation_schema_version: null,
+        reviewed_at: "2026-08-27T00:00:00.000Z",
+      },
+    );
+
+    expect(filterDatasetRecords([correctedOnly], {
+      task: "intent",
+      requireAnnotation: false,
+    })).toEqual([correctedOnly]);
+  });
+
+  it("drops unannotated reviewed records for slot export", () => {
+    const correctedOnly = record(
+      "reviewed-1",
+      "train_candidate",
+      "Add milk",
+      "explicit_add",
+      {
+        has_annotation: false,
+        annotation_schema_version: null,
+      },
+    );
+    const annotated = record("annotated-1", "train_candidate", "Add eggs", "explicit_add");
+
+    expect(filterDatasetRecords([correctedOnly, annotated], {
+      task: "slots",
+      requireAnnotation: true,
+    })).toEqual([annotated]);
+  });
+
+  it("supports explicit annotation-only filtering for intent export", () => {
+    const correctedOnly = record(
+      "reviewed-1",
+      "train_candidate",
+      "Add milk",
+      "explicit_add",
+      {
+        has_annotation: false,
+        annotation_schema_version: null,
+      },
+    );
+    const annotated = record("annotated-1", "train_candidate", "Add eggs", "indirect_add");
+
+    expect(filterDatasetRecords([correctedOnly, annotated], {
+      task: "intent",
+      requireAnnotation: true,
+    })).toEqual([annotated]);
   });
 });

@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import {
   buildDatasetRecords,
+  filterDatasetRecords,
   parseDatasetExportArgs,
   serializeJsonl,
   splitAndValidateDataset,
@@ -71,7 +72,8 @@ if (trainOutput === evaluationOutput) {
 }
 
 const rows = options.remote ? remoteRows() : localRows();
-const { training, evaluation } = splitAndValidateDataset(buildDatasetRecords(rows));
+const records = filterDatasetRecords(buildDatasetRecords(rows), options);
+const { training, evaluation } = splitAndValidateDataset(records);
 
 mkdirSync(dirname(trainOutput), { recursive: true });
 mkdirSync(dirname(evaluationOutput), { recursive: true });
@@ -79,6 +81,7 @@ writeFileSync(trainOutput, serializeJsonl(training));
 writeFileSync(evaluationOutput, serializeJsonl(evaluation));
 process.stderr.write(`Exported ${training.length} training records to ${trainOutput}\n`);
 process.stderr.write(`Exported ${evaluation.length} evaluation records to ${evaluationOutput}\n`);
+process.stderr.write(`Task mode: ${options.task}${options.requireAnnotation ? " (annotation required)" : ""}\n`);
 if (training.length === 0 || evaluation.length === 0) {
   process.stderr.write("Warning: one or more dataset splits are empty.\n");
 }

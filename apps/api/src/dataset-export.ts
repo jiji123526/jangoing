@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto";
 
 export type DatasetPurpose = "train_candidate" | "evaluation_candidate";
+export type DatasetExportTask = "intent" | "slots" | "joint";
 export type ExportRow = Record<string, string | null>;
 
 export interface DatasetExportOptions {
   remote: boolean;
   trainOutput: string;
   evaluationOutput: string;
+  task: DatasetExportTask;
+  requireAnnotation: boolean;
 }
 
 export interface DatasetRecord {
@@ -21,15 +24,29 @@ export interface DatasetRecord {
   phrase_family: string;
   annotation_schema_version: string | null;
   reviewed_at: string | null;
+  has_annotation: boolean;
   intent?: string;
   slots?: unknown;
   entities?: unknown;
+}
+
+function parseDatasetExportTask(value: string): DatasetExportTask {
+  switch (value) {
+    case "intent":
+    case "slots":
+    case "joint":
+      return value;
+    default:
+      throw new Error(`Unknown --task value: ${value}. Use intent, slots, or joint.`);
+  }
 }
 
 export function parseDatasetExportArgs(args: string[]): DatasetExportOptions {
   let remote = false;
   let trainOutput: string | undefined;
   let evaluationOutput: string | undefined;
+  let task: DatasetExportTask = "intent";
+  let requireAnnotation = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -37,11 +54,24 @@ export function parseDatasetExportArgs(args: string[]): DatasetExportOptions {
       remote = true;
       continue;
     }
+    if (argument === "--require-annotation") {
+      requireAnnotation = true;
+      continue;
+    }
     if (argument === "--output") {
       throw new Error(
         "--output is no longer supported because it mixes training and evaluation data. " +
           "Use --train-output and --evaluation-output.",
       );
+    }
+    if (argument === "--task") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error("--task requires one of: intent, slots, joint");
+      }
+      task = parseDatasetExportTask(value);
+      index += 1;
+      continue;
     }
     if (argument === "--train-output" || argument === "--evaluation-output") {
       const value = args[index + 1];
@@ -68,7 +98,11 @@ export function parseDatasetExportArgs(args: string[]): DatasetExportOptions {
     throw new Error("Training and evaluation outputs must be different files");
   }
 
-  return { remote, trainOutput, evaluationOutput };
+  if (task === "slots" || task === "joint") {
+    requireAnnotation = true;
+  }
+
+  return { remote, trainOutput, evaluationOutput, task, requireAnnotation };
 }
 
 function parseJson<T>(value: string, rowId: string, field: string): T {
@@ -146,10 +180,28 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
       phrase_family: phraseFamily,
       annotation_schema_version: row.annotation_schema_version,
       reviewed_at: row.annotation_created_at ?? row.created_at,
+      has_annotation: row.annotation_created_at !== null,
     });
   }
 
   return records;
+}
+
+export function filterDatasetRecords(
+  records: DatasetRecord[],
+  options: Pick<DatasetExportOptions, "task" | "requireAnnotation">,
+): DatasetRecord[] {
+  return records.filter((record) => {
+    if (options.requireAnnotation && !record.has_annotation) {
+      return false;
+    }
+
+    if (options.task === "slots" || options.task === "joint") {
+      return record.has_annotation;
+    }
+
+    return true;
+  });
 }
 
 function normalizedText(text: string): string {

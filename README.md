@@ -100,6 +100,14 @@ npm run dataset:export -- \
 python ml/train_baseline.py ml/data/reviewed-train.jsonl
 ```
 
+For slot or joint training data, require annotation-backed rows:
+
+```bash
+npm run dataset:export -- --task slots \
+  --train-output ml/data/reviewed-slots-train.jsonl \
+  --evaluation-output ml/data/reviewed-slots-evaluation.jsonl
+```
+
 The baseline writes a model plus versioned metrics including the dataset digest,
 Git commit, seed, split counts, per-class report, and confusion matrix. See
 [the ML quick start](./ml/README.md).

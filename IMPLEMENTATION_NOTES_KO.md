@@ -169,10 +169,16 @@ export를 API의 공개 GET endpoint로 만들지 않은 이유는 원문 대화
 인터넷에 노출될 위험이 있기 때문이다. 현재는 로컬 또는 인증된 Wrangler
 명령으로만 export한다.
 
-이 단계로 train/evaluation 분리는 해결됐지만 slot 또는 joint training 관점에서는
-아직 부족하다. annotation이 없는 corrected record도 intent 학습에는 유용하지만
-entity span supervision에는 섞이면 안 되므로, 다음 단계로 `reviewed-only` 또는
-`task=intent|slots|joint` 필터가 필요하다.
+이제 export는 train/evaluation 분리뿐 아니라 task별 필터도 지원한다.
+
+- 기본값 `--task intent`: reviewed corrected record도 포함 가능
+- `--task slots`: annotation이 있는 row만 포함
+- `--task joint`: annotation이 있는 row만 포함
+- `--require-annotation`: intent export에서도 annotation row만 강제 가능
+
+즉, annotation이 없는 corrected record는 intent 학습에는 활용할 수 있지만 entity
+span supervision에는 자동으로 제외된다. 다음 부족한 부분은 filter 자체가 아니라
+reviewed annotation의 normalized value completeness와 single-action baseline gate다.
 
 ### 4.6 첫 intent baseline
 
@@ -462,6 +468,14 @@ npm run dataset:export -- --remote \
   --train-output ml/data/reviewed-train.jsonl \
   --evaluation-output ml/data/reviewed-evaluation.jsonl
 python ml/train_baseline.py ml/data/reviewed-train.jsonl
+```
+
+slot span 실험용 export 예시:
+
+```bash
+npm run dataset:export -- --remote --task slots \
+  --train-output ml/data/reviewed-slots-train.jsonl \
+  --evaluation-output ml/data/reviewed-slots-evaluation.jsonl
 ```
 
 결과는 기본적으로 `ml/artifacts/baseline/`에 생성되고 Git에는 포함되지 않는다.

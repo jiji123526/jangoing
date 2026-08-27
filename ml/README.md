@@ -26,6 +26,14 @@ npm run dataset:export -- \
 python ml/train_baseline.py ml/data/reviewed-train.jsonl
 ```
 
+For span-supervised experiments:
+
+```bash
+npm run dataset:export -- --task slots \
+  --train-output ml/data/reviewed-slots-train.jsonl \
+  --evaluation-output ml/data/reviewed-slots-evaluation.jsonl
+```
+
 Training requires reviewed examples from at least two intents. Generated data and
 artifacts are local-only; commit code and manifests, not conversational data.
 

@@ -5,16 +5,38 @@ Add new entries at the top of the log so the latest state is easy to find.
 ## Current state as of 2026-08-27
 
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
-  queues, and split train/evaluation dataset export validation.
+  queues, split train/evaluation dataset export validation, and task-aware
+  reviewed export filtering.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
 - Recent validation: 24 TypeScript tests and repo-wide typecheck pass.
 - Active work: collect 100–200 human training candidates and 100+ independent
-  evaluation candidates, then add natural-date normalization, task-specific
-  reviewed export filters, and explicit reference-date/timezone capture.
+  evaluation candidates, then add natural-date normalization, explicit
+  reference-date/timezone capture, and stronger normalized-value quality rules.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Task-aware reviewed export filters added
+
+### Completed
+
+- Added `--task intent|slots|joint` to reviewed dataset export.
+- Added `--require-annotation` for intent-only runs that still want annotation-backed rows.
+- Made `slots` and `joint` exports automatically require reviewed annotations.
+- Added tests for task parsing and filtering of corrected-but-unannotated rows.
+
+### Decisions
+
+- Keep `intent` export permissive by default because corrected reviewed rows are
+  still useful supervision for intent classification.
+- Make `slots` and `joint` exports annotation-only because span supervision must
+  not mix with reviewed rows that have no entity labels.
+
+### Next
+
+- Add normalized-value completeness checks for reviewed annotation exports.
+- Consider a first-class single-action-only export mode for the current baseline.
 
 ## 2026-08-27 - Split reviewed dataset export enforced
 

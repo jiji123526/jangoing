@@ -63,7 +63,9 @@ pytest ml/tests
 ```
 
 The exporter excludes pending and cancelled interactions from supervised training.
-Raw conversational data and generated model artifacts are ignored by Git.
+`--task intent` is the default. Use `--task slots` or `--task joint` to require
+annotation-backed rows for span-supervised training. Raw conversational data and
+generated model artifacts are ignored by Git.
 
 The default export reads `apps/api/.local/jangoing.sqlite`, which is created after
 running `npm run dev:api`. To export reviewed production records from D1, use:
