@@ -3,6 +3,10 @@ ml/.venv/
 ml/data/
 ml/artifacts/
 *.joblib
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
 .next/
 .wrangler/
 .local/
