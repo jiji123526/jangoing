@@ -28,6 +28,16 @@
 7. 발화 전체가 독립 평가용인지 학습용인지 선택한다.
 8. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
 
+## Assistant draft 사용 규칙
+
+- `Draft with AI`는 annotator를 빠르게 돕는 보조 기능이지 정답 생성기가 아니다.
+- AI draft를 적용했더라도 intent, entity span, normalized value, phrase family는
+  사람이 최종 책임을 지고 다시 확인한다.
+- AI가 원문에 없는 span을 상상했거나, 애매한 값을 과하게 정규화했거나, 잘못된
+  phrase family를 골랐다고 판단되면 그대로 저장하지 말고 수정한다.
+- OpenAI key가 없으면 draft는 parser fallback으로 생성될 수 있다. 이 경우에도
+  라벨 품질 기준은 동일하다.
+
 ## 원문 보존 규칙
 
 - 대소문자, 축약형, 오타, 구두점은 사용자가 입력한 그대로 보존한다.

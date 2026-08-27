@@ -64,6 +64,15 @@ npm run dataset:export -- --remote \
   --train-output ml/data/reviewed-train.jsonl \
   --evaluation-output ml/data/reviewed-evaluation.jsonl
 
+# optional: enable OpenAI-backed assistant drafts on production Worker
+cd apps/api
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put OPENAI_MODEL
+cd ../..
+
+# apply new D1 schema changes before deploy when needed
+npm run db:migrate:remote
+
 # API deploy after backend changes
 npm run deploy:api
 
@@ -88,10 +97,26 @@ https://jangoing-web.vercel.app/annotate
 5. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
 6. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
    선택기를 사용한다.
-7. 각 action에서 intent별 phrase family를 선택한다.
-8. Training candidate 또는 Evaluation candidate를 고른다.
-9. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
-10. `Save annotation`을 누른다.
+7. 필요하면 `Draft with AI`를 눌러 action/entity 초안을 받아온다. 초안은 정답이
+   아니라 시작점이며, `Apply AI draft` 후에도 반드시 사람이 수정 여부를 확인한다.
+8. 각 action에서 intent별 phrase family를 선택한다.
+9. Training candidate 또는 Evaluation candidate를 고른다.
+10. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
+11. `Save annotation`을 누른다.
+
+### Assistant draft 동작
+
+- `Draft with AI`
+  현재 샘플의 raw utterance와 parser prediction을 바탕으로 annotation action 초안을
+  요청한다.
+- `Apply AI draft`
+  제안된 action, entity span, normalized value를 현재 편집 상태에 복사한다.
+- 사람이 손으로 수정한 뒤 저장하면, 시스템은 그 annotation이 AI draft를 그대로
+  채택했는지(`accepted_as_is`) 아니면 수정 후 저장했는지(`accepted_with_edits`)
+  함께 기록한다.
+- Worker에 `OPENAI_API_KEY`가 없으면 이 기능은 실패하지 않고 parser fallback
+  draft를 반환한다. 이 경우 보통 intent 1개와 빈 entity로 시작한다.
+- AI/provider 응답은 보조 정보일 뿐이며, ground truth는 저장된 human annotation이다.
 
 ## Queue 버튼
 
@@ -126,7 +151,7 @@ npm run annotation:seed-queues
 - `evaluation_holdout`: 24
 
 이 스크립트는 `apps/api/.local/jangoing.sqlite`가 없으면 자동으로 만들고 migration
-0005까지 적용한다. 이미 같은 seed ID가 있으면 같은 row를 갱신하므로 반복 실행해도
+0006까지 적용한다. 이미 같은 seed ID가 있으면 같은 row를 갱신하므로 반복 실행해도
 안전하다. production D1에 넣고 싶다면 root에서 다음처럼 실행한다.
 
 ```bash
@@ -322,6 +347,7 @@ Add milk to the list and throw away the spinach.
 
 마이그레이션 `0004_create_annotations.sql`이 `annotations` 테이블을 만들고,
 `0005_add_annotation_actions.sql`이 action-group 저장 필드를 추가한다.
+`0006_create_annotation_proposals.sql`은 AI draft proposal 기록 테이블을 추가한다.
 
 저장 값:
 
@@ -333,6 +359,7 @@ Add milk to the list and throw away the spinach.
 - phrase family
 - notes와 annotator
 - annotation schema version(`annotation-v2`)과 생성 시간
+- 필요하면 연결된 assistant proposal ID와 acceptance 결과
 
 동일 inference는 한 번만 annotation할 수 있다. API는 entity span이 실제 원문과
 일치하는지, span끼리 겹치지 않는지 다시 검증한다.

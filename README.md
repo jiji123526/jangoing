@@ -33,7 +33,8 @@ is the first human-reviewed English dataset and its evaluation split:
 2. Use `/annotate` to collect natural English training and evaluation candidates.
 3. Label one-to-eight action groups per utterance, with action-specific intent,
    phrase family, entity spans, and normalized values.
-4. Freeze an independent human evaluation set before comparing larger models.
+4. Use assistant drafts in `/annotate` only as a speed aid, not as automatic truth.
+5. Freeze an independent human evaluation set before comparing larger models.
 
 The kitchen dashboard remains the confirmed product-action flow and a separate
 correction source. Trained contextual models, recommendation ranking, Raspberry
@@ -77,6 +78,8 @@ versions, latency, and eventual confirmed, corrected, or cancelled outcome.
 The production `/annotate` page stores `annotation-v2` action groups. Its header
 tracks progress toward 100–200 human training candidates and 100+ independent
 evaluation candidates. These are collection targets, not model-quality claims.
+It can also request an assistant draft for the current utterance and record
+whether the final saved annotation matched that draft or was edited.
 
 ## First ML Baseline
 
@@ -141,11 +144,12 @@ The initial deterministic parser validates the product workflow and collects cor
 
 The current language layer is a deterministic regular-expression parser, not a trained model. It works for the documented command patterns but does not yet generalize reliably to unrestricted English.
 
-- Natural-language expiry dates such as `next Friday` or `August twenty-eighth` are not extracted. Use the date picker or an inline ISO date such as `expiring 2026-08-28`.
 - Supported units are `bag`, `bottle`, `can`, `carton`, `dozen`, `jar`, `pack`, and `piece`, including plural forms.
 - Quantities support digits, decimals, `a`, `an`, and English number words from one through ten.
 - Confidence values are fixed per parser pattern; they are not calibrated model probabilities.
 - Item normalization currently contains only a small alias list.
+- Assistant drafts are annotation helpers only. They can miss spans, choose the
+  wrong phrase family, or fall back to the parser when no OpenAI key is configured.
 - Shopping-list removal, authentication, and multiple households are not implemented.
 - Multi-turn context, user goals, recommendation ranking, and deal-provider
   integrations are roadmap items, not current capabilities.

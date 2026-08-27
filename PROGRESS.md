@@ -7,17 +7,51 @@ Add new entries at the top of the log so the latest state is easy to find.
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
   queues, deterministic queue seeding, generated-review dataset import, split
   train/evaluation dataset export validation, task-aware reviewed export
-  filtering, and dynamic normalized-value suggestions.
-- Production D1 migrations are applied through 0005.
+  filtering, dynamic normalized-value suggestions, and assistant-draft proposal
+  plumbing.
+- Production D1 migrations are confirmed through 0005. Migration 0006 and
+  redeploy are required before production can persist assistant proposals.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
-- Recent validation: 40 TypeScript tests, repo-wide typecheck, and web build
-  pass after the dynamic normalized-value update.
+- Recent validation target for this branch: API tests, repo-wide typecheck, and
+  web build after the assistant-draft update.
 - Active work: collect 100–200 human training candidates and 100+ independent
   evaluation candidates, monitor canonical drift in newly added normalized
-  values, and build the first slot-training dataset and baseline.
+  values, measure whether assistant drafts materially speed up annotation, and
+  build the first slot-training dataset and baseline.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Assistant-driven annotation draft flow added
+
+### Completed
+
+- Added `annotation_proposals` storage via migration `0006_create_annotation_proposals.sql`.
+- Added `POST /annotations/proposal` to both the Cloudflare Worker and local
+  Node API.
+- Added `OPENAI_API_KEY` / `OPENAI_MODEL` support for Worker-side draft
+  generation with a deterministic parser fallback when the key is absent.
+- Added `/annotate` UI controls to request a draft, apply it, and record whether
+  the saved annotation matched the draft or was edited first.
+- Hardened proposal materialization so invalid phrase families are dropped
+  instead of failing the whole draft.
+- Documented the new production setup and annotation rules for assistant drafts.
+
+### Decisions
+
+- Keep AI proposals separate from final annotations so the reviewed annotation
+  remains the only ground truth row used for training export.
+- Do not block annotation when AI is unavailable; return a parser-based fallback
+  so the UI path stays usable.
+- Record assistant acceptance only when the annotator explicitly applies the
+  draft, not merely because a proposal was generated.
+
+### Next
+
+- Apply migration 0006 to production D1 and redeploy the Worker and web app.
+- Evaluate whether span prefill quality is good enough to justify continued API cost.
+- Add lightweight analytics later if you want per-provider acceptance rate,
+  edit distance, or annotator throughput comparisons.
 
 ## 2026-08-27 - Generated review queue added
 

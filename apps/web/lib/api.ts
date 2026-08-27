@@ -1,4 +1,5 @@
 import {
+  AnnotationAssistantProposalSchema,
   AnnotationNormalizedValuesResponseSchema,
   AnnotationStatsSchema,
   AnnotationQueueResponseSchema,
@@ -7,6 +8,7 @@ import {
   InventoryItemSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
+  type AnnotationAssistantProposal,
   type AnnotationQueueItem,
   type AnnotationQueueType,
   type AnnotationNormalizedValuesResponse,
@@ -105,6 +107,19 @@ export async function createAnnotation(
     method: "POST",
     body: JSON.stringify(annotation),
   });
+}
+
+export async function createAnnotationAssistantProposal(
+  inferenceId: string,
+): Promise<AnnotationAssistantProposal> {
+  const body = await apiRequest("/annotations/proposal", {
+    method: "POST",
+    body: JSON.stringify({
+      inference_id: inferenceId,
+    }),
+  });
+
+  return AnnotationAssistantProposalSchema.parse(body);
 }
 
 export async function getAnnotationStats(): Promise<AnnotationStats> {

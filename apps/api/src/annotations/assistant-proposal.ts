@@ -1,0 +1,228 @@
+import {
+  AnnotationActionSchema,
+  AnnotationPhraseFamilies,
+  EntityLabelSchema,
+  IntentSchema,
+  type AnnotationAction,
+  type AnnotationAssistantProposal,
+  type Interpretation,
+} from "@jangoing/contracts";
+import { z } from "zod";
+
+export const annotationAssistantPromptVersion = "annotation-ai-v1";
+
+export interface InferenceProposalContext {
+  inference_id: string;
+  raw_utterance: string;
+  predicted_interpretation: Interpretation;
+}
+
+export interface ProposalEnv {
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
+}
+
+export interface StoredProposalRecord extends AnnotationAssistantProposal {}
+
+const LlmEntityDraftSchema = z.object({
+  label: EntityLabelSchema,
+  text: z.string().trim().min(1).max(200),
+  normalized_value: z.union([z.string(), z.number()]).optional(),
+});
+
+const LlmActionDraftSchema = z.object({
+  intent: IntentSchema,
+  entities: z.array(LlmEntityDraftSchema).max(20),
+  phrase_family: z.string().trim().max(120).nullable().optional(),
+});
+
+const LlmProposalDraftSchema = z.object({
+  note: z.string().trim().max(500).nullable().optional(),
+  actions: z.array(LlmActionDraftSchema).min(1).max(8),
+});
+
+type LlmProposalDraft = z.infer<typeof LlmProposalDraftSchema>;
+
+function uniqueEntityTextRanges(
+  rawUtterance: string,
+  entityText: string,
+): Array<{ start: number; end: number; text: string }> {
+  const haystack = rawUtterance.toLowerCase();
+  const needle = entityText.toLowerCase();
+  const ranges: Array<{ start: number; end: number; text: string }> = [];
+
+  let searchIndex = 0;
+  while (searchIndex < haystack.length) {
+    const start = haystack.indexOf(needle, searchIndex);
+    if (start === -1) {
+      break;
+    }
+
+    ranges.push({
+      start,
+      end: start + entityText.length,
+      text: rawUtterance.slice(start, start + entityText.length),
+    });
+    searchIndex = start + needle.length;
+  }
+
+  return ranges;
+}
+
+function materializeAction(
+  rawUtterance: string,
+  action: LlmProposalDraft["actions"][number],
+): AnnotationAction {
+  const usedRanges: Array<{ start: number; end: number }> = [];
+
+  const entities = action.entities.flatMap((entity) => {
+    const match = uniqueEntityTextRanges(rawUtterance, entity.text).find((candidate) =>
+      usedRanges.every((range) => candidate.end <= range.start || candidate.start >= range.end),
+    );
+
+    if (!match) {
+      return [];
+    }
+
+    usedRanges.push({ start: match.start, end: match.end });
+    return [{
+      label: entity.label,
+      start: match.start,
+      end: match.end,
+      text: match.text,
+      ...(entity.normalized_value !== undefined
+        ? { normalized_value: entity.normalized_value }
+        : {}),
+    }];
+  });
+
+  const allowedFamilies = AnnotationPhraseFamilies[action.intent] as readonly string[];
+  const phraseFamily = action.phrase_family && allowedFamilies.includes(action.phrase_family)
+    ? action.phrase_family
+    : null;
+
+  return AnnotationActionSchema.parse({
+    intent: action.intent,
+    phrase_family: phraseFamily,
+    entities,
+  });
+}
+
+export function materializeProposalDraft(
+  rawUtterance: string,
+  draft: unknown,
+): AnnotationAction[] {
+  const parsed = LlmProposalDraftSchema.parse(draft);
+  return parsed.actions.map((action) => materializeAction(rawUtterance, action));
+}
+
+function parserFallbackActions(context: InferenceProposalContext): AnnotationAction[] {
+  return [{
+    intent: context.predicted_interpretation.intent,
+    phrase_family: null,
+    entities: [],
+  }];
+}
+
+function systemPrompt(): string {
+  return [
+    "You draft annotation suggestions for a grocery inventory NLP dataset.",
+    "Return JSON only.",
+    "Create 1 to 8 actions.",
+    "Each action must contain:",
+    "- intent",
+    "- optional phrase_family",
+    "- entities with label, exact text from the utterance, and normalized_value when clear",
+    "Do not invent text that does not appear in the utterance.",
+    "If unsure, omit the entity instead of hallucinating it.",
+    "Prefer conservative intents such as needs_clarification over overcommitting.",
+  ].join("\n");
+}
+
+function userPrompt(context: InferenceProposalContext): string {
+  return JSON.stringify({
+    raw_utterance: context.raw_utterance,
+    parser_prediction: context.predicted_interpretation,
+    allowed_intents: IntentSchema.options,
+  });
+}
+
+function parseOpenAiJson(text: string): LlmProposalDraft {
+  return LlmProposalDraftSchema.parse(JSON.parse(text));
+}
+
+async function requestOpenAiDraft(
+  env: ProposalEnv,
+  context: InferenceProposalContext,
+): Promise<{ provider: string; model: string; note: string | null; actions: AnnotationAction[] }> {
+  const apiKey = env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    return {
+      provider: "parser-fallback",
+      model: "rules-v1",
+      note: "OPENAI_API_KEY is not configured, so this draft uses the deterministic parser as a fallback.",
+      actions: parserFallbackActions(context),
+    };
+  }
+
+  const model = env.OPENAI_MODEL?.trim() || "gpt-4.1-mini";
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt() },
+        { role: "user", content: userPrompt(context) },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const failure = await response.text();
+    throw new Error(`OpenAI proposal request failed: ${response.status} ${failure}`);
+  }
+
+  const payload = await response.json() as {
+    choices?: Array<{ message?: { content?: string | null } }>;
+  };
+  const content = payload.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("OpenAI proposal response did not include message content");
+  }
+
+  const draft = parseOpenAiJson(content);
+  return {
+    provider: "openai",
+    model,
+    note: draft.note ?? null,
+    actions: materializeProposalDraft(context.raw_utterance, draft),
+  };
+}
+
+export async function buildAnnotationAssistantProposal(
+  env: ProposalEnv,
+  context: InferenceProposalContext,
+): Promise<Omit<StoredProposalRecord, "proposal_id" | "created_at" | "inference_id">> {
+  const generated = await requestOpenAiDraft(env, context);
+  return {
+    provider: generated.provider,
+    model: generated.model,
+    prompt_version: annotationAssistantPromptVersion,
+    note: generated.note,
+    actions: generated.actions,
+  };
+}
+
+export function proposalMatchesActions(
+  proposal: Pick<AnnotationAssistantProposal, "actions">,
+  actions: AnnotationAction[],
+): boolean {
+  return JSON.stringify(proposal.actions) === JSON.stringify(actions);
+}

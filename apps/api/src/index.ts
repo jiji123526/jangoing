@@ -1,12 +1,19 @@
 import {
+  AnnotationAssistantProposalRequestSchema,
+  AnnotationAssistantProposalSchema,
   AnnotationNormalizedValuesResponseSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
+  InterpretationSchema,
   InterpretCommandRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
+  type Interpretation,
 } from "@jangoing/contracts";
+import {
+  buildAnnotationAssistantProposal,
+} from "./annotations/assistant-proposal";
 import {
   collectAnnotationNormalizedValues,
   type AnnotationNormalizedValueRow,
@@ -23,6 +30,8 @@ import { parseCommand } from "./nlp/parse-command";
 interface Env {
   DB: D1Database;
   ALLOWED_ORIGINS?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
@@ -87,6 +96,10 @@ function json(
   const headers = corsHeaders(request, env);
   headers.set("Content-Type", "application/json; charset=utf-8");
   return new Response(JSON.stringify(body), { status, headers });
+}
+
+function parseStoredInterpretation(payload: string): Interpretation {
+  return InterpretationSchema.parse(JSON.parse(payload));
 }
 
 async function readEvents(env: Env, limit?: number): Promise<EventRecord[]> {
@@ -229,6 +242,59 @@ async function handleAnnotationNormalizedValues(
   );
 }
 
+async function handleAnnotationAssistantProposal(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = AnnotationAssistantProposalRequestSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return json(request, env, { error: "Invalid annotation proposal request" }, 400);
+  }
+
+  const inference = await env.DB.prepare(
+    "SELECT raw_utterance, predicted_interpretation FROM inference_logs WHERE id = ?",
+  ).bind(parsed.data.inference_id).first<{
+    raw_utterance: string;
+    predicted_interpretation: string;
+  }>();
+
+  if (!inference) {
+    return json(request, env, { error: "Inference not found" }, 404);
+  }
+
+  const generated = await buildAnnotationAssistantProposal(env, {
+    inference_id: parsed.data.inference_id,
+    raw_utterance: inference.raw_utterance,
+    predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
+  });
+
+  const createdAt = new Date().toISOString();
+  const proposal = AnnotationAssistantProposalSchema.parse({
+    proposal_id: crypto.randomUUID(),
+    inference_id: parsed.data.inference_id,
+    ...generated,
+    created_at: createdAt,
+  });
+
+  await env.DB.prepare(
+    `INSERT INTO annotation_proposals (
+      id, inference_id, provider, model, prompt_version, proposal,
+      note, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
+  ).bind(
+    proposal.proposal_id,
+    proposal.inference_id,
+    proposal.provider,
+    proposal.model,
+    proposal.prompt_version,
+    JSON.stringify(proposal.actions),
+    proposal.note ?? null,
+    proposal.created_at,
+  ).run();
+
+  return json(request, env, proposal, 201);
+}
+
 async function handleCreateAnnotation(request: Request, env: Env): Promise<Response> {
   const parsed = CreateAnnotationRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
@@ -238,6 +304,24 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
     "SELECT raw_utterance FROM inference_logs WHERE id = ?",
   ).bind(parsed.data.inference_id).first<{ raw_utterance: string }>();
   if (!inference) return json(request, env, { error: "Inference not found" }, 404);
+
+  if (parsed.data.assistant_proposal_id) {
+    const proposal = await env.DB.prepare(
+      "SELECT id, applied_annotation_id FROM annotation_proposals WHERE id = ? AND inference_id = ?",
+    ).bind(
+      parsed.data.assistant_proposal_id,
+      parsed.data.inference_id,
+    ).first<{ id: string; applied_annotation_id: string | null }>();
+
+    if (!proposal) {
+      return json(request, env, { error: "Assistant proposal not found" }, 400);
+    }
+
+    if (proposal.applied_annotation_id) {
+      return json(request, env, { error: "Assistant proposal is already linked to an annotation" }, 409);
+    }
+  }
+
   const actions = parsed.data.actions.map((action) => ({
     ...action,
     entities: [...action.entities].sort((a, b) => a.start - b.start),
@@ -258,9 +342,10 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
     normalized: normalizedFromEntities(action.entities),
   }));
   const legacyAction = enrichedActions[0];
+  const annotationId = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   try {
-    await env.DB.batch([
+    const statements = [
       env.DB.prepare(
         `INSERT INTO annotations (
           id, inference_id, intent, entities, normalized, dataset_purpose,
@@ -268,7 +353,7 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
           actions
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
-        crypto.randomUUID(), parsed.data.inference_id, legacyAction.intent,
+        annotationId, parsed.data.inference_id, legacyAction.intent,
         JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
         parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
         parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
@@ -281,7 +366,25 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
         JSON.stringify({ actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       ),
-    ]);
+    ];
+
+    if (parsed.data.assistant_proposal_id && parsed.data.assistant_resolution) {
+      statements.push(
+        env.DB.prepare(
+          `UPDATE annotation_proposals
+           SET status = 'applied', resolution = ?, applied_annotation_id = ?, applied_at = ?
+           WHERE id = ? AND inference_id = ?`,
+        ).bind(
+          parsed.data.assistant_resolution,
+          annotationId,
+          createdAt,
+          parsed.data.assistant_proposal_id,
+          parsed.data.inference_id,
+        ),
+      );
+    }
+
+    await env.DB.batch(statements);
   } catch (error) {
     if (String(error).includes("UNIQUE")) {
       return json(request, env, { error: "Inference is already annotated" }, 409);
@@ -440,6 +543,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/annotations/normalized-values") {
     return handleAnnotationNormalizedValues(request, env);
+  }
+
+  if (request.method === "POST" && url.pathname === "/annotations/proposal") {
+    return handleAnnotationAssistantProposal(request, env);
   }
 
   if (request.method === "POST" && url.pathname === "/annotations") {

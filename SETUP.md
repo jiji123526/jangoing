@@ -29,7 +29,7 @@ To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
 the event, correction, inference-log, and annotation schemas through migration
-0005. This keeps local development
+0006. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
@@ -72,6 +72,15 @@ npm run annotation:seed-queues -- --remote \
 npm run dataset:export -- --remote \
   --train-output ml/data/reviewed-train.jsonl \
   --evaluation-output ml/data/reviewed-evaluation.jsonl
+
+# Optional: enable assistant drafts on the production Worker
+cd apps/api
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put OPENAI_MODEL
+cd ../..
+
+# Apply new D1 migrations before deploy when schema changes
+npm run db:migrate:remote
 
 # Deploy API changes
 npm run deploy:api
@@ -192,10 +201,12 @@ npm run dataset:export -- --remote \
   --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
-After applying migrations 0004 and 0005, the production annotation workspace is
-available at `/annotate`. Its action groups and reviewed entity spans are included
-in subsequent exports. Multi-action records are preserved in JSONL but excluded
-from the current single-intent baseline.
+After applying migrations 0004, 0005, and 0006, the production annotation
+workspace is available at `/annotate`. Its action groups and reviewed entity
+spans are included in subsequent exports. Multi-action records are preserved in
+JSONL but excluded from the current single-intent baseline. When `OPENAI_API_KEY`
+is configured on the Worker, `/annotate` can also request assistant-generated
+annotation drafts; otherwise it falls back to a parser-based draft.
 
 To test with Wrangler's local D1 runtime on a compatible machine:
 
@@ -276,6 +287,27 @@ https://jangoing.vercel.app
 
 Redeploy the Worker after updating configuration.
 
+### 6. Optional: Enable OpenAI-backed Annotation Drafts
+
+If you want `/annotate` to request AI-generated draft labels from the Worker:
+
+```bash
+cd apps/api
+npx wrangler secret put OPENAI_API_KEY
+```
+
+Optional model override:
+
+```bash
+cd apps/api
+npx wrangler secret put OPENAI_MODEL
+```
+
+- Default model is `gpt-4.1-mini` when `OPENAI_MODEL` is unset.
+- If `OPENAI_API_KEY` is missing, the proposal endpoint returns a parser fallback
+  draft instead of failing.
+- After changing secrets, redeploy the Worker.
+
 ## Vercel Setup
 
 1. Create a Vercel project and import the `jangoing` repository.
@@ -300,9 +332,10 @@ For preview deployments, allow each preview origin explicitly or use a controlle
 - [x] Wrangler authenticated
 - [x] Production D1 created
 - [x] D1 ID added to `wrangler.toml`
-- [x] Production migrations through 0005 applied
+- [ ] Production migrations through 0006 applied
 - [x] Worker deployed and health endpoint verified
 - [x] Repository imported into Vercel and connected to `main`
 - [x] `NEXT_PUBLIC_API_BASE_URL` configured
 - [x] Vercel origin added to `ALLOWED_ORIGINS`
+- [ ] Optional: `OPENAI_API_KEY` configured on Worker for assistant drafts
 - [ ] Recheck the complete production annotation save flow after each schema change

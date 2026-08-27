@@ -62,6 +62,7 @@ The text MVP is implemented and deployable:
 - Dynamic normalized-value suggestions with controlled phrase families
 - Prioritized annotation queues for correction, expiry-heavy, low-confidence,
   confirmed, and evaluation-holdout samples
+- Assistant-generated annotation drafts with proposal tracking and parser fallback
 - Production counters for training candidates (100–200 target) and evaluation
   candidates (100+ target)
 - Reviewed dataset export split into separate train/evaluation JSONL files with
@@ -102,6 +103,8 @@ These limitations are acceptable only while every state-changing action requires
   ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
 - ITEM, CATEGORY, and UNIT normalized values can now grow directly from
   reviewed annotation history, but canonical drift governance is still manual.
+- Assistant drafts can accelerate labeling, but they are not a substitute for
+  human review and do not yet provide calibrated confidence per span.
 - The single-action baseline gate is still implicit in ML code rather than a
   first-class export or annotation flag.
 

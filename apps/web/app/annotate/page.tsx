@@ -2,6 +2,7 @@
 
 import type {
   AnnotationAction,
+  AnnotationAssistantProposal,
   AnnotationNormalizedValuesResponse,
   AnnotationQueueItem,
   AnnotationQueueType,
@@ -21,6 +22,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createAnnotation,
+  createAnnotationAssistantProposal,
   getAnnotationNormalizedValues,
   getAnnotationQueue,
   getAnnotationStats,
@@ -72,6 +74,10 @@ function readable(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function actionsEqual(left: AnnotationAction[], right: AnnotationAction[]): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function missingNormalizedValueError(actions: AnnotationAction[]): string | null {
@@ -297,9 +303,13 @@ export default function AnnotatePage() {
     initialNormalizedValueOptions(),
   );
   const [busy, setBusy] = useState(false);
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [assistantProposal, setAssistantProposal] = useState<AnnotationAssistantProposal | null>(null);
+  const [assistantApplied, setAssistantApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const expirySuggestion = suggestedExpiryDate(queueItem);
+  const proposalUnchanged = assistantProposal ? actionsEqual(assistantProposal.actions, actions) : false;
 
   useEffect(() => {
     void getAnnotationStats()
@@ -326,6 +336,8 @@ export default function AnnotatePage() {
       setActiveActionIndex(0);
       setSelection(null);
       setQueueItem(null);
+      setAssistantProposal(null);
+      setAssistantApplied(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create sample.");
     } finally {
@@ -351,6 +363,8 @@ export default function AnnotatePage() {
     setNotes("");
     setDraft(item.text);
     setQueueItem(item);
+    setAssistantProposal(null);
+    setAssistantApplied(false);
   }
 
   async function loadQueue(type: AnnotationQueueType) {
@@ -443,6 +457,43 @@ export default function AnnotatePage() {
     setNotice(`Applied parsed expiry date ${expirySuggestion} to EXPIRY_DATE span(s) in Action ${activeActionIndex + 1}.`);
   }
 
+  async function draftWithAssistant() {
+    if (!sample) return;
+    setAssistantBusy(true);
+    setError(null);
+    try {
+      const proposal = await createAnnotationAssistantProposal(sample.inference_id);
+      setAssistantProposal(proposal);
+      setAssistantApplied(false);
+      setNotice(
+        proposal.provider === "parser-fallback"
+          ? "AI key is not configured, so the annotation draft fell back to the deterministic parser baseline."
+          : `AI draft ready from ${proposal.provider}:${proposal.model}. Review it before applying.`,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not generate an annotation draft.");
+    } finally {
+      setAssistantBusy(false);
+    }
+  }
+
+  function applyAssistantDraft() {
+    if (!assistantProposal) {
+      setError("Generate an assistant draft before applying it.");
+      return;
+    }
+
+    setActions(assistantProposal.actions.map((action) => ({
+      ...action,
+      entities: action.entities.map((entity) => ({ ...entity })),
+    })));
+    setActiveActionIndex(0);
+    setSelection(null);
+    setAssistantApplied(true);
+    setError(null);
+    setNotice("Applied the assistant draft. Edit anything that looks off before saving.");
+  }
+
   async function saveAnnotation() {
     if (!sample) return;
     const validationError = missingNormalizedValueError(actions);
@@ -459,6 +510,12 @@ export default function AnnotatePage() {
         dataset_purpose: purpose,
         notes: notes.trim() || null,
         annotator: "production-web",
+        ...(assistantProposal && assistantApplied
+          ? {
+              assistant_proposal_id: assistantProposal.proposal_id,
+              assistant_resolution: proposalUnchanged ? "accepted_as_is" : "accepted_with_edits",
+            }
+          : {}),
       });
       setNormalizedOptions((current) => mergeNormalizedValueOptions(current, actions));
       setStats((current) => ({
@@ -475,6 +532,8 @@ export default function AnnotatePage() {
       setSelection(null);
       setNotes("");
       setQueueItem(null);
+      setAssistantProposal(null);
+      setAssistantApplied(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save annotation.");
     } finally {
@@ -595,6 +654,49 @@ export default function AnnotatePage() {
                 Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
                 {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
               </p>
+              <div className={styles.assistantPanel}>
+                <div className={styles.assistantHeader}>
+                  <div>
+                    <b>Assistant draft</b>
+                    <span>Use AI or parser fallback as a starting point. Human review is still the ground truth.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    disabled={busy || assistantBusy}
+                    onClick={() => void draftWithAssistant()}
+                  >
+                    {assistantBusy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />}
+                    Draft with AI
+                  </button>
+                </div>
+                {assistantProposal ? (
+                  <div className={styles.assistantBody}>
+                    <p>
+                      <b>{assistantProposal.provider}</b> · {assistantProposal.model} · {assistantProposal.prompt_version}
+                    </p>
+                    <p>{assistantProposal.actions.length} proposed action{assistantProposal.actions.length === 1 ? "" : "s"}.</p>
+                    {assistantProposal.note ? <p>{assistantProposal.note}</p> : null}
+                    <p>
+                      {assistantApplied
+                        ? proposalUnchanged
+                          ? "Current annotation still matches the applied draft."
+                          : "Current annotation differs from the applied draft and will be saved as edited."
+                        : "Draft generated but not applied yet."}
+                    </p>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      disabled={busy || assistantBusy}
+                      onClick={applyAssistantDraft}
+                    >
+                      Apply AI draft
+                    </button>
+                  </div>
+                ) : (
+                  <p className={styles.assistantEmpty}>Generate a draft after loading or creating a sample.</p>
+                )}
+              </div>
             </section>
 
             <section className={styles.card}>

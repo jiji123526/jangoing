@@ -273,8 +273,29 @@ export const CreateAnnotationRequestSchema = z
     dataset_purpose: DatasetPurposeSchema,
     notes: z.string().trim().max(1000).nullable().optional(),
     annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
+    assistant_proposal_id: z.string().uuid().optional(),
+    assistant_resolution: z
+      .enum(["accepted_as_is", "accepted_with_edits"])
+      .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((annotation, context) => {
+    if (annotation.assistant_proposal_id && !annotation.assistant_resolution) {
+      context.addIssue({
+        code: "custom",
+        path: ["assistant_resolution"],
+        message: "assistant_resolution is required when assistant_proposal_id is set",
+      });
+    }
+
+    if (!annotation.assistant_proposal_id && annotation.assistant_resolution) {
+      context.addIssue({
+        code: "custom",
+        path: ["assistant_proposal_id"],
+        message: "assistant_proposal_id is required when assistant_resolution is set",
+      });
+    }
+  });
 
 export const AnnotationQueueTypeSchema = z.enum([
   "correction",
@@ -313,6 +334,23 @@ export const AnnotationNormalizedValuesResponseSchema = z.object({
   UNIT: z.array(z.string().trim().min(1)),
   LOCATION: z.array(z.string().trim().min(1)),
   EXPIRY_DATE: z.array(IsoDateSchema),
+});
+
+export const AnnotationAssistantProposalRequestSchema = z
+  .object({
+    inference_id: z.string().uuid(),
+  })
+  .strict();
+
+export const AnnotationAssistantProposalSchema = z.object({
+  proposal_id: z.string().uuid(),
+  inference_id: z.string().uuid(),
+  provider: z.string().trim().min(1).max(80),
+  model: z.string().trim().min(1).max(120),
+  prompt_version: z.string().trim().min(1).max(80),
+  note: z.string().trim().max(500).nullable().optional(),
+  actions: z.array(AnnotationActionSchema).min(1).max(8),
+  created_at: z.string(),
 });
 
 export const UpdateInferenceOutcomeRequestSchema = z
@@ -407,6 +445,12 @@ export type AnnotationQueueQuery = z.infer<typeof AnnotationQueueQuerySchema>;
 export type AnnotationQueueResponse = z.infer<typeof AnnotationQueueResponseSchema>;
 export type AnnotationNormalizedValuesResponse = z.infer<
   typeof AnnotationNormalizedValuesResponseSchema
+>;
+export type AnnotationAssistantProposalRequest = z.infer<
+  typeof AnnotationAssistantProposalRequestSchema
+>;
+export type AnnotationAssistantProposal = z.infer<
+  typeof AnnotationAssistantProposalSchema
 >;
 export type UpdateInferenceOutcomeRequest = z.infer<
   typeof UpdateInferenceOutcomeRequestSchema

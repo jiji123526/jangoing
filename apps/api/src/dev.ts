@@ -1,11 +1,15 @@
 import {
+  AnnotationAssistantProposalRequestSchema,
+  AnnotationAssistantProposalSchema,
   AnnotationNormalizedValuesResponseSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
+  InterpretationSchema,
   InterpretCommandRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
+  type Interpretation,
 } from "@jangoing/contracts";
 import { mkdirSync, readFileSync } from "node:fs";
 import {
@@ -16,6 +20,9 @@ import {
 import { resolve, dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import {
+  buildAnnotationAssistantProposal,
+} from "./annotations/assistant-proposal";
 import {
   collectAnnotationNormalizedValues,
   type AnnotationNormalizedValueRow,
@@ -52,6 +59,10 @@ const annotationActionsMigrationPath = resolve(
   apiDirectory,
   "migrations/0005_add_annotation_actions.sql",
 );
+const annotationProposalsMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0006_create_annotation_proposals.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -82,10 +93,20 @@ const annotationColumns = database.prepare("PRAGMA table_info(annotations)").all
 if (!annotationColumns.some((column) => column.name === "actions")) {
   database.exec(readFileSync(annotationActionsMigrationPath, "utf8"));
 }
+const proposalTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'annotation_proposals'",
+).get() as { name?: string } | undefined;
+if (!proposalTable?.name) {
+  database.exec(readFileSync(annotationProposalsMigrationPath, "utf8"));
+}
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const annotationSchemaVersion = "annotation-v2";
+
+function parseStoredInterpretation(payload: string): Interpretation {
+  return InterpretationSchema.parse(JSON.parse(payload));
+}
 
 function normalizedFromEntities(entities: Array<{
   label: string;
@@ -300,6 +321,54 @@ async function route(
     return;
   }
 
+  if (request.method === "POST" && path === "/annotations/proposal") {
+    const parsed = AnnotationAssistantProposalRequestSchema.safeParse(await readBody(request));
+    if (!parsed.success) {
+      sendJson(response, origin, { error: "Invalid annotation proposal request" }, 400);
+      return;
+    }
+    const inference = database.prepare(
+      "SELECT raw_utterance, predicted_interpretation FROM inference_logs WHERE id = ?",
+    ).get(parsed.data.inference_id) as {
+      raw_utterance: string;
+      predicted_interpretation: string;
+    } | undefined;
+    if (!inference) {
+      sendJson(response, origin, { error: "Inference not found" }, 404);
+      return;
+    }
+
+    const generated = await buildAnnotationAssistantProposal(process.env, {
+      inference_id: parsed.data.inference_id,
+      raw_utterance: inference.raw_utterance,
+      predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
+    });
+    const createdAt = new Date().toISOString();
+    const proposal = AnnotationAssistantProposalSchema.parse({
+      proposal_id: crypto.randomUUID(),
+      inference_id: parsed.data.inference_id,
+      ...generated,
+      created_at: createdAt,
+    });
+    database.prepare(
+      `INSERT INTO annotation_proposals (
+        id, inference_id, provider, model, prompt_version, proposal,
+        note, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
+    ).run(
+      proposal.proposal_id,
+      proposal.inference_id,
+      proposal.provider,
+      proposal.model,
+      proposal.prompt_version,
+      JSON.stringify(proposal.actions),
+      proposal.note ?? null,
+      proposal.created_at,
+    );
+    sendJson(response, origin, proposal, 201);
+    return;
+  }
+
   if (request.method === "POST" && path === "/annotations") {
     const parsed = CreateAnnotationRequestSchema.safeParse(await readBody(request));
     if (!parsed.success) {
@@ -312,6 +381,22 @@ async function route(
     if (!inference) {
       sendJson(response, origin, { error: "Inference not found" }, 404);
       return;
+    }
+    if (parsed.data.assistant_proposal_id) {
+      const proposal = database.prepare(
+        "SELECT id, applied_annotation_id FROM annotation_proposals WHERE id = ? AND inference_id = ?",
+      ).get(
+        parsed.data.assistant_proposal_id,
+        parsed.data.inference_id,
+      ) as { id: string; applied_annotation_id: string | null } | undefined;
+      if (!proposal) {
+        sendJson(response, origin, { error: "Assistant proposal not found" }, 400);
+        return;
+      }
+      if (proposal.applied_annotation_id) {
+        sendJson(response, origin, { error: "Assistant proposal is already linked to an annotation" }, 409);
+        return;
+      }
     }
     const actions = parsed.data.actions.map((action) => ({
       ...action,
@@ -335,6 +420,7 @@ async function route(
       normalized: normalizedFromEntities(action.entities),
     }));
     const legacyAction = enrichedActions[0];
+    const annotationId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     try {
       database.exec("BEGIN");
@@ -345,7 +431,7 @@ async function route(
           actions
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
-        crypto.randomUUID(), parsed.data.inference_id, legacyAction.intent,
+        annotationId, parsed.data.inference_id, legacyAction.intent,
         JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
         parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
         parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
@@ -358,6 +444,19 @@ async function route(
         JSON.stringify({ actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       );
+      if (parsed.data.assistant_proposal_id && parsed.data.assistant_resolution) {
+        database.prepare(
+          `UPDATE annotation_proposals
+           SET status = 'applied', resolution = ?, applied_annotation_id = ?, applied_at = ?
+           WHERE id = ? AND inference_id = ?`,
+        ).run(
+          parsed.data.assistant_resolution,
+          annotationId,
+          createdAt,
+          parsed.data.assistant_proposal_id,
+          parsed.data.inference_id,
+        );
+      }
       database.exec("COMMIT");
     } catch (error) {
       database.exec("ROLLBACK");
