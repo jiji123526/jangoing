@@ -20,8 +20,10 @@ pytest ml/tests
 After reviewed human data exists:
 
 ```bash
-npm run dataset:export -- --output ml/data/reviewed.jsonl
-python ml/train_baseline.py ml/data/reviewed.jsonl
+npm run dataset:export -- \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+python ml/train_baseline.py ml/data/reviewed-train.jsonl
 ```
 
 Training requires reviewed examples from at least two intents. Generated data and
@@ -47,5 +49,7 @@ and limitations are recorded in `SYNTHETIC_V1_KO.md`.
 To export reviewed production interactions from Cloudflare D1 instead:
 
 ```bash
-npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```

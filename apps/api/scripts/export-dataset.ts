@@ -1,9 +1,15 @@
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import {
+  buildDatasetRecords,
+  parseDatasetExportArgs,
+  serializeJsonl,
+  splitAndValidateDataset,
+  type ExportRow,
+} from "../src/dataset-export";
 
 const apiDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(apiDirectory, "../..");
@@ -20,13 +26,9 @@ const query = `SELECT il.id, il.raw_utterance, il.predicted_interpretation,
     AND il.corrected_interpretation IS NOT NULL
   )
   ORDER BY il.created_at ASC, il.id ASC`;
-const args = process.argv.slice(2);
-const remote = args.includes("--remote");
-const outputIndex = args.indexOf("--output");
-const positionalOutput = args.find((argument) => !argument.startsWith("--"));
-const outputPath = outputIndex >= 0 ? args[outputIndex + 1] : positionalOutput;
+const options = parseDatasetExportArgs(process.argv.slice(2));
 
-function localRows(): Array<Record<string, string | null>> {
+function localRows(): ExportRow[] {
   const databasePath =
     process.env.LOCAL_DB_PATH ?? resolve(apiDirectory, ".local/jangoing.sqlite");
   if (!existsSync(databasePath)) {
@@ -37,13 +39,13 @@ function localRows(): Array<Record<string, string | null>> {
   }
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
-    return database.prepare(query).all() as Array<Record<string, string | null>>;
+    return database.prepare(query).all() as ExportRow[];
   } finally {
     database.close();
   }
 }
 
-function remoteRows(): Array<Record<string, string | null>> {
+function remoteRows(): ExportRow[] {
   const result = spawnSync(
     "npx",
     ["wrangler", "d1", "execute", "jangoing-db", "--remote", "--command", query, "--json"],
@@ -53,79 +55,30 @@ function remoteRows(): Array<Record<string, string | null>> {
     throw new Error(result.stderr || "Remote D1 export failed");
   }
   const payload = JSON.parse(result.stdout) as Array<{
-    results?: Array<Record<string, string | null>>;
+    results?: ExportRow[];
   }>;
   return payload.flatMap((entry) => entry.results ?? []);
 }
 
-const rows = remote ? remoteRows() : localRows();
-
-const lines: string[] = [];
-for (const row of rows) {
-  const correctedPayload = row.corrected_interpretation
-    ? (JSON.parse(row.corrected_interpretation) as {
-        intent: string;
-        slots?: Record<string, unknown>;
-        actions?: Array<Record<string, unknown> & { intent: string }>;
-      })
-    : null;
-  const annotationActions = row.annotation_actions
-    ? (JSON.parse(row.annotation_actions) as Array<Record<string, unknown> & { intent: string }>)
-    : row.annotation_intent
-      ? [{
-          intent: row.annotation_intent,
-          entities: row.annotation_entities ? JSON.parse(row.annotation_entities) : [],
-          normalized: row.annotation_normalized ? JSON.parse(row.annotation_normalized) : {},
-          phrase_family: row.annotation_phrase_family,
-        }]
-      : correctedPayload?.actions ?? (correctedPayload?.intent
-        ? [{ intent: correctedPayload.intent, normalized: correctedPayload.slots ?? {}, entities: [] }]
-        : []);
-  if (!annotationActions.length || !row.predicted_interpretation || !row.raw_utterance) {
-    continue;
-  }
-  const predicted = JSON.parse(row.predicted_interpretation);
-  const generatedPhraseFamily = createHash("sha256")
-    .update(row.raw_utterance.toLowerCase().replace(/[a-z0-9]+/g, "_"))
-    .digest("hex")
-    .slice(0, 12);
-  const isSingleAction = annotationActions.length === 1;
-  const phraseFamily = isSingleAction
-    ? String(annotationActions[0].phrase_family ?? generatedPhraseFamily)
-    : `multi:${annotationActions.map((action) => action.phrase_family ?? action.intent).join("+")}`;
-  lines.push(
-    JSON.stringify({
-      id: row.id,
-      text: row.raw_utterance,
-      intents: annotationActions.map((action) => action.intent),
-      actions: annotationActions,
-      ...(isSingleAction ? {
-        intent: annotationActions[0].intent,
-        slots: annotationActions[0].normalized ?? {},
-        entities: annotationActions[0].entities ?? [],
-      } : {}),
-      predicted,
-      outcome: row.outcome,
-      parser_version: row.parser_version,
-      dataset_purpose: row.dataset_purpose ?? "train_candidate",
-      phrase_family: phraseFamily,
-      annotation_schema_version: row.annotation_schema_version ?? null,
-      reviewed_at: row.annotation_created_at ?? row.created_at,
-    }),
-  );
+const trainOutput = isAbsolute(options.trainOutput)
+  ? options.trainOutput
+  : resolve(repositoryRoot, options.trainOutput);
+const evaluationOutput = isAbsolute(options.evaluationOutput)
+  ? options.evaluationOutput
+  : resolve(repositoryRoot, options.evaluationOutput);
+if (trainOutput === evaluationOutput) {
+  throw new Error("Training and evaluation outputs resolve to the same file");
 }
 
-const payload = lines.length ? `${lines.join("\n")}\n` : "";
-if (outputPath) {
-  const resolvedOutput = isAbsolute(outputPath)
-    ? outputPath
-    : resolve(repositoryRoot, outputPath);
-  mkdirSync(dirname(resolvedOutput), { recursive: true });
-  writeFileSync(resolvedOutput, payload);
-  process.stderr.write(`Exported ${lines.length} reviewed records to ${resolvedOutput}\n`);
-  if (lines.length === 0) {
-    process.stderr.write("No confirmed or corrected interactions are available yet.\n");
-  }
-} else {
-  process.stdout.write(payload);
+const rows = options.remote ? remoteRows() : localRows();
+const { training, evaluation } = splitAndValidateDataset(buildDatasetRecords(rows));
+
+mkdirSync(dirname(trainOutput), { recursive: true });
+mkdirSync(dirname(evaluationOutput), { recursive: true });
+writeFileSync(trainOutput, serializeJsonl(training));
+writeFileSync(evaluationOutput, serializeJsonl(evaluation));
+process.stderr.write(`Exported ${training.length} training records to ${trainOutput}\n`);
+process.stderr.write(`Exported ${evaluation.length} evaluation records to ${evaluationOutput}\n`);
+if (training.length === 0 || evaluation.length === 0) {
+  process.stderr.write("Warning: one or more dataset splits are empty.\n");
 }

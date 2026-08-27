@@ -55,8 +55,10 @@ Export reviewed local interactions and train a separate human-data run after
 enough single-action annotations exist:
 
 ```bash
-npm run dataset:export -- --output ml/data/reviewed.jsonl
-python ml/train_baseline.py ml/data/reviewed.jsonl
+npm run dataset:export -- \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+python ml/train_baseline.py ml/data/reviewed-train.jsonl
 pytest ml/tests
 ```
 
@@ -67,7 +69,9 @@ The default export reads `apps/api/.local/jangoing.sqlite`, which is created aft
 running `npm run dev:api`. To export reviewed production records from D1, use:
 
 ```bash
-npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
 After applying migrations 0004 and 0005, the production annotation workspace is

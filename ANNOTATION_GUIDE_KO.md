@@ -27,7 +27,8 @@ https://<vercel-domain>/annotate
 
 ## 사용 순서
 
-1. 실제로 말할 법한 영어 문장을 입력하고 `Enter` 또는 `Create`를 누른다.
+1. 실제로 말할 법한 영어 문장을 직접 입력하거나 queue 버튼으로 기존 inference
+   샘플 하나를 불러온다. 직접 입력 후에는 `Enter` 또는 `Create`를 누른다.
    줄바꿈이 필요하면 `Shift + Enter`를 사용한다.
 2. 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
 3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
@@ -39,6 +40,22 @@ https://<vercel-domain>/annotate
 8. Training candidate 또는 Evaluation candidate를 고른다.
 9. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
 10. `Save annotation`을 누른다.
+
+## Queue 버튼
+
+`/annotate`는 새 문장을 직접 만드는 것 외에 우선순위 queue에서 샘플을 하나씩
+불러올 수 있다.
+
+- `Load correction queue`: 사용자가 이미 correction을 남긴 문장
+- `Load expiry queue`: 날짜/유통기한 표현이 들어간 문장
+- `Load low-confidence queue`: confidence가 낮거나 `unknown`,
+  `needs_clarification`에 가까운 문장
+- `Load confirmed queue`: 실사용에서 맞았고 confirmed된 문장
+- `Load evaluation holdout`: evaluation 후보로 분리하려는 reviewed 문장
+
+queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편집한다. correction이
+이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation
+holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 선택된다.
 
 ## 여러 intent/action 라벨링
 
@@ -87,9 +104,10 @@ Add milk to the list and throw away the spinach.
 - 악의적이거나 품질이 낮은 라벨이 데이터에 섞일 수 있다.
 - API 호출량과 D1 쓰기량이 증가할 수 있다.
 
-위험을 줄이기 위해 기존 production 대화 원문을 나열하는 공개 queue API는 만들지
-않았다. 화면에서 새로 입력한 문장만 현재 브라우저에 표시하며, 공개 통계는 전체
-저장 개수만 반환한다. 다른 사람이 입력한 원문을 `/annotate`에서 조회할 수 없다.
+위험을 줄이기 위해 기존 production 대화 원문을 자유 탐색하는 공개 브라우징 화면은
+만들지 않았다. 대신 workflow에 필요한 경우만 queue에서 우선순위가 높은 샘플
+하나를 불러온다. 공개 통계는 전체 저장 개수만 반환하고, 대화 원문을 페이지네이션
+형태로 열람하는 기능은 제공하지 않는다.
 
 실제 사용자가 늘어나면 인증, rate limit, CSRF/abuse 방어, annotator identity,
 review status를 추가해야 한다.
@@ -161,11 +179,14 @@ Normalized value: beverage
 production annotation을 내보내려면:
 
 ```bash
-npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
 export에는 entity spans, normalized slots, dataset purpose, phrase family가 포함된다.
-원문 데이터이므로 Git에 커밋하지 않는다.
+두 split 사이에 같은 phrase family나 동일 문장이 있으면 export가 실패한다. 원문
+데이터이므로 Git에 커밋하지 않는다.
 
 ## 배포 전 필수 작업
 
@@ -196,7 +217,7 @@ frontend는 GitHub `main`을 통해 기존 Vercel 프로젝트에 배포된다.
 ## 향후 개선 선택지
 
 - 로그인 및 역할 기반 annotator 권한
-- 기존 unlabeled 문장을 보여주는 보호된 queue
+- 더 강한 접근 제어와 audit history가 붙은 queue 관리 화면
 - 두 명 이상의 독립 annotation과 합의(adjudication)
 - annotation 수정·삭제 및 audit history
 - keyboard shortcut과 token 단위 선택

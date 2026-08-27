@@ -90,11 +90,14 @@ python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
   --output ml/artifacts/synthetic-v1-baseline
 ```
 
-After human annotations exist, export them separately:
+After human annotations exist, export training and evaluation candidates to
+separate files:
 
 ```bash
-npm run dataset:export -- --output ml/data/reviewed.jsonl
-python ml/train_baseline.py ml/data/reviewed.jsonl
+npm run dataset:export -- \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+python ml/train_baseline.py ml/data/reviewed-train.jsonl
 ```
 
 The baseline writes a model plus versioned metrics including the dataset digest,

@@ -60,8 +60,12 @@ The text MVP is implemented and deployable:
 - `annotation-v2` multi-action groups with action-specific intent, phrase family,
   entities, and normalized values
 - Controlled dropdown vocabularies for normalized values and phrase families
+- Prioritized annotation queues for correction, expiry-heavy, low-confidence,
+  confirmed, and evaluation-holdout samples
 - Production counters for training candidates (100–200 target) and evaluation
   candidates (100+ target)
+- Reviewed dataset export split into separate train/evaluation JSONL files with
+  cross-split text and phrase-family leakage checks
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -78,6 +82,22 @@ The language layer is currently rule-based. It recognizes a small set of sentenc
   confirmed, corrected, cancelled, rejected, and annotated outcomes.
 
 These limitations are acceptable only while every state-changing action requires user review.
+
+### Current Data Gaps
+
+- Synthetic generation already includes entity spans and normalized values, so
+  entity-label support itself is not the blocker.
+- Runtime parsing still does not extract or normalize natural-language dates
+  such as `tomorrow`, `next Friday`, or `August twenty-eighth`.
+- Reviewed export now separates train/evaluation splits, but slot and joint
+  training still need a stricter `reviewed-only` or task-specific export mode so
+  unannotated corrected records do not mix with span-supervised data.
+- `reference_date` and `timezone` are documented but not yet stored
+  end-to-end in inference, annotation, and export payloads.
+- Reviewed annotations do not yet enforce normalized-value completeness for
+  labels such as ITEM, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
+- The single-action baseline gate is still implicit in ML code rather than a
+  first-class export or annotation flag.
 
 ## MVP Boundary
 
@@ -270,7 +290,8 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - Render inventory, shopping list, and event history
 - Present loading, empty, validation, and API error states
 - Provide a dedicated annotation-v2 screen with action selection, exact spans,
-  controlled values, phrase families, dataset purpose, and collection counters
+  controlled values, phrase families, dataset purpose, collection counters, and
+  queue-driven sample loading
 
 ### API Responsibilities
 
@@ -280,7 +301,8 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - Store confirmed events
 - Build inventory and shopping-list projections
 - Enforce CORS for configured web origins
-- Validate and store action-group annotations and expose non-sensitive aggregate counts
+- Validate and store action-group annotations
+- Expose non-sensitive aggregate counts and prioritized annotation queues
 
 ### Shared Contract Responsibilities
 
@@ -300,6 +322,7 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - `POST /inferences/outcome`: record reviewed non-event outcomes
 - `POST /annotations`: store one-to-eight reviewed action groups
 - `GET /annotations/stats`: return aggregate training/evaluation candidate counts
+- `GET /annotations/queue`: return prioritized unlabeled inference samples for annotation
 
 Future interpretation requests will include date context:
 
@@ -559,7 +582,10 @@ Completion: every supported intent has reviewed examples and the test set contai
 
 Current status: infrastructure and production UI are complete; human-reviewed
 collection is now the active work. `synthetic-v1` supplies 800 bootstrap records
-but does not satisfy the human evaluation requirement.
+but does not satisfy the human evaluation requirement. Queue-based sample loading
+and train/evaluation export splitting are implemented; natural-date
+normalization, task-specific reviewed-only export, and explicit
+reference-date/timezone capture remain open.
 
 ### M5.5: Experiment and Observability Foundation
 

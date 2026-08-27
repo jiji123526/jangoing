@@ -142,17 +142,23 @@ Python은 현재 Vercel이나 Cloudflare에 배포하지 않는다. `ml/`은 개
 `apps/api/scripts/export-dataset.ts`가 검토 완료 데이터를 JSONL로 내보낸다.
 현재 supervised export에는 annotation 또는 신뢰할 수 있는 reviewed outcome이
 있는 record만 포함한다. pending과 cancelled에는 정답이 없으므로 제외한다.
+또한 하나의 mixed output 대신 학습용과 평가용을 별도 파일로 강제하고, 같은
+정규화 문장이나 phrase family가 두 split에 동시에 들어가면 실패시킨다.
 
 로컬 SQLite에서 export:
 
 ```bash
-npm run dataset:export -- --output ml/data/reviewed.jsonl
+npm run dataset:export -- \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
 production D1에서 export:
 
 ```bash
-npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
 로컬 명령은 `npm run dev:api`를 실행해 생성된
@@ -162,6 +168,11 @@ npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
 export를 API의 공개 GET endpoint로 만들지 않은 이유는 원문 대화 데이터가
 인터넷에 노출될 위험이 있기 때문이다. 현재는 로컬 또는 인증된 Wrangler
 명령으로만 export한다.
+
+이 단계로 train/evaluation 분리는 해결됐지만 slot 또는 joint training 관점에서는
+아직 부족하다. annotation이 없는 corrected record도 intent 학습에는 유용하지만
+entity span supervision에는 섞이면 안 되므로, 다음 단계로 `reviewed-only` 또는
+`task=intent|slots|joint` 필터가 필요하다.
 
 ### 4.6 첫 intent baseline
 
@@ -229,9 +240,11 @@ We're out of juice
 - label별 controlled normalized value
 - 판단 근거 notes
 
-공개 화면은 기존 사용자의 원문 queue를 보여주지 않고 집계 수치만 노출한다. 따라서
-다른 사용자의 대화 내용을 읽을 수 없지만, 인증 없는 쓰기로 인한 품질·abuse 위험은
-여전히 남아 있다.
+공개 화면은 기존 사용자의 원문을 자유 탐색하는 리스트는 제공하지 않는다. 대신
+annotation workflow에 필요한 경우에만 queue에서 우선순위가 높은 샘플 하나를
+불러올 수 있다. 현재 queue 종류는 correction, expiry, low-confidence,
+confirmed, evaluation holdout이다. 따라서 대량 browse 위험은 줄이되 데이터
+수집 효율은 높였다. 인증 없는 쓰기로 인한 품질·abuse 위험은 여전히 남아 있다.
 
 관련 마이그레이션:
 
@@ -279,12 +292,21 @@ normalized value와 phrase family를 자유 입력하면 같은 개념이 서로
 - Enter: sample 생성
 - Shift+Enter: 줄바꿈
 - IME 조합 중 Enter: 제출 방지
+- Queue buttons: correction, expiry, low-confidence, confirmed, evaluation holdout
 - Training candidate 초기 목표: 100~200
 - Evaluation candidate 초기 목표: 100+
 
 카운터는 production D1을 purpose별로 집계하고 저장 직후 UI에서도 즉시 증가한다.
 목표 수치는 수집 진행 표시이며 데이터 품질, intent 균형, phrase-family 독립성을
 보장하지 않는다.
+
+queue를 분리한 이유:
+
+- correction: 모델이 틀렸던 실사용 사례를 빠르게 회수
+- expiry: 날짜 표현이 들어간 문장을 집중 수집
+- low-confidence: active-learning 성격으로 어려운 문장을 우선 라벨링
+- confirmed: 실제 분포에서 이미 맞은 문장을 보강
+- evaluation holdout: 재현 가능한 규칙으로 검증셋 후보를 분리
 
 ### 4.13 Production 상태
 
@@ -365,7 +387,7 @@ baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 �
 - 온라인 A/B 평가 및 모델 registry dashboard
 - Python 모델의 production inference 배포
 - multi-action/multi-label 학습 baseline
-- annotation 수정·삭제·합의 검토 및 인증된 queue
+- annotation 수정·삭제·합의 검토 및 더 강한 권한 제어가 있는 queue
 
 일반 correction UI는 normalized slot 값만 저장하지만, 별도 `/annotate` 화면에서
 원문의 정확한 문자 범위와 entity label을 저장할 수 있다. 이 데이터는 향후
@@ -436,8 +458,10 @@ pip install -e './ml[dev]'
 ### production 데이터 export 및 baseline 학습
 
 ```bash
-npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
-python ml/train_baseline.py ml/data/reviewed.jsonl
+npm run dataset:export -- --remote \
+  --train-output ml/data/reviewed-train.jsonl \
+  --evaluation-output ml/data/reviewed-evaluation.jsonl
+python ml/train_baseline.py ml/data/reviewed-train.jsonl
 ```
 
 결과는 기본적으로 `ml/artifacts/baseline/`에 생성되고 Git에는 포함되지 않는다.
@@ -462,13 +486,17 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 1. synthetic-v1으로 재현 가능한 첫 baseline artifact를 확정한다.
 2. `/annotate`에서 training candidate 100~200개를 수집한다.
 3. template와 모델 예측을 보지 않고 evaluation candidate 100개 이상을 수집한다.
-4. intent·phrase family·난이도별 분포와 중복을 검토한다.
-5. evaluation candidate를 validation과 frozen test로 승인·분리한다.
-6. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
-7. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
-8. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
-9. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
-10. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
+4. 자연어 날짜 span 추출과 `chrono-node` 기반 normalization을 추가한다.
+5. `reference_date`와 `timezone`을 inference/annotation/export에 함께 저장한다.
+6. slot/joint 학습용 `reviewed-only` 또는 task-specific export 필터를 추가한다.
+7. reviewed annotation에서 normalized value completeness 규칙을 강화한다.
+8. intent·phrase family·난이도별 분포와 중복을 검토한다.
+9. evaluation candidate를 validation과 frozen test로 승인·분리한다.
+10. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
+11. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
+12. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
+13. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
+14. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
 실험의 재현성, 그리고 확인되지 않은 상태 변경을 막는 것이다.

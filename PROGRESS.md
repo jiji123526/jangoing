@@ -4,16 +4,61 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-27
 
-- `main` includes annotation-v2 multi-action collection and target counters.
+- `main` includes annotation-v2 multi-action collection, prioritized annotation
+  queues, and split train/evaluation dataset export validation.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
-- Automated checks: 11 TypeScript tests and 3 Python tests pass; web and Worker
-  production builds pass.
+- Recent validation: 24 TypeScript tests and repo-wide typecheck pass.
 - Active work: collect 100–200 human training candidates and 100+ independent
-  evaluation candidates, then approve validation and frozen test sets.
+  evaluation candidates, then add natural-date normalization, task-specific
+  reviewed export filters, and explicit reference-date/timezone capture.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Split reviewed dataset export enforced
+
+### Completed
+
+- Refactored dataset export parsing and record-building into reusable helpers.
+- Changed reviewed export to require separate training and evaluation output files.
+- Added leakage validation so identical normalized text or phrase families cannot
+  cross training and evaluation exports.
+- Added tests covering CLI arguments, split separation, duplicate IDs, and
+  cross-split leakage detection.
+
+### Decisions
+
+- Remove the legacy single `--output` mode because it encourages accidental
+  mixing of training and evaluation data.
+- Fail export early when a reviewed split is empty or when leakage is detected,
+  rather than silently writing a misleading dataset.
+
+### Next
+
+- Add task-specific export modes such as `intent`, `slots`, or `joint`.
+- Add a `reviewed-only`/`require-annotation` filter for slot-supervised training.
+
+## 2026-08-27 - Prioritized annotation queues added
+
+### Completed
+
+- Added queue-backed annotation sample loading to `/annotate`.
+- Added correction, expiry, low-confidence, confirmed, and evaluation-holdout queues.
+- Prefilled reviewed intent information when a corrected example already has a
+  saved reviewed interpretation.
+- Defaulted evaluation-holdout samples to `evaluation_candidate`.
+
+### Decisions
+
+- Do not expose a free-browsing raw-log screen; load one prioritized sample at a
+  time for the annotation workflow.
+- Use separate queues to balance error-focused labeling, real-distribution
+  coverage, and evaluation-set collection.
+
+### Next
+
+- Add annotator/admin controls if queue access later needs authentication or audit history.
 
 ## 2026-08-27 - Documentation synchronized with annotation-v2
 
