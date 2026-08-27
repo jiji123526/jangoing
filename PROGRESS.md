@@ -2,6 +2,15 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Annotation collection counters added
+
+### Completed
+
+- Added production counts for training and evaluation candidates.
+- Displayed progress against the initial 100–200 training and 100+ evaluation goals.
+- Updated counters immediately after a successful annotation save.
+- Added responsive progress cards and documented that quantity does not replace quality.
+
 ## 2026-08-27 - Multi-action annotation-v2 implemented
 
 ### Completed

@@ -228,8 +228,17 @@ async function route(
   }
 
   if (request.method === "GET" && path === "/annotations/stats") {
-    const row = database.prepare("SELECT COUNT(*) AS count FROM annotations").get() as { count: number };
-    sendJson(response, origin, { annotated: Number(row.count) });
+    const row = database.prepare(
+      `SELECT COUNT(*) AS annotated,
+        SUM(CASE WHEN dataset_purpose = 'train_candidate' THEN 1 ELSE 0 END) AS train_candidates,
+        SUM(CASE WHEN dataset_purpose = 'evaluation_candidate' THEN 1 ELSE 0 END) AS evaluation_candidates
+       FROM annotations`,
+    ).get() as { annotated: number; train_candidates: number | null; evaluation_candidates: number | null };
+    sendJson(response, origin, {
+      annotated: Number(row.annotated),
+      train_candidates: Number(row.train_candidates ?? 0),
+      evaluation_candidates: Number(row.evaluation_candidates ?? 0),
+    });
     return;
   }
 

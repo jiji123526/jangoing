@@ -157,10 +157,17 @@ async function handleInferenceOutcome(request: Request, env: Env): Promise<Respo
 }
 
 async function handleAnnotationStats(request: Request, env: Env): Promise<Response> {
-  const annotated = await env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM annotations",
-  ).first<{ count: number }>();
-  return json(request, env, { annotated: Number(annotated?.count ?? 0) });
+  const counts = await env.DB.prepare(
+    `SELECT COUNT(*) AS annotated,
+      SUM(CASE WHEN dataset_purpose = 'train_candidate' THEN 1 ELSE 0 END) AS train_candidates,
+      SUM(CASE WHEN dataset_purpose = 'evaluation_candidate' THEN 1 ELSE 0 END) AS evaluation_candidates
+     FROM annotations`,
+  ).first<{ annotated: number; train_candidates: number | null; evaluation_candidates: number | null }>();
+  return json(request, env, {
+    annotated: Number(counts?.annotated ?? 0),
+    train_candidates: Number(counts?.train_candidates ?? 0),
+    evaluation_candidates: Number(counts?.evaluation_candidates ?? 0),
+  });
 }
 
 async function handleCreateAnnotation(request: Request, env: Env): Promise<Response> {

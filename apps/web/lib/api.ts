@@ -1,9 +1,11 @@
 import {
+  AnnotationStatsSchema,
   EventRecordSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
+  type AnnotationStats,
   type CreateAnnotationRequest,
   type EventRecord,
   type LoggedInterpretation,
@@ -86,9 +88,9 @@ export async function createAnnotation(
   });
 }
 
-export async function getAnnotationStats(): Promise<{ annotated: number }> {
+export async function getAnnotationStats(): Promise<AnnotationStats> {
   const body = await apiRequest("/annotations/stats");
-  return z.object({ annotated: z.number().nonnegative() }).parse(body);
+  return AnnotationStatsSchema.parse(body);
 }
 
 const InventoryResponseSchema = z.object({

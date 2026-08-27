@@ -187,6 +187,12 @@ export const DatasetPurposeSchema = z.enum([
   "evaluation_candidate",
 ]);
 
+export const AnnotationStatsSchema = z.object({
+  annotated: z.number().int().nonnegative(),
+  train_candidates: z.number().int().nonnegative(),
+  evaluation_candidates: z.number().int().nonnegative(),
+});
+
 export const AnnotationActionSchema = z
   .object({
     intent: IntentSchema,
@@ -308,6 +314,7 @@ export type EntityLabel = z.infer<typeof EntityLabelSchema>;
 export type EntityAnnotation = z.infer<typeof EntityAnnotationSchema>;
 export type AnnotationAction = z.infer<typeof AnnotationActionSchema>;
 export type DatasetPurpose = z.infer<typeof DatasetPurposeSchema>;
+export type AnnotationStats = z.infer<typeof AnnotationStatsSchema>;
 export type CreateAnnotationRequest = z.infer<typeof CreateAnnotationRequestSchema>;
 export type AnnotationQueueItem = z.infer<typeof AnnotationQueueItemSchema>;
 export type UpdateInferenceOutcomeRequest = z.infer<

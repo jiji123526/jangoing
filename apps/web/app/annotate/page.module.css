@@ -8,6 +8,15 @@
 .intro p { margin-bottom: 8px; color: #1f6b45; font-size: .7rem; font-weight: 800; letter-spacing: .1em; }
 .intro h1 { max-width: 720px; font-size: clamp(2rem,5vw,3.4rem); }
 .intro > span { display: block; max-width: 690px; margin-top: 14px; color: #68716b; line-height: 1.6; }
+.progressPanel { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 18px 28px 2px; }
+.progressPanel article { display: grid; gap: 10px; padding: 16px; border: 1px solid #d9ded7; border-radius: 8px; background: white; }
+.progressPanel article > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.progressPanel span { color: #68716b; font-size: .67rem; font-weight: 800; letter-spacing: .07em; }
+.progressPanel b { color: #1f6b45; font-size: 1.25rem; }
+.progressPanel b small { color: #68716b; font-size: .7rem; font-weight: 600; }
+.progressPanel p { margin: 0; color: #68716b; font-size: .7rem; }
+.progressTrack { height: 6px; overflow: hidden; border-radius: 999px; background: #e2e7e1; }
+.progressTrack i { height: 100%; display: block; border-radius: inherit; background: #1f6b45; transition: width .2s ease; }
 .workspace { display: grid; gap: 16px; padding: 24px 28px 60px; }
 .card { padding: 22px; border: 1px solid #d9ded7; border-radius: 9px; background: white; box-shadow: 0 12px 35px rgba(29,52,39,.05); }
 .step { display: flex; gap: 12px; margin-bottom: 18px; }
@@ -64,4 +73,4 @@
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 700px) { .intentGrid { grid-template-columns: repeat(2,1fr); } .sampleForm { grid-template-columns: 1fr; } .sampleForm button { min-height: 44px; } .actionList > div { grid-template-columns: 1fr 38px; } .actionSelector, .actionList label { grid-column: 1; } .removeAction { grid-column: 2; grid-row: 1; } .entityList section > div { grid-template-columns: 90px 1fr 36px; } .entityList small { display: none; } .normalizedControl { grid-column: 1 / 3; } }
-@media (max-width: 520px) { .header, .intro, .workspace { padding-left: 18px; padding-right: 18px; } .metaGrid { grid-template-columns: 1fr; } .metaGrid .full { grid-column: auto; } }
+@media (max-width: 520px) { .header, .intro, .workspace, .progressPanel { padding-left: 18px; padding-right: 18px; } .progressPanel { grid-template-columns: 1fr; } .metaGrid { grid-template-columns: 1fr; } .metaGrid .full { grid-column: auto; } }

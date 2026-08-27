@@ -17,6 +17,14 @@ https://<vercel-domain>/annotate
 
 홈 화면 상단의 `Annotate` 링크로도 이동할 수 있다.
 
+화면 상단 진행 카드는 production DB의 목적별 저장 수를 보여준다.
+
+- Training candidates: 초기 목표 `100–200`
+- Evaluation candidates: 초기 목표 `100+`
+
+저장 직후 선택한 purpose의 카운터가 증가하며, 새로고침하면 production 집계값을 다시
+불러온다. 목표치는 초기 데이터 수집 가이드이며 품질이나 intent별 균형을 대신하지 않는다.
+
 ## 사용 순서
 
 1. 실제로 말할 법한 영어 문장을 입력하고 `Enter` 또는 `Create`를 누른다.

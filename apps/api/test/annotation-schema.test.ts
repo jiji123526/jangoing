@@ -1,4 +1,4 @@
-import { CreateAnnotationRequestSchema } from "@jangoing/contracts";
+import { AnnotationStatsSchema, CreateAnnotationRequestSchema } from "@jangoing/contracts";
 import { describe, expect, it } from "vitest";
 
 const inferenceId = "00000000-0000-4000-8000-000000000001";
@@ -39,5 +39,15 @@ describe("CreateAnnotationRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("AnnotationStatsSchema", () => {
+  it("accepts purpose-specific annotation counts", () => {
+    expect(AnnotationStatsSchema.parse({
+      annotated: 12,
+      train_candidates: 7,
+      evaluation_candidates: 5,
+    })).toEqual({ annotated: 12, train_candidates: 7, evaluation_candidates: 5 });
   });
 });

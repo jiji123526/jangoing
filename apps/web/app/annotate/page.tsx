@@ -2,6 +2,7 @@
 
 import type {
   AnnotationAction,
+  AnnotationStats,
   DatasetPurpose,
   EntityAnnotation,
   EntityLabel,
@@ -40,6 +41,12 @@ const labels: EntityLabel[] = [
   "LOCATION",
   "EXPIRY_DATE",
 ];
+
+const emptyStats: AnnotationStats = {
+  annotated: 0,
+  train_candidates: 0,
+  evaluation_candidates: 0,
+};
 
 function readable(value: string): string {
   return value
@@ -102,14 +109,14 @@ export default function AnnotatePage() {
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null);
   const [purpose, setPurpose] = useState<DatasetPurpose>("train_candidate");
   const [notes, setNotes] = useState("");
-  const [annotated, setAnnotated] = useState(0);
+  const [stats, setStats] = useState<AnnotationStats>(emptyStats);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void getAnnotationStats()
-      .then((stats) => setAnnotated(stats.annotated))
+      .then(setStats)
       .catch(() => undefined);
   }, []);
 
@@ -177,7 +184,12 @@ export default function AnnotatePage() {
         notes: notes.trim() || null,
         annotator: "production-web",
       });
-      setAnnotated((count) => count + 1);
+      setStats((current) => ({
+        ...current,
+        annotated: current.annotated + 1,
+        train_candidates: current.train_candidates + (purpose === "train_candidate" ? 1 : 0),
+        evaluation_candidates: current.evaluation_candidates + (purpose === "evaluation_candidate" ? 1 : 0),
+      }));
       setNotice("Annotation saved. Enter the next sentence.");
       setDraft("");
       setSample(null);
@@ -199,13 +211,26 @@ export default function AnnotatePage() {
           <Link href="/" className={styles.back}><ArrowLeft size={17} /> Kitchen</Link>
           <strong>Annotation workspace</strong>
         </div>
-        <span><b>{annotated}</b> saved</span>
+        <span><b>{stats.annotated}</b> saved</span>
       </header>
 
       <section className={styles.intro}>
         <p>DATA COLLECTION</p>
         <h1>Label one real sentence at a time.</h1>
         <span>Enter a natural English sentence, correct its intent, then select exact text spans for entities.</span>
+      </section>
+
+      <section className={styles.progressPanel} aria-label="Annotation collection progress">
+        <article>
+          <div><span>TRAINING CANDIDATES</span><b>{stats.train_candidates}<small> / 100–200</small></b></div>
+          <div className={styles.progressTrack}><i style={{ width: `${Math.min(100, stats.train_candidates)}%` }} /></div>
+          <p>{stats.train_candidates >= 100 ? "Initial target reached" : `${100 - stats.train_candidates} until the initial target`}</p>
+        </article>
+        <article>
+          <div><span>EVALUATION CANDIDATES</span><b>{stats.evaluation_candidates}<small> / 100+</small></b></div>
+          <div className={styles.progressTrack}><i style={{ width: `${Math.min(100, stats.evaluation_candidates)}%` }} /></div>
+          <p>{stats.evaluation_candidates >= 100 ? "Initial target reached" : `${100 - stats.evaluation_candidates} until the initial target`}</p>
+        </article>
       </section>
 
       <div className={styles.workspace}>
