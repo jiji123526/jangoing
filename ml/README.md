@@ -13,3 +13,9 @@ pytest ml/tests
 
 Training requires reviewed examples from at least two intents. Generated data and
 artifacts are local-only; commit code and manifests, not conversational data.
+
+To export reviewed production interactions from Cloudflare D1 instead:
+
+```bash
+npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+```

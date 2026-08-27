@@ -15,7 +15,7 @@
     "db:migrate:local": "npm run db:migrate:local --workspace @jangoing/api",
     "db:migrate:remote": "npm run db:migrate:remote --workspace @jangoing/api",
     "deploy:api": "npm run deploy --workspace @jangoing/api",
-    "dataset:export": "npm run dataset:export --workspace @jangoing/api",
+    "dataset:export": "npm run dataset:export --workspace @jangoing/api --",
     "dev:api": "npm run dev --workspace @jangoing/api",
     "dev:web": "npm run dev --workspace @jangoing/web",
     "test": "npm run test --workspaces --if-present",

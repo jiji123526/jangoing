@@ -1,21 +1,57 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 
-const databasePath =
-  process.env.LOCAL_DB_PATH ?? resolve("apps/api/.local/jangoing.sqlite");
-const database = new DatabaseSync(databasePath, { readOnly: true });
-const rows = database
-  .prepare(
-    `SELECT id, raw_utterance, predicted_interpretation,
-            corrected_interpretation, parser_version, outcome, created_at
-     FROM inference_logs
-     WHERE outcome IN ('confirmed', 'corrected')
-       AND corrected_interpretation IS NOT NULL
-     ORDER BY created_at ASC, id ASC`,
-  )
-  .all() as Array<Record<string, string>>;
+const apiDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = resolve(apiDirectory, "../..");
+const query = `SELECT id, raw_utterance, predicted_interpretation,
+  corrected_interpretation, parser_version, outcome, created_at
+  FROM inference_logs
+  WHERE outcome IN ('confirmed', 'corrected')
+    AND corrected_interpretation IS NOT NULL
+  ORDER BY created_at ASC, id ASC`;
+const args = process.argv.slice(2);
+const remote = args.includes("--remote");
+const outputIndex = args.indexOf("--output");
+const positionalOutput = args.find((argument) => !argument.startsWith("--"));
+const outputPath = outputIndex >= 0 ? args[outputIndex + 1] : positionalOutput;
+
+function localRows(): Array<Record<string, string>> {
+  const databasePath =
+    process.env.LOCAL_DB_PATH ?? resolve(apiDirectory, ".local/jangoing.sqlite");
+  if (!existsSync(databasePath)) {
+    throw new Error(
+      `Local database not found at ${databasePath}. Run npm run dev:api and ` +
+        "review commands first, or pass --remote to export production D1.",
+    );
+  }
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    return database.prepare(query).all() as Array<Record<string, string>>;
+  } finally {
+    database.close();
+  }
+}
+
+function remoteRows(): Array<Record<string, string>> {
+  const result = spawnSync(
+    "npx",
+    ["wrangler", "d1", "execute", "jangoing-db", "--remote", "--command", query, "--json"],
+    { cwd: apiDirectory, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(result.stderr || "Remote D1 export failed");
+  }
+  const payload = JSON.parse(result.stdout) as Array<{
+    results?: Array<Record<string, string>>;
+  }>;
+  return payload.flatMap((entry) => entry.results ?? []);
+}
+
+const rows = remote ? remoteRows() : localRows();
 
 const lines: string[] = [];
 for (const row of rows) {
@@ -43,15 +79,17 @@ for (const row of rows) {
   );
 }
 
-database.close();
-const outputIndex = process.argv.indexOf("--output");
-const outputPath = outputIndex >= 0 ? process.argv[outputIndex + 1] : undefined;
 const payload = lines.length ? `${lines.join("\n")}\n` : "";
 if (outputPath) {
-  const resolvedOutput = resolve(outputPath);
+  const resolvedOutput = isAbsolute(outputPath)
+    ? outputPath
+    : resolve(repositoryRoot, outputPath);
   mkdirSync(dirname(resolvedOutput), { recursive: true });
   writeFileSync(resolvedOutput, payload);
   process.stderr.write(`Exported ${lines.length} reviewed records to ${resolvedOutput}\n`);
+  if (lines.length === 0) {
+    process.stderr.write("No confirmed or corrected interactions are available yet.\n");
+  }
 } else {
   process.stdout.write(payload);
 }

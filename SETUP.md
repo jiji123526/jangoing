@@ -54,6 +54,13 @@ pytest ml/tests
 The exporter excludes pending and cancelled interactions from supervised training.
 Raw conversational data and generated model artifacts are ignored by Git.
 
+The default export reads `apps/api/.local/jangoing.sqlite`, which is created after
+running `npm run dev:api`. To export reviewed production records from D1, use:
+
+```bash
+npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
+```
+
 To test with Wrangler's local D1 runtime on a compatible machine:
 
 ```bash
