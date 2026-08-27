@@ -57,6 +57,82 @@ queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편
 이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation
 holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 선택된다.
 
+### Queue별 데이터 의미와 목적
+
+#### `correction queue`
+
+- 들어오는 데이터:
+  `inference_logs` 중 `outcome = corrected`이고 아직 annotation이 없는 문장
+- 현재 샘플 성격:
+  모델이 실제로 틀렸고, 사용자가 이미 더 나은 해석을 남긴 실사용 오류 사례
+- 주 목적:
+  intent 오류와 slot 오류를 빠르게 회수해 supervised dataset의 에러 밀도를 높이는 것
+- 주의:
+  이 큐만 계속 쓰면 dataset이 “모델이 틀린 문장” 쪽으로 과하게 치우친다.
+
+#### `expiry queue`
+
+- 들어오는 데이터:
+  raw utterance에 `expire`, `best by`, `tomorrow`, `next friday`, 월 이름 같은
+  expiry/date signal이 들어가고 아직 annotation이 없는 문장
+- 현재 샘플 성격:
+  날짜 span, expiry 표현, 자연어 날짜 normalization이 중요한 문장
+- 주 목적:
+  `EXPIRY_DATE` entity와 date normalization 품질을 끌어올릴 slot-training 후보를
+  집중 수집하는 것
+- 주의:
+  expiry signal이 들어간다고 모두 정확한 expiry action은 아니므로, 실제 intent와
+  entity span은 사람이 다시 확정해야 한다.
+
+#### `low-confidence queue`
+
+- 들어오는 데이터:
+  parser confidence가 낮거나 predicted intent가 `unknown`,
+  `needs_clarification`인 문장 중 아직 annotation이 없는 것
+- 현재 샘플 성격:
+  모델이 가장 헷갈려하는 문장, 경계 사례, ambiguity 사례
+- 주 목적:
+  적은 수의 annotation으로도 intent classifier와 fallback policy를 가장 효율적으로
+  개선하는 active-learning 성격의 dataset 후보를 모으는 것
+- 주의:
+  이 큐는 어려운 문장 비중이 높아서 실제 사용 분포를 대표하지는 않는다.
+
+#### `confirmed queue`
+
+- 들어오는 데이터:
+  `outcome = confirmed`이고 reviewed interpretation이 있으며 아직 annotation이 없는 문장
+- 현재 샘플 성격:
+  모델 예측이 맞았고 사용자도 그대로 확인한 정상 실사용 문장
+- 주 목적:
+  correction/low-confidence 위주 수집으로 생기는 편향을 줄이고, 실제 production
+  분포에 가까운 학습 데이터를 보강하는 것
+- 주의:
+  “쉬운 문장”이 많이 들어올 수 있으므로, 이 큐만 쓰면 challenge set이 약해진다.
+
+#### `evaluation holdout`
+
+- 들어오는 데이터:
+  reviewed(`confirmed` 또는 `corrected`) 되었고 아직 annotation이 없으며,
+  deterministic bucket 규칙에 걸린 문장
+- 현재 샘플 성격:
+  학습용과 분리하려고 미리 떼어 놓는 검증/평가 후보
+- 주 목적:
+  나중에 validation 또는 frozen test로 승인할 수 있는 independent evaluation
+  candidate를 production flow에서 일찍부터 따로 쌓는 것
+- 주의:
+  이 큐에서 불러오면 dataset purpose가 기본적으로 `Evaluation candidate`가 된다.
+  다만 이것이 자동으로 최종 test set을 뜻하는 것은 아니다.
+
+### Queue와 dataset의 관계
+
+- `correction`, `expiry`, `low-confidence`, `confirmed`는 주로 **training candidate
+  source**로 생각하면 된다.
+- `evaluation holdout`은 기본적으로 **evaluation candidate source**다.
+- 실제 저장되는 split은 queue 이름이 아니라, annotator가 최종 저장할 때의
+  `dataset purpose`와 이후 export 검증으로 결정된다.
+- 따라서 같은 queue에서 불러온 샘플이라도 품질 검토 후 다른 purpose로 저장할 수는
+  있지만, 특별한 이유가 없다면 queue의 기본 목적을 따르는 편이 일관성이 높다.
+
 ## 여러 intent/action 라벨링
 
 annotation-v2는 한 발화 안의 요청을 action group으로 저장한다.
