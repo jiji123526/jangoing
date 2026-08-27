@@ -133,6 +133,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 핵심 질문은 “하나의 canonical product를 가리키는가, 여러 후보를 포괄하는가?”다.
 
 - `milk` → `ITEM: milk`
+- `whole milk` → `ITEM: whole_milk`
 - `oat milk` → `ITEM: oat_milk`
 - `Coke` → `ITEM: coke`
 - `ripe bananas` → `ITEM_CONDITION: ripe` + `ITEM: banana`
@@ -145,6 +146,29 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 카테고리를 임의의 구체 상품으로 바꾸지 않는다. 예를 들어 `drinks`를 `water`로
 정규화하면 안 된다. 향후 추천 시스템은 `beverage`라는 범주를 입력으로 받아 별도의
 조건과 재고·가격 정보를 사용해 상품을 고르게 된다.
+
+### generic item과 specific item
+
+annotator는 **원문에 직접 나온 specificity 수준**을 유지한다. inventory에 무엇이
+들어 있는지 안다고 해서 더 구체적인 subtype으로 임의 승격하지 않는다.
+
+- `milk`라고만 말했으면 `ITEM: milk`
+- `whole milk`라고 말했으면 `ITEM: whole_milk`
+- `saltine crackers`라고 말했으면 `ITEM: saltine_crackers` 또는 현재 taxonomy 운영상
+  broad하게 묶는다면 `ITEM: crackers`
+- `crackers`라고만 말했으면 `ITEM: crackers`
+
+즉 annotation의 normalized value는 **사용자 mention의 canonical form**이지,
+반드시 최종 inventory row id와 같은 값일 필요는 없다.
+
+예:
+
+- inventory에 `whole_milk`만 있어도 사용자가 `We're out of milk`라고 말했다면
+  annotation은 `ITEM: milk`로 둔다.
+- 나중 runtime resolution 단계에서 household alias, taxonomy parent-child,
+  현재 inventory 후보 수를 바탕으로 `milk -> whole_milk`를 연결할 수 있다.
+- candidate가 여러 개면 runtime이 clarification을 요청할 수 있지만, annotator가
+  그 모호성을 annotation 단계에서 임의로 제거하지 않는다.
 
 `ITEM_CONDITION`은 item 자체의 identity가 아니라 **현재 상태나 취급 조건**을 담는다.
 
@@ -167,6 +191,8 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 복수형은 단수형으로 통일한다: `apples` → `apple`.
 - 동일 개념의 표현은 같은 값으로 합친다: `drinks`, `beverages` → `beverage`.
 - 브랜드가 명시되면 의미가 있을 때 보존한다: `Coke` → `coke`.
+- generic mention은 generic canonical로 유지한다:
+  `milk`는 `milk`, `whole milk`는 `whole_milk`다.
 - 숫자 표현은 숫자로 통일한다: `two`, `a couple` → `2`.
 - 단위는 단수 canonical form을 쓴다: `bottles` → `bottle`.
 - LOCATION은 현재 contract가 허용하는 `fridge`, `freezer`, `pantry`만 사용한다.
@@ -176,6 +202,9 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - ITEM, ITEM_CONDITION, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
   annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
   추천값으로 다시 나타난다.
+- 단, 더 넓은 generic canonical이 이미 있다고 해서 사용자가 말한 specific subtype을
+  억지로 generic으로 내리지 않는다. 반대로 generic mention을 inventory 사정만 보고
+  specific subtype으로 올리지도 않는다.
 - `/annotate` UI의 `Save ...` 버튼은 새 ITEM/ITEM_CONDITION/CATEGORY/UNIT 값을 lower_snake_case로
   정리해 현재 추천 목록에 추가하는 보조 기능이다. 예: `oat milk`를 입력한 뒤
   `Save oat_milk`를 누르면 canonical 값 `oat_milk`로 맞춰진다.

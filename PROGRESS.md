@@ -63,6 +63,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Keep subtype or market-name expressions such as `oat milk`, `green tea`,
   `ground coffee`, and `baby spinach` inside `ITEM` unless the household wants
   a separate canonical item.
+- Keep annotation normalization at the user's mention granularity:
+  `milk` stays `milk`, `whole milk` stays `whole_milk`, and later inventory
+  resolution can connect a generic mention to a household-specific subtype.
 - Limit this change to annotation/data-contract support for now; runtime parser
   and event semantics for condition-aware actions remain future work.
 - Keep synthetic-v1 free of alias-embedded condition phrases, but defer full
