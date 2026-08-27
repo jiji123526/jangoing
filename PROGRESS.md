@@ -14,8 +14,6 @@ Add new entries at the top of the log so the latest state is easy to find.
 - After each successful save, `/annotate` now automatically opens the next item
   from the current queue, or falls back to `generated_review` after manual-entry
   annotations.
-- `/annotate` now requires a normalized-value review checkbox before saving
-  entity-bearing annotations and highlights newly introduced canonical values.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
   new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
 - Korean docs now describe the exact assistant-draft API path from browser to
@@ -130,32 +128,6 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Next
 
 - If annotators need a pause point, add a toggle later for auto-advance on/off.
-
-## 2026-08-27 - Normalized value double-check step added
-
-### Completed
-
-- Added a `Review normalized values` card to `/annotate` before the dataset
-  metadata/save step.
-- The review card now lists action number, entity label, raw span, and final
-  normalized value for every labeled entity.
-- Added badges to distinguish existing canonical values from newly introduced or
-  changed values.
-- Disabled `Save annotation` until the annotator confirms the normalized-value
-  checklist for samples that contain entities.
-- Documented the new review step in the Korean annotation guide.
-
-### Decisions
-
-- Require the confirmation only when at least one entity exists so `unknown` or
-  entity-free clarification cases do not gain unnecessary friction.
-- Classify “new” values against the currently known normalized-value pool so the
-  annotator gets an immediate warning before expanding the canonical list.
-
-### Next
-
-- If canonical drift remains noisy, add stronger normalization helpers such as
-  snake_case autofill or singularization suggestions before save.
 
 ## 2026-08-27 - Normalized value add-to-list flow simplified
 

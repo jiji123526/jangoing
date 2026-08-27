@@ -225,45 +225,6 @@ function freeformOptionsForLabel(
   }
 }
 
-function displayNormalizedValue(value: string | number | undefined): string {
-  if (value === undefined) {
-    return "Missing";
-  }
-  return String(value);
-}
-
-function hasKnownNormalizedValue(
-  entity: EntityAnnotation,
-  options: AnnotationNormalizedValuesResponse,
-): boolean {
-  if (entity.normalized_value === undefined) {
-    return false;
-  }
-
-  if (entity.label === "QUANTITY") {
-    const quantity = typeof entity.normalized_value === "number"
-      ? entity.normalized_value
-      : Number(entity.normalized_value);
-    return Number.isFinite(quantity) && options.QUANTITY.includes(quantity);
-  }
-
-  if (typeof entity.normalized_value !== "string") {
-    return false;
-  }
-
-  const normalizedValue = entity.normalized_value.trim();
-  if (!normalizedValue) {
-    return false;
-  }
-
-  if (entity.label === "ITEM") return options.ITEM.includes(normalizedValue);
-  if (entity.label === "CATEGORY") return options.CATEGORY.includes(normalizedValue);
-  if (entity.label === "UNIT") return options.UNIT.includes(normalizedValue);
-  if (entity.label === "LOCATION") return options.LOCATION.includes(normalizedValue);
-  if (entity.label === "EXPIRY_DATE") return options.EXPIRY_DATE.includes(normalizedValue);
-  return false;
-}
-
 function normalizedValueFormatError(actions: AnnotationAction[]): string | null {
   for (const action of actions) {
     for (const entity of action.entities) {
@@ -465,20 +426,10 @@ export default function AnnotatePage() {
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [assistantProposal, setAssistantProposal] = useState<AnnotationAssistantProposal | null>(null);
   const [assistantApplied, setAssistantApplied] = useState(false);
-  const [normalizedReviewConfirmed, setNormalizedReviewConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const expirySuggestion = suggestedExpiryDate(queueItem);
   const proposalUnchanged = assistantProposal ? actionsEqual(assistantProposal.actions, actions) : false;
-  const normalizedReviewItems = actions.flatMap((action, actionIndex) =>
-    action.entities.map((entity, entityIndex) => ({
-      key: `${actionIndex}-${entityIndex}-${entity.start}-${entity.end}-${entity.label}`,
-      actionIndex,
-      entity,
-      isKnown: hasKnownNormalizedValue(entity, normalizedOptions),
-    })),
-  );
-  const requiresNormalizedReview = normalizedReviewItems.length > 0;
 
   useEffect(() => {
     void getAnnotationStats()
@@ -501,10 +452,6 @@ export default function AnnotatePage() {
     void loadQueue("generated_review");
   }, []);
 
-  useEffect(() => {
-    setNormalizedReviewConfirmed(false);
-  }, [actions, sample?.inference_id]);
-
   function resetEditorState() {
     setDraft("");
     setSample(null);
@@ -515,7 +462,6 @@ export default function AnnotatePage() {
     setQueueItem(null);
     setAssistantProposal(null);
     setAssistantApplied(false);
-    setNormalizedReviewConfirmed(false);
   }
 
   function saveNormalizedOption(label: EntityLabel, value: string, alreadyExists: boolean) {
@@ -725,10 +671,6 @@ export default function AnnotatePage() {
     const formatError = normalizedValueFormatError(actions);
     if (formatError) {
       setError(formatError);
-      return;
-    }
-    if (requiresNormalizedReview && !normalizedReviewConfirmed) {
-      setError("Review the normalized values checklist before saving this annotation.");
       return;
     }
     setBusy(true);
@@ -970,40 +912,7 @@ export default function AnnotatePage() {
             </section>
 
             <section className={styles.card}>
-              <div className={styles.step}><span>4</span><div><b>Review normalized values</b><small>Check canonical values once more before saving, especially newly introduced ones.</small></div></div>
-              {normalizedReviewItems.length > 0 ? (
-                <>
-                  <div className={styles.reviewList}>
-                    {normalizedReviewItems.map((item) => (
-                      <div key={item.key} className={styles.reviewRow}>
-                        <div>
-                          <b>Action {item.actionIndex + 1}</b>
-                          <span>{item.entity.label}</span>
-                        </div>
-                        <p>Span: “{item.entity.text}”</p>
-                        <p>Normalized: <code>{displayNormalizedValue(item.entity.normalized_value)}</code></p>
-                        <strong className={item.isKnown ? styles.reviewKnown : styles.reviewNew}>
-                          {item.isKnown ? "Existing canonical value" : "New or changed canonical value"}
-                        </strong>
-                      </div>
-                    ))}
-                  </div>
-                  <label className={styles.reviewCheck}>
-                    <input
-                      type="checkbox"
-                      checked={normalizedReviewConfirmed}
-                      onChange={(event) => setNormalizedReviewConfirmed(event.target.checked)}
-                    />
-                    <span>I reviewed the normalized values above before saving.</span>
-                  </label>
-                </>
-              ) : (
-                <p className={styles.inputHint}>No entity normalized values to review yet.</p>
-              )}
-            </section>
-
-            <section className={styles.card}>
-              <div className={styles.step}><span>5</span><div><b>Dataset metadata</b><small>Evaluation candidates should be natural, independent examples—not rewritten training templates.</small></div></div>
+              <div className={styles.step}><span>4</span><div><b>Dataset metadata</b><small>Evaluation candidates should be natural, independent examples—not rewritten training templates.</small></div></div>
               <div className={styles.metaGrid}>
                 <label><span>Purpose</span><select value={purpose} onChange={(event) => setPurpose(event.target.value as DatasetPurpose)}>
                   <option value="train_candidate">Training candidate</option><option value="evaluation_candidate">Evaluation candidate</option>
@@ -1014,7 +923,7 @@ export default function AnnotatePage() {
                 className={styles.save}
                 type="button"
                 onClick={() => void saveAnnotation()}
-                disabled={busy || (requiresNormalizedReview && !normalizedReviewConfirmed)}
+                disabled={busy}
               >
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Check size={18} />} Save annotation
               </button>
