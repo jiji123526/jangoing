@@ -96,15 +96,21 @@ https://jangoing-web.vercel.app/annotate
 3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
 4. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
 5. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
-6. label별 dropdown에서 canonical/normalized 값을 선택한다. EXPIRY_DATE는 날짜
-   선택기를 사용한다.
-7. 필요하면 `Draft with AI`를 눌러 action/entity 초안을 받아온다. 초안은 정답이
+6. label별 dropdown에서 canonical/normalized 값을 검색한다. ITEM, CATEGORY, UNIT은
+   dropdown에 actual canonical value만 보인다.
+7. ITEM, CATEGORY, UNIT에서 관련 값이 없으면 입력칸에 새 값을 적고 옆의 `Save ...`
+   버튼을 눌러 목록에 추가한다. 이 버튼은 공백 표현을 lower_snake_case로 정리해 준다.
+   예: `oat milk` → `oat_milk`
+8. 필요하면 `Draft with AI`를 눌러 action/entity 초안을 받아온다. 초안은 정답이
    아니라 시작점이며, `Apply AI draft` 후에도 반드시 사람이 수정 여부를 확인한다.
-8. 각 action에서 intent별 phrase family를 선택한다.
-9. Training candidate 또는 Evaluation candidate를 고른다.
-10. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
-11. `Save annotation`을 누른다.
-12. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열린다.
+9. 각 action에서 intent별 phrase family를 선택한다.
+10. `Review normalized values` 카드에서 각 entity의 normalized value를 다시 확인한다.
+   새 canonical 값으로 보이는 항목은 특히 오타, 복수형, snake_case 일관성을 한 번 더 본다.
+11. 검토가 끝나면 확인 체크박스를 켠다.
+12. Training candidate 또는 Evaluation candidate를 고른다.
+13. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
+14. `Save annotation`을 누른다.
+15. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열린다.
     직접 입력한 수동 샘플이었다면 기본적으로 `generated_review` queue의 다음 샘플을
     자동으로 시도한다.
 
@@ -121,6 +127,26 @@ https://jangoing-web.vercel.app/annotate
 - Worker에 `OPENAI_API_KEY`가 없으면 이 기능은 실패하지 않고 parser fallback
   draft를 반환한다. 이 경우 보통 intent 1개와 빈 entity로 시작한다.
 - AI/provider 응답은 보조 정보일 뿐이며, ground truth는 저장된 human annotation이다.
+
+### Normalized value 재확인 카드
+
+- 저장 전 `Review normalized values` 카드가 현재 action들의 normalized value를 한 번 더
+  요약해서 보여준다.
+- 각 줄에는 action 번호, entity label, 원문 span, 최종 normalized value가 표시된다.
+- 기존 추천 목록에 이미 있던 값은 `Existing canonical value`로 보이고,
+  추천 목록에 없던 값은 `New or changed canonical value`로 표시된다.
+- entity가 하나라도 있으면 이 카드의 확인 체크박스를 켜기 전에는 저장 버튼이 비활성화된다.
+- 목적은 새 canonical 값 추가나 오타를 저장 전에 한 번 더 잡는 것이다.
+
+### 새 canonical 값 추가 흐름
+
+- 먼저 dropdown/input에서 기존 canonical 값을 검색한다.
+- 관련 값이 없으면 새 값을 입력한다. 자연어로 입력해도 되지만, 저장 목록에는
+  lower_snake_case canonical form을 쓰는 것이 원칙이다.
+- 옆의 `Save ...` 버튼을 누르면 현재 값을 lower_snake_case로 정리해서 이 세션의
+  추천 목록에 즉시 추가한다.
+- 이미 존재하는 값과 형식만 다른 경우 버튼은 새 값을 추가하지 않고 기존 canonical
+  값으로 맞춰 준다.
 
 ### Assistant draft API 흐름
 

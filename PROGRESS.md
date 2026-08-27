@@ -14,6 +14,10 @@ Add new entries at the top of the log so the latest state is easy to find.
 - After each successful save, `/annotate` now automatically opens the next item
   from the current queue, or falls back to `generated_review` after manual-entry
   annotations.
+- `/annotate` now requires a normalized-value review checkbox before saving
+  entity-bearing annotations and highlights newly introduced canonical values.
+- Freeform normalized-value dropdowns now show only actual canonical values, and
+  new ITEM/CATEGORY/UNIT values can be added inline with a `Save ...` helper.
 - Korean docs now describe the exact assistant-draft API path from browser to
   Worker to OpenAI and back to `annotation_proposals` / `annotations`.
 - Production D1 migrations are confirmed through 0005. Migration 0006 and
@@ -126,6 +130,59 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Next
 
 - If annotators need a pause point, add a toggle later for auto-advance on/off.
+
+## 2026-08-27 - Normalized value double-check step added
+
+### Completed
+
+- Added a `Review normalized values` card to `/annotate` before the dataset
+  metadata/save step.
+- The review card now lists action number, entity label, raw span, and final
+  normalized value for every labeled entity.
+- Added badges to distinguish existing canonical values from newly introduced or
+  changed values.
+- Disabled `Save annotation` until the annotator confirms the normalized-value
+  checklist for samples that contain entities.
+- Documented the new review step in the Korean annotation guide.
+
+### Decisions
+
+- Require the confirmation only when at least one entity exists so `unknown` or
+  entity-free clarification cases do not gain unnecessary friction.
+- Classify “new” values against the currently known normalized-value pool so the
+  annotator gets an immediate warning before expanding the canonical list.
+
+### Next
+
+- If canonical drift remains noisy, add stronger normalization helpers such as
+  snake_case autofill or singularization suggestions before save.
+
+## 2026-08-27 - Normalized value add-to-list flow simplified
+
+### Completed
+
+- Changed freeform normalized-value datalist options to display only the actual
+  canonical value string.
+- Added an inline `Save ...` helper button for ITEM, CATEGORY, and UNIT
+  normalized values.
+- The helper now converts entered text into lower_snake_case before saving it to
+  the current session's suggestion list, for example `oat milk` -> `oat_milk`.
+- Added client-side validation so freeform normalized values must be stored in
+  lower_snake_case before annotation save.
+- Updated the Korean annotation guide and conventions with the new UI flow and
+  canonical-format rules.
+
+### Decisions
+
+- Keep the add-to-list action inline next to the input so annotators do not need
+  a separate admin screen just to grow the canonical vocabulary.
+- Show only canonical values in suggestions because mixing display labels with
+  stored values made duplicates look worse than they really were.
+
+### Next
+
+- If annotators still create near-duplicates, add similarity warnings such as
+  showing close existing values before saving a new canonical value.
 
 ## 2026-08-27 - Generated review queue added
 

@@ -142,6 +142,10 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 canonical ID다.
 
 - 영문 소문자 `snake_case`를 사용한다: `oat_milk`, `peanut_butter`.
+- 공백이 있는 표현은 단어 사이를 underscore로 바꾼다:
+  `oat milk` → `oat_milk`, `greek yogurt` → `greek_yogurt`.
+- 대문자, 하이픈, 여러 공백은 canonical ID에서 정리한다:
+  `Coke Zero` → `coke_zero`, `non-fat milk` → `non_fat_milk`.
 - 복수형은 단수형으로 통일한다: `apples` → `apple`.
 - 동일 개념의 표현은 같은 값으로 합친다: `drinks`, `beverages` → `beverage`.
 - 브랜드가 명시되면 의미가 있을 때 보존한다: `Coke` → `coke`.
@@ -154,6 +158,9 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - ITEM, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
   annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
   추천값으로 다시 나타난다.
+- `/annotate` UI의 `Save ...` 버튼은 새 ITEM/CATEGORY/UNIT 값을 lower_snake_case로
+  정리해 현재 추천 목록에 추가하는 보조 기능이다. 예: `oat milk`를 입력한 뒤
+  `Save oat_milk`를 누르면 canonical 값 `oat_milk`로 맞춰진다.
 - 확실하지 않은 정규화 값을 추측하지 않는다. 이 경우 새 값을 만들어 넣지 말고
   span 또는 intent 판단을 다시 검토하고 notes에 이유를 남긴다.
 
@@ -168,7 +175,8 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 
 `/annotate`는 이 규칙을 지키도록 label별 normalized value 입력 방식을 구분한다.
 
-- ITEM, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 검색 + 없으면 `Save ...` 버튼으로
+  lower_snake_case canonical 값 추가
 - QUANTITY: 숫자 입력 + 기존 숫자 추천
 - LOCATION: `fridge`, `freezer`, `pantry` 중 선택
 - EXPIRY_DATE: ISO 형식을 보장하는 날짜 선택기
