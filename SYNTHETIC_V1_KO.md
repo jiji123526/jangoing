@@ -182,6 +182,8 @@ taxonomy는 처음부터 다국어 확장형으로 만드는 방식을 선택했
 - category resolver는 아직 production parser에 연결되지 않았다.
 - 일반 correction UI와 별도로 production `/annotate` 화면에서 span 라벨링을 지원한다.
 - baseline은 intent만 학습하며 entities와 normalized 값은 사용하지 않는다.
+- baseline은 single-intent 전용이며 annotation-v2 multi-action record는 첫 intent로
+  축약하지 않고 제외 개수를 metrics에 기록한다.
 - 실제 frozen test set은 아직 없다.
 
 ## 실행 방법
@@ -218,3 +220,12 @@ python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
 
 최종 모델 비교는 synthetic test가 아니라 사람이 작성하고 검토한 frozen test
 set에서 수행한다.
+
+## 현재 human data 연결 계획
+
+- `synthetic-v1` 800개: 첫 training bootstrap과 파이프라인 검증
+- `/annotate` training candidates 100~200개: 사람이 검토한 실제 표현 보강
+- `/annotate` evaluation candidates 100개 이상: 독립 validation/test 후보
+- evaluation 후보는 중복 제거와 phrase-family grouped review 후에만 frozen test가 된다.
+- multi-action record는 구조를 그대로 보존하고 별도 baseline이 생길 때까지 현재
+  single-intent 학습에서 제외한다.

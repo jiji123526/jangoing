@@ -178,15 +178,17 @@ annotation disagreement라고 볼 수 있다.
 
 ### Multi-class와 multi-label
 
-현재 intent는 한 문장에 하나를 선택하는 multi-class 문제로 정의돼 있다.
-하지만 다음 문장은 두 행동을 포함한다.
+현재 TF-IDF baseline은 한 문장에 하나를 선택하는 multi-class 문제다. 하지만
+`annotation-v2`는 다음과 같은 문장을 여러 action으로 저장한다.
 
 ```text
 "We finished the milk, so add it to the shopping list"
 ```
 
-장기적으로는 문장을 여러 요청으로 분리하거나 multi-label/structured prediction
-문제로 확장해야 한다. 초기 데이터에서는 한 문장 한 행동을 기본으로 유지한다.
+각 action은 자체 intent, phrase family, entities, normalized 값을 갖는다. 현재
+single-intent baseline은 이런 record를 첫 intent로 축약하지 않고 학습에서 제외하며
+제외 개수를 기록한다. 충분한 데이터가 모이면 multi-label classification만으로 끝낼지,
+intent와 entity 연결까지 예측하는 structured prediction을 사용할지 비교한다.
 
 ## 6. Slot filling과 entity extraction
 
@@ -590,6 +592,9 @@ Test:  "We're out of eggs"
 
 같은 표현 구조를 하나의 그룹으로 묶고 그룹 전체를 하나의 split에 넣는다.
 현재 synthetic-v1은 intent별로 그룹을 나눠 모든 split에서 intent 균형도 유지한다.
+실제 `/annotate` 데이터는 controlled semantic family를 사용한다. multi-action record는
+action family 조합을 발화 전체 family로 보존해 거의 같은 복합 문장이 split 사이에
+섞이지 않도록 해야 한다.
 
 ### Frozen test set
 
@@ -969,13 +974,15 @@ confidence와 n-best 후보를 기록해야 한다.
 1. 규칙 기반 parser를 초기 기준으로 사용
 2. 사용자 prediction/correction/outcome 기록
 3. synthetic-v1으로 파이프라인 검증
-4. TF-IDF intent baseline 학습
-5. 실제 영어 validation/test 데이터 수집
-6. frozen test set 확정
-7. DistilBERT intent 모델과 동일 조건 비교
-8. `/annotate`에서 실제 span을 수집하고 slot model 구축
-9. category resolver와 context evaluation 추가
-10. 충분한 interaction 데이터 이후 recommendation baseline 구축
+4. synthetic-v1으로 TF-IDF single-intent baseline artifact 확정
+5. `/annotate`에서 사람 작성 training candidate 100~200개 수집
+6. 독립적인 evaluation candidate 100개 이상 수집
+7. 중복·phrase-family leakage를 검토해 validation/frozen test 확정
+8. 사람 training data와 synthetic data 혼합 비율 비교
+9. DistilBERT intent 모델을 동일 frozen set에서 비교
+10. 실제 span으로 slot/category resolver baseline 구축
+11. multi-action 데이터가 충분하면 structured prediction baseline 구축
+12. context evaluation과 recommendation baseline 추가
 ```
 
 ## 30. 관련 문서
@@ -985,6 +992,8 @@ confidence와 n-best 후보를 기록해야 한다.
 - `MODEL_EVALUATION.md`: 평가와 로깅 원칙
 - `PLAN.md`: 전체 제품 및 모델 로드맵
 - `ml/README.md`: 학습 명령과 환경 설정
+- `ANNOTATION_GUIDE_KO.md`: production annotation 화면 사용법
+- `ANNOTATION_CONVENTIONS_KO.md`: annotation-v2 정답 결정 규칙
 
 새로운 모델이나 언어 기능을 추가할 때는 이 문서에 개념과 프로젝트 내 역할을
 추가하고, 실제 구현 여부를 명확히 표시한다.

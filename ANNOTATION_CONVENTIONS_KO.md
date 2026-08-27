@@ -1,4 +1,4 @@
-# Annotation Convention v1
+# Annotation Convention v2
 
 ## 문서 목적
 

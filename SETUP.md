@@ -28,7 +28,8 @@ Open `http://localhost:3000`. The local API defaults to `http://localhost:8787`.
 To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.example`.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
-the event, correction, and inference-log schemas. This keeps local development
+the event, correction, inference-log, and annotation schemas through migration
+0005. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
@@ -43,7 +44,15 @@ source ml/.venv/bin/activate
 pip install -e './ml[dev]'
 ```
 
-Export reviewed local interactions and train the CPU baseline:
+Train the reproducible synthetic bootstrap first:
+
+```bash
+python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
+  --output ml/artifacts/synthetic-v1-baseline
+```
+
+Export reviewed local interactions and train a separate human-data run after
+enough single-action annotations exist:
 
 ```bash
 npm run dataset:export -- --output ml/data/reviewed.jsonl
@@ -61,8 +70,10 @@ running `npm run dev:api`. To export reviewed production records from D1, use:
 npm run dataset:export -- --remote --output ml/data/reviewed.jsonl
 ```
 
-After applying migrations 0004 and 0005, the production annotation workspace is available
-at `/annotate`. Its reviewed entity spans are included in subsequent exports.
+After applying migrations 0004 and 0005, the production annotation workspace is
+available at `/annotate`. Its action groups and reviewed entity spans are included
+in subsequent exports. Multi-action records are preserved in JSONL but excluded
+from the current single-intent baseline.
 
 To test with Wrangler's local D1 runtime on a compatible machine:
 
@@ -120,6 +131,12 @@ Record the generated URL, similar to:
 https://jangoing-api.<account-subdomain>.workers.dev
 ```
 
+The currently configured Worker is:
+
+```text
+https://jangoing-api.letmetellu.workers.dev
+```
+
 ### 5. Configure Allowed Origins
 
 After Vercel assigns the production URL:
@@ -157,13 +174,13 @@ For preview deployments, allow each preview origin explicitly or use a controlle
 
 ## External Setup Checklist
 
-- [ ] Cloudflare account available
-- [ ] Wrangler authenticated
-- [ ] Production D1 created
-- [ ] D1 ID added to `wrangler.toml`
-- [ ] Production migration applied
-- [ ] Worker deployed
-- [ ] Repository imported into Vercel
-- [ ] `NEXT_PUBLIC_API_BASE_URL` configured
-- [ ] Vercel origin added to `ALLOWED_ORIGINS`
-- [ ] Production text-command flow tested
+- [x] Cloudflare account available
+- [x] Wrangler authenticated
+- [x] Production D1 created
+- [x] D1 ID added to `wrangler.toml`
+- [x] Production migrations through 0005 applied
+- [x] Worker deployed and health endpoint verified
+- [x] Repository imported into Vercel and connected to `main`
+- [x] `NEXT_PUBLIC_API_BASE_URL` configured
+- [x] Vercel origin added to `ALLOWED_ORIGINS`
+- [ ] Recheck the complete production annotation save flow after each schema change

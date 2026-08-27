@@ -39,7 +39,8 @@ Cloudflare Worker
 Cloudflare D1
   ├─ events
   ├─ corrections
-  └─ inference_logs
+  ├─ inference_logs
+  └─ annotations (annotation-v2 action groups)
 
 개발자 컴퓨터
   └─ ml/: 데이터 검증, 분할, 모델 학습, 평가
@@ -139,8 +140,8 @@ Python은 현재 Vercel이나 Cloudflare에 배포하지 않는다. `ml/`은 개
 ### 4.5 학습 데이터 export
 
 `apps/api/scripts/export-dataset.ts`가 검토 완료 데이터를 JSONL로 내보낸다.
-현재 supervised export에는 `confirmed`와 `corrected`만 포함한다. pending과
-cancelled에는 신뢰할 수 있는 정답이 없기 때문이다.
+현재 supervised export에는 annotation 또는 신뢰할 수 있는 reviewed outcome이
+있는 record만 포함한다. pending과 cancelled에는 정답이 없으므로 제외한다.
 
 로컬 SQLite에서 export:
 
@@ -214,9 +215,83 @@ We're out of juice
 무작위 행 단위 분할을 하면 거의 같은 문장이 train과 test에 들어가 점수가
 부풀려질 수 있다. grouped split은 이 leakage를 줄이기 위해 선택했다.
 
-현재 exporter가 생성하는 phrase family는 문장 형태를 단순화한 초기 heuristic이다.
-정식 데이터셋을 만들 때는 사람이 검토한 template/semantic family ID로 대체하거나
-보완해야 한다.
+일반 correction record에는 문장 형태 기반 heuristic family를 사용할 수 있지만,
+`/annotate` record는 intent별 controlled semantic family를 사람이 선택한다.
+
+### 4.9 Production annotation workspace
+
+`/annotate`는 서비스용 주방 화면과 분리된 공개 데이터 라벨링 화면이다. 실제 영어
+문장을 입력하고 다음 정답을 저장한다.
+
+- dataset purpose: `train_candidate` 또는 `evaluation_candidate`
+- action별 intent와 phrase family
+- action별 정확한 원문 entity span
+- label별 controlled normalized value
+- 판단 근거 notes
+
+공개 화면은 기존 사용자의 원문 queue를 보여주지 않고 집계 수치만 노출한다. 따라서
+다른 사용자의 대화 내용을 읽을 수 없지만, 인증 없는 쓰기로 인한 품질·abuse 위험은
+여전히 남아 있다.
+
+관련 마이그레이션:
+
+- `0004_create_annotations.sql`
+- `0005_add_annotation_actions.sql`
+
+### 4.10 annotation-v2 multi-action 구조
+
+한 문장에 여러 독립 요청이 있을 수 있으므로 단일 `intent` 대신 1~8개의 action을
+저장한다.
+
+```json
+{
+  "actions": [
+    {"intent": "add_to_buy", "entities": ["milk"]},
+    {"intent": "throw_away", "entities": ["spinach"]}
+  ]
+}
+```
+
+각 action이 intent, phrase family, entities, normalized object를 소유한다. 동일한
+원문 span은 실제로 필요하면 여러 action에 연결할 수 있지만 한 action 내부에서는
+겹치는 span을 허용하지 않는다. 기존 v1 row는 유지하며 새 row의 legacy column에는
+첫 action을 기록해 운영 호환성을 보존한다. 정식 export는 `actions`를 원본으로 쓴다.
+
+현재 TF-IDF 모델은 single-intent classifier다. multi-action record를 첫 intent로
+왜곡하지 않으며 학습에서 제외하고 제외 개수를 metrics에 남긴다.
+
+### 4.11 Controlled annotation values
+
+normalized value와 phrase family를 자유 입력하면 같은 개념이 서로 다른 문자열로
+쌓이므로 shared contract의 dropdown으로 제한했다.
+
+- ITEM/CATEGORY: `grocery-v1` canonical IDs
+- LOCATION: `fridge`, `freezer`, `pantry`
+- QUANTITY/UNIT: annotation-v2 controlled values
+- EXPIRY_DATE: ISO date picker
+- phrase family: 선택한 intent에 맞는 semantic family
+
+필요한 값이 없으면 유사한 값을 억지로 선택하지 않고 비워 둔 뒤 notes에 후보를
+기록하고 taxonomy/convention을 먼저 확장한다.
+
+### 4.12 입력 및 진행률 UX
+
+- Enter: sample 생성
+- Shift+Enter: 줄바꿈
+- IME 조합 중 Enter: 제출 방지
+- Training candidate 초기 목표: 100~200
+- Evaluation candidate 초기 목표: 100+
+
+카운터는 production D1을 purpose별로 집계하고 저장 직후 UI에서도 즉시 증가한다.
+목표 수치는 수집 진행 표시이며 데이터 품질, intent 균형, phrase-family 독립성을
+보장하지 않는다.
+
+### 4.13 Production 상태
+
+- D1 migration: 0005까지 적용
+- Worker: `https://jangoing-api.letmetellu.workers.dev`
+- frontend: 기존 Vercel 프로젝트가 GitHub `main`에서 배포
+- Python: 여전히 로컬 학습/평가 전용이며 별도 배포하지 않음
 
 ## 5. 검토한 다른 선택지
 
@@ -289,6 +364,8 @@ baseline일 뿐 production parser보다 낫다는 증거가 없다. 서버를 �
 - 가격 및 딜 공급자 연동
 - 온라인 A/B 평가 및 모델 registry dashboard
 - Python 모델의 production inference 배포
+- multi-action/multi-label 학습 baseline
+- annotation 수정·삭제·합의 검토 및 인증된 queue
 
 일반 correction UI는 normalized slot 값만 저장하지만, 별도 `/annotate` 화면에서
 원문의 정확한 문자 범위와 entity label을 저장할 수 있다. 이 데이터는 향후
@@ -298,8 +375,9 @@ token-level slot 모델 학습 후보로 export된다.
 
 ### 데이터 양
 
-실제 검토 데이터가 거의 없으면 모델 점수는 의미가 없다. 최소 두 intent가
-필요하며, 첫 유의미한 비교를 위해 250~400개의 다양한 검토 문장을 목표로 한다.
+실제 검토 데이터가 거의 없으면 모델 점수는 의미가 없다. 현재 UI의 초기 목표는
+training candidate 100~200개와 independent evaluation candidate 100개 이상이다.
+그다음 intent·phrase family·난이도별 부족분을 확인해 250~400개 이상으로 확장한다.
 
 ### 개인정보
 
@@ -366,27 +444,31 @@ python ml/train_baseline.py ml/data/reviewed.jsonl
 
 ## 9. 검증한 내용
 
-- TypeScript parser/projection 테스트 8개
+- TypeScript parser/projection/annotation schema 테스트 11개
 - 전체 TypeScript typecheck
 - Cloudflare Worker dry build
 - Next.js production build
-- Python grouped-split 테스트
+- Python synthetic/split/multi-action loader 테스트 3개
 - 20개 fixture를 이용한 CPU baseline 학습 및 평가
 - 실제 로컬 API 요청의 inference ID 발급과 cancelled outcome 저장
-- 로컬 SQLite JSONL export 명령의 workspace 및 출력 경로 처리
+- 로컬 SQLite에 두 action 저장 및 action별 entity/normalized JSONL export
+- desktop 및 390px mobile annotation UI 확인
+- production migration 0005 적용, Worker 배포, health/stats 응답 확인
 
 fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미하지 않는다.
 
 ## 10. 다음 권장 작업
 
-1. production에 최신 D1 마이그레이션을 적용한다.
-2. 웹에서 실제 표현을 입력하고 잘못된 결과를 수정·확인한다.
-3. synthetic-v1과 별도로 250~400개의 실제 검토 데이터를 수집한다.
-4. pending timeout과 idempotent/atomic 저장을 보강한다.
-5. phrase family를 검토하고 frozen test set을 만든다.
-6. TF-IDF baseline 결과를 첫 기준점으로 저장한다.
+1. synthetic-v1으로 재현 가능한 첫 baseline artifact를 확정한다.
+2. `/annotate`에서 training candidate 100~200개를 수집한다.
+3. template와 모델 예측을 보지 않고 evaluation candidate 100개 이상을 수집한다.
+4. intent·phrase family·난이도별 분포와 중복을 검토한다.
+5. evaluation candidate를 validation과 frozen test로 승인·분리한다.
+6. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
 7. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
-8. 같은 test set으로 DistilBERT와 baseline을 비교한다.
+8. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
+9. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
+10. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
 실험의 재현성, 그리고 확인되지 않은 상태 변경을 막는 것이다.

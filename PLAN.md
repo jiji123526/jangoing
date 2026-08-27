@@ -53,6 +53,15 @@ The text MVP is implemented and deployable:
 - Optional expiry date picker
 - Deterministic English parser with unit tests
 - Editable interpretation review and correction records
+- Versioned inference logging and reviewed JSONL export
+- Reproducible 800-record English `synthetic-v1` dataset
+- TF-IDF + logistic-regression single-intent baseline
+- Public production `/annotate` workspace with exact spans
+- `annotation-v2` multi-action groups with action-specific intent, phrase family,
+  entities, and normalized values
+- Controlled dropdown vocabularies for normalized values and phrase families
+- Production counters for training candidates (100–200 target) and evaluation
+  candidates (100+ target)
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -65,8 +74,8 @@ The language layer is currently rule-based. It recognizes a small set of sentenc
 - Number words are limited to one through ten, plus `a`, `an`, digits, and decimals.
 - Item alias normalization is intentionally small.
 - Pattern confidence scores are constants and are not statistically calibrated.
-- Interpretation attempts that are cancelled or rejected are not yet logged;
-  current correction records are created when an action is confirmed.
+- Valid interpretation attempts are logged before confirmation, including pending,
+  confirmed, corrected, cancelled, rejected, and annotated outcomes.
 
 These limitations are acceptable only while every state-changing action requires user review.
 
@@ -118,6 +127,7 @@ MVP intents:
 - `throw_away`
 - `add_to_buy`
 - `query_inventory`
+- `needs_clarification`
 - `unknown`
 
 MVP slots:
@@ -146,6 +156,17 @@ Example:
 ```
 
 Later intents include `remove_from_buy`, `update_expiry`, `query_expiring`, and `correct_event`.
+
+Annotation records use a structured action list rather than assuming one intent:
+
+```json
+{
+  "actions": [
+    {"intent": "add_to_buy", "entities": [{"label": "ITEM", "text": "milk"}]},
+    {"intent": "throw_away", "entities": [{"label": "ITEM", "text": "spinach"}]}
+  ]
+}
+```
 
 ### Generalized Item and Category Understanding
 
@@ -248,6 +269,8 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - Require explicit confirmation
 - Render inventory, shopping list, and event history
 - Present loading, empty, validation, and API error states
+- Provide a dedicated annotation-v2 screen with action selection, exact spans,
+  controlled values, phrase families, dataset purpose, and collection counters
 
 ### API Responsibilities
 
@@ -257,12 +280,14 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - Store confirmed events
 - Build inventory and shopping-list projections
 - Enforce CORS for configured web origins
+- Validate and store action-group annotations and expose non-sensitive aggregate counts
 
 ### Shared Contract Responsibilities
 
 - Define intent, slot, event, and response schemas
 - Keep web and API payloads synchronized
 - Reject malformed dates, quantities, or event types
+- Define annotation actions, controlled vocabularies, and purpose-specific stats
 
 ## API Contract
 
@@ -272,6 +297,9 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - `GET /shopping-list`: return projected shopping items
 - `GET /events`: return recent event history
 - `GET /health`: health check
+- `POST /inferences/outcome`: record reviewed non-event outcomes
+- `POST /annotations`: store one-to-eight reviewed action groups
+- `GET /annotations/stats`: return aggregate training/evaluation candidate counts
 
 Future interpretation requests will include date context:
 
@@ -311,7 +339,8 @@ Append-only event
 
 ### Intent Model
 
-Start with `distilbert-base-uncased` sequence classification for:
+After the TF-IDF baseline and frozen human test set, compare
+`distilbert-base-uncased` sequence classification for:
 
 - `add_item`
 - `consume_item`
@@ -319,7 +348,12 @@ Start with `distilbert-base-uncased` sequence classification for:
 - `throw_away`
 - `add_to_buy`
 - `query_inventory`
+- `needs_clarification`
 - `unknown`
+
+The first baseline remains single-intent. Multi-action records are collected now,
+exported without a false first-intent label, and reserved for a later multi-label
+or structured-prediction baseline.
 
 ### Slot Model
 
@@ -514,8 +548,18 @@ Dataset targets:
 - Product aliases, unseen brands, category-level phrases, singular/plural forms,
   and ambiguous terms such as `drink`, `snack`, `greens`, or `something sweet`
 - Train, validation, and test split by phrasing family rather than random template copies
+- Initial UI progress targets: 100–200 human training candidates and 100+
+  independent human evaluation candidates
+- Preserve multi-action utterances as structured action groups
+
+The UI targets are the first checkpoint, not M5 completion. After that checkpoint,
+collection expands toward the per-intent and total coverage targets above.
 
 Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
+
+Current status: infrastructure and production UI are complete; human-reviewed
+collection is now the active work. `synthetic-v1` supplies 800 bootstrap records
+but does not satisfy the human evaluation requirement.
 
 ### M5.5: Experiment and Observability Foundation
 

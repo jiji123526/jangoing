@@ -25,26 +25,27 @@ commands written in a fixed format. For example:
 
 ## Current Milestone
 
-The first milestone is a text-based MVP:
+The text MVP and the production annotation workspace are running. Current work
+is the first human-reviewed English dataset and its evaluation split:
 
-1. Enter an English command such as `We are low on milk`.
-2. Review the structured action produced by the command parser.
-3. Confirm the action before it changes inventory.
-4. See the updated inventory, shopping list, and event history.
+1. Bootstrap the single-intent baseline with the reproducible 800-record
+   `synthetic-v1` dataset.
+2. Use `/annotate` to collect natural English training and evaluation candidates.
+3. Label one-to-eight action groups per utterance, with action-specific intent,
+   phrase family, entity spans, and normalized values.
+4. Freeze an independent human evaluation set before comparing larger models.
 
-An optional expiry date can be attached to added items. The correction flow is
-also the first labeled-data source. Trained contextual models, recommendation
-ranking, Raspberry Pi audio, and speech-to-text follow once the evaluation and
-logging foundation is reliable.
+The kitchen dashboard remains the confirmed product-action flow and a separate
+correction source. Trained contextual models, recommendation ranking, Raspberry
+Pi audio, and speech-to-text remain later milestones.
 
 ## Stack
 
 - `apps/web`: Next.js mobile web app, deployed on Vercel
 - `apps/api`: Cloudflare Worker API with D1 storage
 - `packages/contracts`: shared Zod schemas and TypeScript types
-- `ml`: future English intent-classification and slot-extraction work
+- `ml`: English dataset generation, validation, grouped splitting, and baseline training
 - `pi`: future Raspberry Pi voice client
-- `ml`: dataset validation, grouped splitting, and the first intent baseline
 
 ## Local Development
 
@@ -73,14 +74,25 @@ Local development uses Node's SQLite API and stores data in `apps/api/.local/`. 
 Every valid interpretation now receives an inference ID and logs its prediction,
 versions, latency, and eventual confirmed, corrected, or cancelled outcome.
 
+The production `/annotate` page stores `annotation-v2` action groups. Its header
+tracks progress toward 100–200 human training candidates and 100+ independent
+evaluation candidates. These are collection targets, not model-quality claims.
+
 ## First ML Baseline
 
-After collecting reviewed commands, export and train locally:
+Start with the committed reproducible synthetic bootstrap:
 
 ```bash
 python3 -m venv ml/.venv
 source ml/.venv/bin/activate
 pip install -e './ml[dev]'
+python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
+  --output ml/artifacts/synthetic-v1-baseline
+```
+
+After human annotations exist, export them separately:
+
+```bash
 npm run dataset:export -- --output ml/data/reviewed.jsonl
 python ml/train_baseline.py ml/data/reviewed.jsonl
 ```
@@ -99,7 +111,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 - [영어 synthetic-v1 생성 및 의사결정 기록](./SYNTHETIC_V1_KO.md)
 - [머신러닝·자연어 처리·언어학 개념 안내서](./ML_NLP_CONCEPTS_KO.md)
 - [Production annotation 화면 사용 및 의사결정 기록](./ANNOTATION_GUIDE_KO.md)
-- [Annotation 정답 결정 규칙 v1](./ANNOTATION_CONVENTIONS_KO.md)
+- [Annotation 정답 결정 규칙 v2](./ANNOTATION_CONVENTIONS_KO.md)
 
 ## MVP Commands
 
@@ -126,6 +138,9 @@ The current language layer is a deterministic regular-expression parser, not a t
 - Shopping-list removal, authentication, and multiple households are not implemented.
 - Multi-turn context, user goals, recommendation ranking, and deal-provider
   integrations are roadmap items, not current capabilities.
+- The current TF-IDF baseline is single-intent. Multi-action annotation is stored
+  now, but those records are explicitly excluded from this baseline and counted
+  in its metrics metadata.
 - The parser may incorrectly include unsupported date or unit phrases in `item_name`. Always review the interpretation before confirming.
 
 The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.

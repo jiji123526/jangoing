@@ -56,10 +56,28 @@ Report at minimum:
 - expected calibration error and reliability curves
 - correction rate, abandonment rate, and median confirmation time
 - p50/p95 end-to-end and stage latency
+- multi-action exact match, per-action intent F1, and action-to-entity assignment F1
 
 Always slice results by phrasing family, input modality, utterance length,
-multi-turn dependency, ambiguity, ASR noise, unseen item, date expression, and
+action count, multi-turn dependency, ambiguity, ASR noise, unseen item, date expression, and
 user goal. A single aggregate score is not sufficient.
+
+The current TF-IDF baseline is explicitly single-intent. Exported multi-action
+records must not be collapsed to their first intent; they are excluded and the
+excluded count is written to run metadata until a multi-label or structured
+prediction baseline exists.
+
+## Dataset Candidate Policy
+
+- `synthetic-v1` bootstraps training and validates the pipeline; it is not a
+  human evaluation set.
+- Human examples influenced by templates, model output, or error analysis are
+  training candidates.
+- Independently written natural examples are evaluation candidates.
+- An evaluation candidate becomes validation or frozen test data only after
+  duplicate removal, phrase-family grouping, human review, and version approval.
+- Initial collection targets are 100–200 human training candidates and 100+
+  human evaluation candidates. Counts never replace quality or coverage review.
 
 ## Context Evaluation
 

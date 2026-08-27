@@ -177,15 +177,21 @@ npm run deploy:api
 그다음 기존 Vercel 프로젝트를 재배포한다. 마이그레이션 0004와 0005가 적용되지 않으면
 annotation 저장과 통계 조회가 실패한다.
 
+현재 production D1에는 migration 0005까지 적용됐고 Worker API도 배포됐다.
+frontend는 GitHub `main`을 통해 기존 Vercel 프로젝트에 배포된다.
+
 ## 검증 기록
 
-- TypeScript 테스트 8개 통과
+- TypeScript 테스트 11개 통과
+- Python ML 테스트 3개 통과
 - 전체 typecheck 통과
 - Worker dry build 통과
 - Next.js `/annotate` static production build 통과
-- 실제 SQLite annotation 저장 통과
-- ITEM span `[21,25]` 원문 검증 통과
-- annotation 포함 JSONL export 통과
+- 실제 SQLite multi-action annotation 저장 통과
+- action별 ITEM span 원문 검증 통과
+- `intents`, `actions`, action별 normalized object가 포함된 JSONL export 통과
+- desktop 및 390px mobile action-card UI 검증 통과
+- production `/health`와 목적별 `/annotations/stats` 응답 확인
 
 ## 향후 개선 선택지
 
@@ -195,7 +201,7 @@ annotation 저장과 통계 조회가 실패한다.
 - annotation 수정·삭제 및 audit history
 - keyboard shortcut과 token 단위 선택
 - 중복 및 유사 문장 경고
-- intent/entity별 진행률 dashboard
+- intent/entity별 세부 진행률 dashboard
 - frozen evaluation set 승인 workflow
 
 보호된 queue는 인증 없이 추가하지 않는다. 기존 대화 원문을 제3자에게 노출할 수

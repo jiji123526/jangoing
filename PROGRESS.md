@@ -2,6 +2,30 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## Current state as of 2026-08-27
+
+- `main` includes annotation-v2 multi-action collection and target counters.
+- Production D1 migrations are applied through 0005.
+- Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
+- Vercel remains connected to `main` for the existing frontend deployment.
+- Automated checks: 11 TypeScript tests and 3 Python tests pass; web and Worker
+  production builds pass.
+- Active work: collect 100–200 human training candidates and 100+ independent
+  evaluation candidates, then approve validation and frozen test sets.
+- Current production counts were 0 training and 0 evaluation candidates at the
+  last verified stats request.
+
+## 2026-08-27 - Documentation synchronized with annotation-v2
+
+### Completed
+
+- Updated all project Markdown files to reflect multi-action annotation-v2.
+- Documented controlled values, semantic phrase families, collection counters,
+  migration 0005, production Worker status, and current validation results.
+- Aligned ML guidance around synthetic bootstrap training, human candidate
+  collection, single-intent baseline exclusions, and frozen-set approval.
+- Replaced stale setup, milestone, test-count, and next-step descriptions.
+
 ## 2026-08-27 - Annotation collection counters added
 
 ### Completed
@@ -70,7 +94,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Keep the controlled values in the shared contracts package so the UI has one
   typed source of truth.
 
-## 2026-08-27 - Annotation convention v1 documented
+## 2026-08-27 - Annotation convention documented (upgraded to v2)
 
 ### Completed
 
@@ -117,8 +141,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Next
 
-- Apply migration 0004 and redeploy API and web.
-- Use `/annotate` to collect independent real English evaluation candidates.
+- Completed later: migrations 0004 and 0005 and the Worker redeployment.
+- Active: use `/annotate` to collect independent real English evaluation candidates.
 
 ## 2026-08-26 - English synthetic-v1 bootstrap generated
 
