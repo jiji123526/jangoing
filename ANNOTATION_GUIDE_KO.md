@@ -19,7 +19,8 @@ https://<vercel-domain>/annotate
 
 ## 사용 순서
 
-1. 실제로 말할 법한 영어 문장을 입력하고 `Create`를 누른다.
+1. 실제로 말할 법한 영어 문장을 입력하고 `Enter` 또는 `Create`를 누른다.
+   줄바꿈이 필요하면 `Shift + Enter`를 사용한다.
 2. 규칙 기반 parser의 예측을 참고하되 올바른 intent를 직접 선택한다.
 3. 원문에서 entity 단어를 드래그한다.
 4. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.

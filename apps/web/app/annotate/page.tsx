@@ -215,11 +215,18 @@ export default function AnnotatePage() {
           <div className={styles.step}><span>1</span><div><b>Create a sample</b><small>Write it as you would actually say it.</small></div></div>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
               placeholder="I was going to make cereal, but it looks like we're almost out of milk." />
             <button type="submit" disabled={busy || !draft.trim()}>
               {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Create
             </button>
           </form>
+          <p className={styles.inputHint}>Enter to create · Shift + Enter for a new line</p>
           {notice && <p className={styles.notice}>{notice}</p>}
           {error && <p className={styles.error}>{error}</p>}
         </section>

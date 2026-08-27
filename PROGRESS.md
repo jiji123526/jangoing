@@ -2,6 +2,14 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-27 - Annotation keyboard submission added
+
+### Completed
+
+- Added Enter-to-create behavior to the annotation sentence field.
+- Reserved Shift+Enter for an intentional line break.
+- Avoided submitting while an IME composition is active.
+
 ## 2026-08-27 - Controlled phrase families added
 
 ### Completed
