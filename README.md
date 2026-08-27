@@ -152,6 +152,10 @@ The current language layer is a deterministic regular-expression parser, not a t
 - The current TF-IDF baseline is single-intent. Multi-action annotation is stored
   now, but those records are explicitly excluded from this baseline and counted
   in its metrics metadata.
-- The parser may incorrectly include unsupported date or unit phrases in `item_name`. Always review the interpretation before confirming.
+- Natural-language expiry parsing now covers explicit expiry phrases such as
+  `expiring tomorrow`, `expires next Friday`, and `with expiry date on August twenty-eighth`,
+  but broader date context and timezone persistence are still incomplete.
+- The parser may still incorrectly include unsupported date or unit phrases in
+  `item_name`. Always review the interpretation before confirming.
 
 The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.

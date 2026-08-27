@@ -10,12 +10,36 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Production D1 migrations are applied through 0005.
 - Production Worker is deployed at `https://jangoing-api.letmetellu.workers.dev`.
 - Vercel remains connected to `main` for the existing frontend deployment.
-- Recent validation: 24 TypeScript tests and repo-wide typecheck pass.
+- Recent validation: 30 TypeScript tests and repo-wide typecheck pass.
 - Active work: collect 100–200 human training candidates and 100+ independent
-  evaluation candidates, then add natural-date normalization, explicit
-  reference-date/timezone capture, and stronger normalized-value quality rules.
+  evaluation candidates, then add explicit reference-date/timezone capture and
+  stronger normalized-value quality rules.
 - Current production counts were 0 training and 0 evaluation candidates at the
   last verified stats request.
+
+## 2026-08-27 - Natural-language expiry normalization added
+
+### Completed
+
+- Added `chrono-node`-based expiry parsing for explicit phrases such as
+  `expiring tomorrow`, `expires next Friday`, and
+  `with expiry date on August twenty-eighth`.
+- Added optional `reference_date` to the interpret request contract.
+- Sent the browser's local date as the default reference date for text parsing.
+- Stored `reference_date` alongside request context in inference logs.
+- Added parser tests covering natural and relative expiry phrases.
+
+### Decisions
+
+- Restrict natural-date parsing to explicit expiry markers so generic date
+  phrases are less likely to be misread as expiration dates.
+- Keep inline `YYYY-MM-DD` support unchanged and let an explicit date-picker
+  value override any parsed natural-language expiry.
+
+### Next
+
+- Add `timezone` capture and persistence beside `reference_date`.
+- Expand date handling beyond expiry-only phrases if the product needs it.
 
 ## 2026-08-27 - Task-aware reviewed export filters added
 

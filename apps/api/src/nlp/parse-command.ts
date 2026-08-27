@@ -1,3 +1,4 @@
+import { parseDate } from "chrono-node";
 import type {
   CommandSlots,
   InterpretCommandRequest,
@@ -86,20 +87,69 @@ function parseItemPhrase(value: string): Pick<
 
 function extractInlineExpiry(text: string): {
   text: string;
-  expirationDate?: string;
+  expirationDateText?: string;
 } {
-  const match = text.match(
-    /\s+(?:expiring|expires|expiry(?: date)?(?: is)?)\s+(?:on\s+)?(\d{4}-\d{2}-\d{2})\s*$/i,
-  );
+  const patterns = [
+    /\s+with\s+(?:an?\s+)?expiry(?:\s+date)?(?:\s+(?:on|for|of|is))?\s+(.+?)\s*$/i,
+    /\s+(?:expiring|expires|expiry(?: date)?(?: is)?)\s+(?:on\s+)?(.+?)\s*$/i,
+  ];
 
-  if (!match) {
-    return { text };
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    return {
+      text: text.slice(0, match.index).trim(),
+      expirationDateText: match[1],
+    };
   }
 
-  return {
-    text: text.slice(0, match.index).trim(),
-    expirationDate: match[1],
-  };
+  return { text };
+}
+
+function utcNoonForIsoDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
+function todayAtUtcNoon(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    12,
+  ));
+}
+
+function toIsoDate(value: Date): string {
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeExpiryDate(
+  rawValue: string | undefined,
+  referenceDate: Date,
+): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const isoMatch = rawValue.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (isoMatch) {
+    return isoMatch[0];
+  }
+
+  const parsed = parseDate(rawValue, referenceDate, { forwardDate: true });
+  if (!parsed) {
+    return undefined;
+  }
+
+  return toIsoDate(parsed);
 }
 
 function interpretation(
@@ -123,8 +173,11 @@ export function parseCommand(
   const rawUtterance = request.text.trim();
   const inlineExpiry = extractInlineExpiry(rawUtterance);
   const text = inlineExpiry.text;
-  const expirationDate =
-    request.expiration_date ?? inlineExpiry.expirationDate;
+  const referenceDate = request.reference_date
+    ? utcNoonForIsoDate(request.reference_date)
+    : todayAtUtcNoon();
+  const expirationDate = request.expiration_date
+    ?? normalizeExpiryDate(inlineExpiry.expirationDateText, referenceDate);
 
   const shoppingMatch = text.match(
     /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?shopping list$/i,

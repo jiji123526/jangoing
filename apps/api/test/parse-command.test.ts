@@ -50,4 +50,32 @@ describe("parseCommand", () => {
       confidence: 0.2,
     });
   });
+
+  it("normalizes natural-language expiry dates with an explicit reference date", () => {
+    expect(parseCommand({
+      text: "Add eggs with expiry date on August twenty-eighth",
+      reference_date: "2026-08-26",
+    })).toMatchObject({
+      intent: "add_item",
+      slots: {
+        item_name: "egg",
+        location: "fridge",
+        expiration_date: "2026-08-28",
+      },
+    });
+  });
+
+  it("normalizes relative expiry phrases such as next friday", () => {
+    expect(parseCommand({
+      text: "Add milk expiring next Friday",
+      reference_date: "2026-08-26",
+    })).toMatchObject({
+      intent: "add_item",
+      slots: {
+        item_name: "milk",
+        location: "fridge",
+        expiration_date: "2026-09-04",
+      },
+    });
+  });
 });

@@ -202,7 +202,10 @@ async function route(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
     ).run(
       inferenceId, result.raw_utterance,
-      JSON.stringify({ expiration_date: parsed.data.expiration_date ?? null }),
+      JSON.stringify({
+        expiration_date: parsed.data.expiration_date ?? null,
+        reference_date: parsed.data.reference_date ?? null,
+      }),
       JSON.stringify(result), parserVersion, normalizerVersion, schemaVersion,
       "web", latencyMs, new Date().toISOString(),
     );

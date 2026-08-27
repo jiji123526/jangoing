@@ -22,6 +22,14 @@ const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787"
 ).replace(/\/$/, "");
 
+function localReferenceDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
@@ -56,6 +64,7 @@ export async function interpretCommand(
     body: JSON.stringify({
       text,
       ...(expirationDate ? { expiration_date: expirationDate } : {}),
+      reference_date: localReferenceDate(),
     }),
   });
 

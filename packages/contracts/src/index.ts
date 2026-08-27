@@ -34,6 +34,7 @@ export const InterpretCommandRequestSchema = z
   .object({
     text: z.string().trim().min(1).max(500),
     expiration_date: IsoDateSchema.optional(),
+    reference_date: IsoDateSchema.optional(),
   })
   .strict();
 

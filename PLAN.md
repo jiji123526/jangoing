@@ -71,9 +71,12 @@ The language layer is currently rule-based. It recognizes a small set of sentenc
 
 ### Current Parser Limits
 
-- Natural dates such as `tomorrow`, `next Friday`, and `August twenty-eighth` are not parsed.
-- Inline expiry dates only work when written as `YYYY-MM-DD`.
-- Unsupported phrases may be absorbed into `item_name`. For example, `put 12 eggs with expiry date on August twenty-eighth` currently treats `eggs with expiry date on August twenty-eighth` as the item.
+- Natural-language expiry phrases such as `expiring tomorrow`, `expires next Friday`,
+  and `with expiry date on August twenty-eighth` are parsed, but only when the
+  sentence explicitly marks them as expiry information.
+- Inline ISO expiry dates still work and remain the most deterministic input form.
+- Unsupported phrases may still be absorbed into `item_name`, especially when a
+  date phrase appears without an explicit expiry marker.
 - Supported units are limited to bag, bottle, can, carton, dozen, jar, pack, and piece.
 - Number words are limited to one through ten, plus `a`, `an`, digits, and decimals.
 - Item alias normalization is intentionally small.
@@ -87,8 +90,8 @@ These limitations are acceptable only while every state-changing action requires
 
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
-- Runtime parsing still does not extract or normalize natural-language dates
-  such as `tomorrow`, `next Friday`, or `August twenty-eighth`.
+- Runtime parsing now normalizes explicit natural-language expiry phrases, but
+  full reference-date/timezone persistence is still missing.
 - Reviewed export now separates train/evaluation splits and supports task-aware
   filtering for `intent`, `slots`, and `joint` exports.
 - `reference_date` and `timezone` are documented but not yet stored
@@ -582,8 +585,9 @@ Completion: every supported intent has reviewed examples and the test set contai
 Current status: infrastructure and production UI are complete; human-reviewed
 collection is now the active work. `synthetic-v1` supplies 800 bootstrap records
 but does not satisfy the human evaluation requirement. Queue-based sample loading
-and task-aware train/evaluation export are implemented; natural-date
-normalization and explicit reference-date/timezone capture remain open.
+and task-aware train/evaluation export are implemented. Explicit natural-date
+normalization is also implemented for expiry phrases; full
+reference-date/timezone capture remains open.
 
 ### M5.5: Experiment and Observability Foundation
 

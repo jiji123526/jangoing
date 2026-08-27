@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jangoing/contracts": "0.1.0"
+    "@jangoing/contracts": "0.1.0",
+    "chrono-node": "^2.10.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250214.0",

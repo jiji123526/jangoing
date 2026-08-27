@@ -122,6 +122,10 @@ Python은 현재 Vercel이나 Cloudflare에 배포하지 않는다. `ml/`은 개
 - 연결된 event ID
 - 생성 및 해결 시간
 
+현재 요청 컨텍스트에는 수동 date picker의 `expiration_date`뿐 아니라 자연어 날짜
+해석 기준으로 사용한 `reference_date`도 함께 저장한다. `timezone`까지는 아직
+저장하지 않는다.
+
 관련 마이그레이션:
 
 - `apps/api/migrations/0003_create_inference_logs.sql`
@@ -321,6 +325,20 @@ queue를 분리한 이유:
 - frontend: 기존 Vercel 프로젝트가 GitHub `main`에서 배포
 - Python: 여전히 로컬 학습/평가 전용이며 별도 배포하지 않음
 
+### 4.14 자연어 expiry date normalization
+
+`chrono-node`를 사용해 explicit expiry phrase를 ISO 날짜로 정규화한다. 현재 지원
+범위는 다음처럼 expiry marker가 분명한 문장이다.
+
+- `Add milk expiring tomorrow`
+- `Add eggs expires next Friday`
+- `Add eggs with expiry date on August twenty-eighth`
+
+이 기능은 자유로운 모든 date phrase를 해석하려는 것이 아니다. 일반 명사구 안의
+날짜 표현을 무조건 expiration으로 취급하면 item span을 오염시키기 쉽기 때문에,
+현재는 `expiring`, `expires`, `expiry date`, `with expiry date` 같은 marker가
+있을 때만 파싱한다.
+
 ## 5. 검토한 다른 선택지
 
 ### 5.1 처음부터 DistilBERT 학습
@@ -500,17 +518,15 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 1. synthetic-v1으로 재현 가능한 첫 baseline artifact를 확정한다.
 2. `/annotate`에서 training candidate 100~200개를 수집한다.
 3. template와 모델 예측을 보지 않고 evaluation candidate 100개 이상을 수집한다.
-4. 자연어 날짜 span 추출과 `chrono-node` 기반 normalization을 추가한다.
-5. `reference_date`와 `timezone`을 inference/annotation/export에 함께 저장한다.
-6. slot/joint 학습용 `reviewed-only` 또는 task-specific export 필터를 추가한다.
-7. reviewed annotation에서 normalized value completeness 규칙을 강화한다.
-8. intent·phrase family·난이도별 분포와 중복을 검토한다.
-9. evaluation candidate를 validation과 frozen test로 승인·분리한다.
-10. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
-11. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
-12. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
-13. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
-14. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
+4. `reference_date`와 `timezone`을 inference/annotation/export에 함께 저장한다.
+5. reviewed annotation에서 normalized value completeness 규칙을 강화한다.
+6. intent·phrase family·난이도별 분포와 중복을 검토한다.
+7. evaluation candidate를 validation과 frozen test로 승인·분리한다.
+8. reviewed training data와 synthetic data의 혼합 비율을 실험한다.
+9. 수집된 entity span으로 slot baseline과 category resolver를 구현한다.
+10. multi-action record가 충분해지면 multi-label/structured baseline을 만든다.
+11. 같은 frozen test set으로 DistilBERT와 TF-IDF baseline을 비교한다.
+12. 인증, rate limit, pending timeout, idempotent/atomic 저장을 보강한다.
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
 실험의 재현성, 그리고 확인되지 않은 상태 변경을 막는 것이다.
