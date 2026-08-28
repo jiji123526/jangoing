@@ -849,6 +849,59 @@ export default function AnnotatePage() {
 
         {sample ? (
           <>
+            <section className={`${styles.card} ${styles.assistantPanel}`}>
+              <div className={styles.assistantHeader}>
+                <div>
+                  <b>Assistant draft</b>
+                  <span>Generate labels, then scroll down to review and edit the applied result.</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={busy || assistantBusy}
+                  onClick={() => void draftWithAssistant()}
+                >
+                  {assistantBusy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />}
+                  Draft with AI
+                </button>
+              </div>
+              {assistantProposal ? (
+                <div className={styles.assistantBody}>
+                  <p>
+                    <b>{assistantProposal.provider}</b> · {assistantProposal.model} · {assistantProposal.prompt_version}
+                  </p>
+                  <p>{assistantProposal.actions.length} proposed action{assistantProposal.actions.length === 1 ? "" : "s"}.</p>
+                  {assistantProposal.note ? <p>{assistantProposal.note}</p> : null}
+                  <div className={styles.assistantLabels}>
+                    {assistantProposal.actions.map((action, actionIndex) => (
+                      <section key={`${action.intent}-${actionIndex}`}>
+                        <b>Action {actionIndex + 1}: {readable(action.intent)}</b>
+                        {action.entities.length > 0 ? (
+                          <ul>
+                            {action.entities.map((entity) => (
+                              <li key={`${entity.label}-${entity.start}-${entity.end}`}>
+                                <code>{entity.label}</code> “{entity.text}”
+                                {entity.normalized_value !== undefined
+                                  ? ` → ${String(entity.normalized_value)}`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : <span>No entity spans proposed.</span>}
+                      </section>
+                    ))}
+                  </div>
+                  <p>
+                    {proposalUnchanged
+                      ? "The applied draft is unchanged. Review it, then save when it is correct."
+                      : "The applied draft has edits and will be saved as edited."}
+                  </p>
+                </div>
+              ) : (
+                <p className={styles.assistantEmpty}>Generate a draft for this sample, then review the applied actions and labels below.</p>
+              )}
+            </section>
+
             <section className={styles.card}>
               <div className={styles.step}><span>2</span><div><b>Define the actions</b><small>Add one action for each request, then select the action you want to label.</small></div></div>
               <div className={styles.actionList}>
@@ -887,58 +940,6 @@ export default function AnnotatePage() {
                 Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
                 {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
               </p>
-              <div className={styles.assistantPanel}>
-                <div className={styles.assistantHeader}>
-                  <div>
-                    <b>Assistant draft</b>
-                    <span>Use AI or parser fallback as a starting point. Human review is still the ground truth.</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.secondaryButton}
-                    disabled={busy || assistantBusy}
-                    onClick={() => void draftWithAssistant()}
-                  >
-                    {assistantBusy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />}
-                    Draft with AI
-                  </button>
-                </div>
-                {assistantProposal ? (
-                  <div className={styles.assistantBody}>
-                    <p>
-                      <b>{assistantProposal.provider}</b> · {assistantProposal.model} · {assistantProposal.prompt_version}
-                    </p>
-                    <p>{assistantProposal.actions.length} proposed action{assistantProposal.actions.length === 1 ? "" : "s"}.</p>
-                    {assistantProposal.note ? <p>{assistantProposal.note}</p> : null}
-                    <div className={styles.assistantLabels}>
-                      {assistantProposal.actions.map((action, actionIndex) => (
-                        <section key={`${action.intent}-${actionIndex}`}>
-                          <b>Action {actionIndex + 1}: {readable(action.intent)}</b>
-                          {action.entities.length > 0 ? (
-                            <ul>
-                              {action.entities.map((entity) => (
-                                <li key={`${entity.label}-${entity.start}-${entity.end}`}>
-                                  <code>{entity.label}</code> “{entity.text}”
-                                  {entity.normalized_value !== undefined
-                                    ? ` → ${String(entity.normalized_value)}`
-                                    : ""}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : <span>No entity spans proposed.</span>}
-                        </section>
-                      ))}
-                    </div>
-                    <p>
-                      {proposalUnchanged
-                        ? "The applied draft is unchanged. Review it, then save when it is correct."
-                        : "The applied draft has edits and will be saved as edited."}
-                    </p>
-                  </div>
-                ) : (
-                  <p className={styles.assistantEmpty}>Generate a draft after loading or creating a sample.</p>
-                )}
-              </div>
             </section>
 
             <section className={styles.card}>

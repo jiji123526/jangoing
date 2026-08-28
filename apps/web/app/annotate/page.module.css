@@ -48,6 +48,7 @@
 .prediction { margin: 12px 0 0; color: #68716b; font-size: .75rem; }
 .queueSource { margin-left: 10px; padding: 3px 7px; border-radius: 999px; color: #1f6b45; background: #edf5ed; font-size: .67rem; font-weight: 750; }
 .assistantPanel { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid #d9ded7; border-radius: 7px; background: #f7f8f3; }
+.card.assistantPanel { margin-top: 0; padding: 18px 22px; }
 .assistantHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .assistantHeader > div { display: grid; gap: 4px; }
 .assistantHeader span, .assistantBody p, .assistantEmpty { margin: 0; color: #68716b; font-size: .74rem; line-height: 1.5; }
