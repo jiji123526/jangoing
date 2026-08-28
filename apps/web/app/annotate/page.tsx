@@ -311,6 +311,12 @@ function NormalizedValueControl({
   onChange: (value: string | number | undefined) => void;
   onSaveOption: (label: EntityLabel, value: string, alreadyExists: boolean) => void;
 }) {
+  const [customEntryOpen, setCustomEntryOpen] = useState(false);
+
+  useEffect(() => {
+    setCustomEntryOpen(false);
+  }, [entity.label, entity.start, entity.end]);
+
   if (entity.label === "EXPIRY_DATE") {
     return (
       <label className={styles.normalizedControl}>
@@ -384,24 +390,40 @@ function NormalizedValueControl({
   const canSaveOption = freeformNormalizedValueLabels.has(entity.label) && canonicalValue.length > 0;
   const alreadyExists = canSaveOption && freeformOptions.includes(canonicalValue);
   const needsCanonicalRewrite = canSaveOption && rawValue.trim() !== canonicalValue;
+  const hasExistingSelection = rawValue.length > 0 && freeformOptions.includes(rawValue);
+  const showCustomEntry = customEntryOpen || (rawValue.length > 0 && !hasExistingSelection);
 
   return (
     <label className={styles.normalizedControl}>
       <span>Normalized value</span>
-      <div className={styles.normalizedEntry}>
-        <input
-          aria-label={`Normalized value for ${entity.text}`}
-          type="text"
-          list={listId}
-          placeholder={
-            freeformNormalizedValueLabels.has(entity.label)
-              ? "search existing or enter a new canonical value"
-              : "normalized value"
+      <select
+        aria-label={`Existing normalized value for ${entity.text}`}
+        value={showCustomEntry ? "__new__" : rawValue}
+        onChange={(event) => {
+          if (event.target.value === "__new__") {
+            setCustomEntryOpen(true);
+            onChange(undefined);
+            return;
           }
-          value={rawValue}
-          onChange={(event) => onChange(event.target.value || undefined)}
-        />
-        {freeformNormalizedValueLabels.has(entity.label) ? (
+          setCustomEntryOpen(false);
+          onChange(event.target.value || undefined);
+        }}
+      >
+        <option value="">Select an existing value</option>
+        {labelOptions.map((option) => (
+          <option key={option} value={String(option)}>{readable(String(option))}</option>
+        ))}
+        <option value="__new__">+ Enter a new canonical value</option>
+      </select>
+      {showCustomEntry ? (
+        <div className={styles.normalizedEntry}>
+          <input
+            aria-label={`New normalized value for ${entity.text}`}
+            type="text"
+            placeholder="new canonical value"
+            value={rawValue}
+            onChange={(event) => onChange(event.target.value || undefined)}
+          />
           <button
             type="button"
             className={styles.inlineAction}
@@ -412,6 +434,7 @@ function NormalizedValueControl({
               }
               onChange(canonicalValue);
               onSaveOption(entity.label, canonicalValue, alreadyExists);
+              setCustomEntryOpen(false);
             }}
           >
             {!canSaveOption
@@ -422,13 +445,8 @@ function NormalizedValueControl({
                 : "Saved"
               : `Save ${canonicalValue}`}
           </button>
-        ) : null}
-      </div>
-      <datalist id={listId}>
-        {labelOptions.map((option) => (
-          <option key={option} value={String(option)} />
-        ))}
-      </datalist>
+        </div>
+      ) : null}
       {freeformNormalizedValueLabels.has(entity.label) ? (
         <small className={styles.normalizedHint}>
           New canonical values should use lower_snake_case, for example <code>oat_milk</code>.

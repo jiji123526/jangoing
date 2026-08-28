@@ -269,6 +269,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Added reviewed normalized values to assistant prompt v4, grouped by entity
   label and capped at 200 values per label. GPT is instructed to reuse an
   existing semantically equivalent canonical value before proposing a new one.
+- Replaced native normalized-value datalists with real selects so saved
+  canonical values remain visible and selectable on mobile Safari. New values
+  use an explicit `Enter a new canonical value` mode.
 - Documented parser fallback behavior and the conservative exact-substring span
   reconstruction rule.
 

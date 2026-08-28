@@ -96,9 +96,10 @@ https://jangoing-web.vercel.app/annotate
 3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
 4. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
 5. ITEM, ITEM_CONDITION, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
-6. label별 dropdown에서 canonical/normalized 값을 검색한다. ITEM, ITEM_CONDITION, CATEGORY, UNIT은
-   dropdown에 actual canonical value만 보인다.
-7. ITEM, ITEM_CONDITION, CATEGORY, UNIT에서 관련 값이 없으면 입력칸에 새 값을 적고 옆의 `Save ...`
+6. label별 실제 dropdown에서 canonical/normalized 값을 선택한다. ITEM, ITEM_CONDITION,
+   CATEGORY, UNIT은 모바일에서도 전체 existing canonical value를 펼쳐 볼 수 있다.
+7. ITEM, ITEM_CONDITION, CATEGORY, UNIT에서 관련 값이 없으면
+   `Enter a new canonical value`를 선택하고 입력칸에 새 값을 적은 뒤 `Save ...`
    버튼을 눌러 목록에 추가한다. 이 버튼은 공백 표현을 lower_snake_case로 정리해 준다.
    예: `oat milk` → `oat_milk`
 8. 필요하면 `Draft with AI`를 누른다. action, phrase family, entity span,
@@ -128,7 +129,8 @@ https://jangoing-web.vercel.app/annotate
 
 ### 새 canonical 값 추가 흐름
 
-- 먼저 dropdown/input에서 기존 canonical 값을 검색한다.
+- 먼저 실제 dropdown에서 기존 canonical 값을 선택한다.
+- 브라우저별 표시가 불안정한 native `datalist`는 사용하지 않는다.
 - 관련 값이 없으면 새 값을 입력한다. 자연어로 입력해도 되지만, 저장 목록에는
   lower_snake_case canonical form을 쓰는 것이 원칙이다.
 - 옆의 `Save ...` 버튼을 누르면 현재 값을 lower_snake_case로 정리해서 이 세션의
