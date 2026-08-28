@@ -14,15 +14,15 @@ roadmap; this file tracks the next concrete deliverables and completion gates.
 - [x] Display temporal context and normalized suggestions in the expiry queue.
 - [x] Add non-overwriting, temporally explicit annotation queue seed v2.
 - [x] Add relevance queues and reviewed relevance export.
-- [ ] Deploy the temporal changes and seed v2 to production.
+- [x] Deploy the temporal changes and seed v2 to production.
 - [ ] Collect enough reviewed English data for the first human-data baseline.
 
 ## 1. Apply Current Changes
 
-- [ ] Push the four temporal commits to `main`.
-- [ ] Deploy the Cloudflare Worker.
-- [ ] Seed `annotation-queue-seed-v2` into production D1.
-- [ ] Allow Vercel to deploy the updated annotation UI.
+- [x] Push the temporal commits to `main`.
+- [x] Deploy the Cloudflare Worker.
+- [x] Seed `annotation-queue-seed-v2` into production D1.
+- [x] Deploy the updated annotation UI through Vercel.
 - [ ] Open an expiry queue sample and verify the Temporal context card.
 - [ ] Confirm that `tomorrow` is normalized from the displayed reference date,
   not the current annotation date.
@@ -165,6 +165,5 @@ Before accepting a new model:
 
 ## Next Immediate Action
 
-Deploy the current Worker and web changes, seed v2, verify one expiry annotation
-end to end, and then complete the 300/100 workflow pilot before expanding the
-dataset aggressively.
+Verify one production expiry annotation end to end, and then complete the
+300/100 workflow pilot before expanding the dataset aggressively.

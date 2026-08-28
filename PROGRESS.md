@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- The current Worker, Vercel annotation UI, and annotation queue seed v2 have
+  been deployed to production.
 - `ACTION_ITEMS.md` now defines deployment, annotation-volume, quality, export,
   and model-training gates from the workflow pilot through the English MVP.
 - Annotation queue seed v2 uses per-example expiry grounding, a non-overwriting
@@ -35,6 +37,21 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Temporal annotation stack deployed
+
+### Completed
+
+- Pushed the temporal implementation and action-item roadmap.
+- Deployed the Cloudflare Worker and Vercel annotation UI.
+- Seeded `annotation-queue-seed-v2` into production D1.
+- Updated the operational checklist to reflect deployment completion.
+
+### Next
+
+- Verify the Temporal context card and `tomorrow` normalization on one
+  production expiry sample.
+- Begin the 300 training / 100 evaluation workflow pilot.
 
 ## 2026-08-28 - Operational action-item checklist added
 
