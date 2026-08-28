@@ -284,6 +284,13 @@ export const DatasetPurposeSchema = z.enum([
   "evaluation_candidate",
 ]);
 
+export const RelevanceSchema = z.enum([
+  "actionable",
+  "contextual_preference",
+  "domain_non_actionable",
+  "unrelated",
+]);
+
 export const AnnotationStatsSchema = z.object({
   annotated: z.number().int().nonnegative(),
   train_candidates: z.number().int().nonnegative(),
@@ -312,7 +319,8 @@ export const AnnotationActionSchema = z
 export const CreateAnnotationRequestSchema = z
   .object({
     inference_id: z.string().uuid(),
-    actions: z.array(AnnotationActionSchema).min(1).max(8),
+    relevance: RelevanceSchema.optional(),
+    actions: z.array(AnnotationActionSchema).max(8),
     dataset_purpose: DatasetPurposeSchema,
     notes: z.string().trim().max(1000).nullable().optional(),
     annotator: z.string().trim().min(1).max(80).default("web-anonymous"),
@@ -323,6 +331,23 @@ export const CreateAnnotationRequestSchema = z
   })
   .strict()
   .superRefine((annotation, context) => {
+    const relevance = annotation.relevance ?? "actionable";
+    if (relevance === "actionable" && annotation.actions.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["actions"],
+        message: "Actionable annotations require at least one action",
+      });
+    }
+
+    if (relevance !== "actionable" && annotation.actions.length > 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["actions"],
+        message: `Relevance ${relevance} must not include inventory actions`,
+      });
+    }
+
     if (annotation.assistant_proposal_id && !annotation.assistant_resolution) {
       context.addIssue({
         code: "custom",
@@ -482,6 +507,7 @@ export type EntityLabel = z.infer<typeof EntityLabelSchema>;
 export type EntityAnnotation = z.infer<typeof EntityAnnotationSchema>;
 export type AnnotationAction = z.infer<typeof AnnotationActionSchema>;
 export type DatasetPurpose = z.infer<typeof DatasetPurposeSchema>;
+export type Relevance = z.infer<typeof RelevanceSchema>;
 export type AnnotationStats = z.infer<typeof AnnotationStatsSchema>;
 export type CreateAnnotationRequest = z.infer<typeof CreateAnnotationRequestSchema>;
 export type AnnotationQueueType = z.infer<typeof AnnotationQueueTypeSchema>;

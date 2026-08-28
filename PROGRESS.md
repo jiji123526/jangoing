@@ -2,13 +2,40 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
-## Current state as of 2026-08-27
+## Current state as of 2026-08-28
 
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
   queues, deterministic queue seeding, generated-review dataset import, split
   train/evaluation dataset export validation, task-aware reviewed export
   filtering, dynamic normalized-value suggestions, and assistant-draft proposal
   plumbing.
+- Annotation-v3 storage now includes first-class relevance values:
+  `actionable`, `contextual_preference`, `domain_non_actionable`, and
+  `unrelated`.
+
+## 2026-08-28 - Relevance schema and persistence added
+
+### Completed
+
+- Added a shared relevance enum for actionable, contextual/preference,
+  domain-related non-actionable, and unrelated utterances.
+- Allowed non-actionable annotations to store an empty action list while
+  retaining the requirement that actionable annotations contain an action.
+- Added D1/SQLite migration `0008_add_annotation_relevance.sql`.
+- Updated both Worker and local API storage paths to persist relevance and write
+  annotation schema version `annotation-v3`.
+- Added schema tests for valid and invalid relevance/action combinations.
+
+### Compatibility
+
+- Existing clients that omit relevance continue to be treated as `actionable`.
+- Existing preference and unrelated annotations are backfilled from legacy
+  phrase families during migration.
+
+### Next
+
+- Expose relevance as the first decision in `/annotate`.
+- Add relevance-specific dataset export and review queues.
 - New annotations treat `ITEM_CONDITION` as legacy-only. Product-identity
   modifiers stay inside ITEM (`frozen blueberries` -> `frozen_blueberry`),
   while temporary state and intent-trigger wording (`spoiled`, `gone bad`,

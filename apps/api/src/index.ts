@@ -39,7 +39,7 @@ const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
-const annotationSchemaVersion = "annotation-v2";
+const annotationSchemaVersion = "annotation-v3";
 
 function normalizedFromEntities(entities: Array<{
   label: string;
@@ -366,7 +366,13 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
     ...action,
     normalized: normalizedFromEntities(action.entities),
   }));
-  const legacyAction = enrichedActions[0];
+  const relevance = parsed.data.relevance ?? "actionable";
+  const legacyAction = enrichedActions[0] ?? {
+    intent: "unknown",
+    entities: [],
+    normalized: {},
+    phrase_family: null,
+  };
   const annotationId = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   try {
@@ -375,20 +381,20 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
         `INSERT INTO annotations (
           id, inference_id, intent, entities, normalized, dataset_purpose,
           phrase_family, notes, annotator, annotation_schema_version, created_at,
-          actions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          actions, relevance
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
         annotationId, parsed.data.inference_id, legacyAction.intent,
         JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
         parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
         parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
-        createdAt, JSON.stringify(enrichedActions),
+        createdAt, JSON.stringify(enrichedActions), relevance,
       ),
       env.DB.prepare(
         `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
          resolved_at = ? WHERE id = ?`,
       ).bind(
-        JSON.stringify({ actions: enrichedActions }),
+        JSON.stringify({ relevance, actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       ),
     ];

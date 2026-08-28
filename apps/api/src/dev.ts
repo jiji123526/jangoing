@@ -67,6 +67,10 @@ const annotationAiUsageMigrationPath = resolve(
   apiDirectory,
   "migrations/0007_log_annotation_ai_usage.sql",
 );
+const annotationRelevanceMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0008_add_annotation_relevance.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -97,6 +101,9 @@ const annotationColumns = database.prepare("PRAGMA table_info(annotations)").all
 if (!annotationColumns.some((column) => column.name === "actions")) {
   database.exec(readFileSync(annotationActionsMigrationPath, "utf8"));
 }
+if (!annotationColumns.some((column) => column.name === "relevance")) {
+  database.exec(readFileSync(annotationRelevanceMigrationPath, "utf8"));
+}
 const proposalTable = database.prepare(
   "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'annotation_proposals'",
 ).get() as { name?: string } | undefined;
@@ -110,7 +117,7 @@ if (!proposalColumns.some((column) => column.name === "input_tokens")) {
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
-const annotationSchemaVersion = "annotation-v2";
+const annotationSchemaVersion = "annotation-v3";
 
 function parseStoredInterpretation(payload: string): Interpretation {
   return InterpretationSchema.parse(JSON.parse(payload));
@@ -449,7 +456,13 @@ async function route(
       ...action,
       normalized: normalizedFromEntities(action.entities),
     }));
-    const legacyAction = enrichedActions[0];
+    const relevance = parsed.data.relevance ?? "actionable";
+    const legacyAction = enrichedActions[0] ?? {
+      intent: "unknown",
+      entities: [],
+      normalized: {},
+      phrase_family: null,
+    };
     const annotationId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     try {
@@ -458,20 +471,20 @@ async function route(
         `INSERT INTO annotations (
           id, inference_id, intent, entities, normalized, dataset_purpose,
           phrase_family, notes, annotator, annotation_schema_version, created_at,
-          actions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          actions, relevance
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         annotationId, parsed.data.inference_id, legacyAction.intent,
         JSON.stringify(legacyAction.entities), JSON.stringify(legacyAction.normalized),
         parsed.data.dataset_purpose, legacyAction.phrase_family ?? null,
         parsed.data.notes ?? null, parsed.data.annotator, annotationSchemaVersion,
-        createdAt, JSON.stringify(enrichedActions),
+        createdAt, JSON.stringify(enrichedActions), relevance,
       );
       database.prepare(
         `UPDATE inference_logs SET outcome = 'annotated', corrected_interpretation = ?,
          resolved_at = ? WHERE id = ?`,
       ).run(
-        JSON.stringify({ actions: enrichedActions }),
+        JSON.stringify({ relevance, actions: enrichedActions }),
         createdAt, parsed.data.inference_id,
       );
       if (parsed.data.assistant_proposal_id && parsed.data.assistant_resolution) {

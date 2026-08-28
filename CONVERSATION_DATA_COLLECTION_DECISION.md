@@ -227,6 +227,24 @@ This separation would make it possible to evaluate two distinct model capabiliti
 1. whether the system correctly identifies language that requires action;
 2. whether it correctly structures the action once detected.
 
+### Implementation status
+
+The first implementation step is now defined as `annotation-v3`:
+
+- annotations store a first-class `relevance` value;
+- allowed values are `actionable`, `contextual_preference`,
+  `domain_non_actionable`, and `unrelated`;
+- actionable annotations require at least one structured action;
+- non-actionable annotations store no inventory actions;
+- existing annotation clients remain compatible by defaulting omitted relevance
+  to `actionable`;
+- existing preference and unrelated annotations are backfilled from their
+  phrase families when migration `0008_add_annotation_relevance.sql` runs.
+
+This establishes the data boundary first. The annotation UI, relevance-specific
+dataset export, and collection queues are separate follow-up steps so each layer
+can be tested independently.
+
 ---
 
 ## Dataset Priorities

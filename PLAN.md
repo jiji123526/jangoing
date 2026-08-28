@@ -57,8 +57,8 @@ The text MVP is implemented and deployable:
 - Reproducible 800-record English `synthetic-v1` dataset
 - TF-IDF + logistic-regression single-intent baseline
 - Public production `/annotate` workspace with exact spans
-- `annotation-v2` multi-action groups with action-specific intent, phrase family,
-  entities, and normalized values
+- `annotation-v3` records with first-class relevance plus multi-action groups
+  with action-specific intent, phrase family, entities, and normalized values
 - Dynamic normalized-value suggestions with controlled phrase families
 - Prioritized annotation queues for correction, expiry-heavy, low-confidence,
   confirmed, and evaluation-holdout samples
@@ -89,6 +89,9 @@ These limitations are acceptable only while every state-changing action requires
 
 ### Current Data Gaps
 
+- Annotation storage now separates `actionable`, `contextual_preference`,
+  `domain_non_actionable`, and `unrelated`, but the production annotation UI
+  and task-specific export still need to expose that distinction.
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
 - Runtime parsing now normalizes explicit natural-language expiry phrases, but

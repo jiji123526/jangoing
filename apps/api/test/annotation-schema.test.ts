@@ -41,6 +41,46 @@ describe("CreateAnnotationRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts a non-actionable relevance label without actions", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      relevance: "domain_non_actionable",
+      actions: [],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects actions attached to a non-actionable relevance label", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      relevance: "contextual_preference",
+      actions: [{
+        intent: "unknown",
+        phrase_family: "preference_statement",
+        entities: [],
+      }],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an actionable annotation without actions", () => {
+    const result = CreateAnnotationRequestSchema.safeParse({
+      inference_id: inferenceId,
+      relevance: "actionable",
+      actions: [],
+      dataset_purpose: "train_candidate",
+      annotator: "test",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects missing normalized values for reviewed item-style labels", () => {
     const result = CreateAnnotationRequestSchema.safeParse({
       inference_id: inferenceId,
