@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- The project now has an explicit academic framing covering research questions,
+  methodology, design choices, validity threats, and expected contributions.
 - Documentation is categorized under `docs/planning`, `docs/annotation`,
   `docs/ml`, `docs/decisions`, and `docs/operations`.
 - Detailed project documentation now lives under `docs/`; the repository and
@@ -44,6 +46,20 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Academic goals and research approach documented
+
+### Completed
+
+- Defined the project as a human-in-the-loop situated language understanding
+  study for household food-state management.
+- Added six research questions covering relevance, data sources, modular versus
+  end-to-end modeling, temporal grounding, annotation efficiency, and edge
+  deployment.
+- Recorded major language, data, architecture, safety, evaluation, and
+  deployment choices with their rationale.
+- Documented rejected alternatives, experimental design, validity threats,
+  ethics, expected contributions, current status, and selected foundations.
 
 ## 2026-08-28 - Documentation categorized
 

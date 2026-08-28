@@ -8,6 +8,10 @@ real reviewed interactions. The product converts requests found in everyday
 conversation into contextual, explainable proposals for kitchen actions and
 recommendations.
 
+The academic objective, research questions, methodological choices, and threats
+to validity are defined in
+[ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md](../decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md).
+
 The project begins as a text-based product. Raspberry Pi audio and a trained language-understanding model will be added only after the command, confirmation, storage, and correction workflow has been validated.
 
 ## Product Goals

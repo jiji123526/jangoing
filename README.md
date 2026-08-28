@@ -143,6 +143,7 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 - [Development progress log](./docs/planning/PROGRESS.md)
 - [Current action items and annotation targets](./docs/planning/ACTION_ITEMS.md)
 - [Model evaluation and logging standard](./docs/ml/MODEL_EVALUATION.md)
+- [Academic goals and research approach](./docs/decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
 - [구현 내용과 기술적 의사결정 설명서](./docs/decisions/IMPLEMENTATION_NOTES_KO.md)
 - [영어 synthetic-v1 생성 및 의사결정 기록](./docs/ml/SYNTHETIC_V1_KO.md)
 - [공개 데이터셋 조사 및 도입 계획](./docs/ml/OPEN_DATASETS_KO.md)

@@ -24,6 +24,7 @@ operational guides, decisions, and learning references live in this directory.
 
 ## Decisions
 
+- [Academic goals and research approach](./decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
 - [Implementation notes](./decisions/IMPLEMENTATION_NOTES_KO.md)
 - [Conversation data collection](./decisions/CONVERSATION_DATA_COLLECTION_DECISION.md)
 - [Temporal grounding and expiry](./decisions/TEMPORAL_GROUNDING_AND_EXPIRY_FIX.md)
