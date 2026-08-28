@@ -25,7 +25,7 @@ npm run annotation:import-generated -- --remote \
   --label relevance-candidates-v1
 ```
 
-See [the Korean candidate dataset record](../docs/RELEVANCE_CANDIDATES_V1_KO.md).
+See [the Korean candidate dataset record](../docs/annotation/RELEVANCE_CANDIDATES_V1_KO.md).
 
 The current `synthetic-v1` keeps the same 800 balanced records but now draws
 from a broader 34-item grocery taxonomy and rotates English aliases for more
@@ -94,7 +94,8 @@ Recommended sequence:
 
 The committed `ml/datasets/synthetic-v1.jsonl` is safe synthetic bootstrap data,
 not production conversation data and not a valid final human test set. Its design
-and limitations are recorded in `docs/SYNTHETIC_V1_KO.md`.
+and limitations are recorded in
+[the synthetic dataset record](../docs/ml/SYNTHETIC_V1_KO.md).
 
 To export reviewed production interactions from Cloudflare D1 instead:
 

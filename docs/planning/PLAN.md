@@ -37,7 +37,7 @@ interaction -> versioned inference log -> user review/correction
             -> production outcome monitoring -> next dataset
 ```
 
-See [MODEL_EVALUATION.md](./MODEL_EVALUATION.md) for the required records,
+See [MODEL_EVALUATION.md](../ml/MODEL_EVALUATION.md) for the required records,
 metrics, privacy constraints, and promotion gates.
 
 ## Current Implementation Status

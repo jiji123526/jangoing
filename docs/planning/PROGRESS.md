@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Documentation is categorized under `docs/planning`, `docs/annotation`,
+  `docs/ml`, `docs/decisions`, and `docs/operations`.
 - Detailed project documentation now lives under `docs/`; the repository and
   ML package READMEs remain at their entry points.
 - The Korean ML/NLP guide now includes a beginner-oriented Jangoing model
@@ -42,6 +44,15 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Documentation categorized
+
+### Completed
+
+- Grouped planning, annotation, ML/data, decision, and operations documents into
+  dedicated `docs/` subdirectories.
+- Updated the documentation index, repository README, ML README, and
+  cross-category links.
 
 ## 2026-08-28 - Documentation centralized
 

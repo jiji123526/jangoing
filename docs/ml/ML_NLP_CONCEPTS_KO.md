@@ -1288,14 +1288,14 @@ PyTorch와 DistilBERT는 baseline artifact와 `metrics.json`을 직접 만들어
 
 ## 32. 관련 문서
 
-- `IMPLEMENTATION_NOTES_KO.md`: 구현 내용과 기술 선택
-- `SYNTHETIC_V1_KO.md`: synthetic-v1 생성 및 결정 기록
-- `MODEL_EVALUATION.md`: 평가와 로깅 원칙
-- `PLAN.md`: 전체 제품 및 모델 로드맵
-- `ACTION_ITEMS.md`: annotation 규모와 실행 gate
-- `ml/README.md`: 학습 명령과 환경 설정
-- `ANNOTATION_GUIDE_KO.md`: production annotation 화면 사용법
-- `ANNOTATION_CONVENTIONS_KO.md`: annotation-v4 정답 결정 규칙
+- [IMPLEMENTATION_NOTES_KO.md](../decisions/IMPLEMENTATION_NOTES_KO.md): 구현 내용과 기술 선택
+- [SYNTHETIC_V1_KO.md](./SYNTHETIC_V1_KO.md): synthetic-v1 생성 및 결정 기록
+- [MODEL_EVALUATION.md](./MODEL_EVALUATION.md): 평가와 로깅 원칙
+- [PLAN.md](../planning/PLAN.md): 전체 제품 및 모델 로드맵
+- [ACTION_ITEMS.md](../planning/ACTION_ITEMS.md): annotation 규모와 실행 gate
+- [ml/README.md](../../ml/README.md): 학습 명령과 환경 설정
+- [ANNOTATION_GUIDE_KO.md](../annotation/ANNOTATION_GUIDE_KO.md): production annotation 화면 사용법
+- [ANNOTATION_CONVENTIONS_KO.md](../annotation/ANNOTATION_CONVENTIONS_KO.md): annotation-v4 정답 결정 규칙
 
 새로운 모델이나 언어 기능을 추가할 때는 이 문서에 개념과 프로젝트 내 역할을
 추가하고, 실제 구현 여부를 명확히 표시한다.

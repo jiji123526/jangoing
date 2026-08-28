@@ -3,8 +3,9 @@
 Last updated: 2026-08-28
 
 This document is the operational checklist for moving from annotation
-infrastructure to an English NLP MVP. `PLAN.md` describes the broader product
-roadmap; this file tracks the next concrete deliverables and completion gates.
+infrastructure to an English NLP MVP. [PLAN.md](./PLAN.md) describes the
+broader product roadmap; this file tracks the next concrete deliverables and
+completion gates.
 
 ## Current Status
 
@@ -50,7 +51,8 @@ saves them.
 Target: 300 reviewed training candidates and 100 evaluation candidates.
 
 - [ ] Review at least 30 examples from every queue currently in use.
-- [ ] Record recurring ambiguity in `ANNOTATION_CONVENTIONS_KO.md`.
+- [ ] Record recurring ambiguity in
+  [ANNOTATION_CONVENTIONS_KO.md](../annotation/ANNOTATION_CONVENTIONS_KO.md).
 - [ ] Check that expiry, normalized item values, multi-action records, and
   relevance labels can all be saved without manual database repair.
 - [ ] Audit 50 random annotations for span boundaries and normalized values.

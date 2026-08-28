@@ -3,7 +3,8 @@
 ## 문서 목적
 
 이 문서는 `/annotate`에서 영어 대화 데이터를 라벨링할 때 사용하는 **정답 결정
-규칙**이다. 화면 조작법은 `ANNOTATION_GUIDE_KO.md`를 참고한다. 같은 문장을 누가
+규칙**이다. 화면 조작법은 [ANNOTATION_GUIDE_KO.md](./ANNOTATION_GUIDE_KO.md)를
+참고한다. 같은 문장을 누가
 라벨링하더라도 relevance, intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
 것이 이 문서의 목표다.
 

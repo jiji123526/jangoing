@@ -222,7 +222,8 @@ TF-IDF baseline을 먼저 선택한 이유:
 
 영어 800개 bootstrap 데이터, 다국어 확장형 taxonomy, entity span, manifest,
 자동 검증기를 추가했다. `needs_clarification`을 별도 intent로 저장할 수 있도록
-웹 검토 흐름도 확장했다. 상세 결정과 결과는 `SYNTHETIC_V1_KO.md`에 기록한다.
+웹 검토 흐름도 확장했다. 상세 결정과 결과는
+[SYNTHETIC_V1_KO.md](../ml/SYNTHETIC_V1_KO.md)에 기록한다.
 
 ### 4.8 표현군 기준 데이터 분할
 
