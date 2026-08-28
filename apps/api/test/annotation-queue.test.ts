@@ -134,7 +134,7 @@ describe("annotationQueueQuery", () => {
     expect(queue.reason).toBe("confirmed_prediction");
     expect(queue.query).toContain("il.outcome = 'confirmed'");
     expect(queue.query).toContain("il.corrected_interpretation IS NOT NULL");
-    expect(queue.query).toContain("il.source != 'annotation-queue-seed-v1'");
+    expect(queue.query).toContain("il.source NOT LIKE 'annotation-queue-seed-v%'");
     expect(queue.query).toContain("il.source NOT LIKE 'generated-review:%'");
   });
 
@@ -144,7 +144,7 @@ describe("annotationQueueQuery", () => {
     expect(queue.reason).toBe("deterministic_holdout_bucket");
     expect(queue.query).toContain("il.outcome IN ('confirmed', 'corrected')");
     expect(queue.query).toContain("substr(replace(il.id, '-', ''), 1, 1) IN ('0', '1', '2')");
-    expect(queue.query).toContain("il.source != 'annotation-queue-seed-v1'");
+    expect(queue.query).toContain("il.source NOT LIKE 'annotation-queue-seed-v%'");
   });
 
   it("exposes generated review records through a dedicated queue", () => {

@@ -252,9 +252,11 @@ npm run annotation:seed-queues
 - `confirmed_unannotated`: 42
 - `evaluation_holdout`: 24
 
-이 스크립트는 `apps/api/.local/jangoing.sqlite`가 없으면 자동으로 만들고 migration
-0006까지 적용한다. 이미 같은 seed ID가 있으면 같은 row를 갱신하므로 반복 실행해도
-안전하다. production D1에 넣고 싶다면 root에서 다음처럼 실행한다.
+이 스크립트는 `apps/api/.local/jangoing.sqlite`가 없으면 자동으로 만들고 필요한
+migration을 적용한다. 현재 source는 `annotation-queue-seed-v2`다. v1과 다른 UUID
+namespace를 사용하고, 같은 v2 ID가 이미 있으면 `DO NOTHING`으로 건너뛰므로 기존
+annotation provenance를 바꾸지 않는다. seed 의미를 바꿀 때는 기존 row를 수정하지
+않고 v3를 만들어야 한다. production D1에 넣고 싶다면 root에서 다음처럼 실행한다.
 
 ```bash
 npm run annotation:seed-queues -- --remote
@@ -315,7 +317,7 @@ production D1 SQL editor에서 먼저 seed row가 들어갔는지 확인:
 ```sql
 SELECT COUNT(*) AS seeded_rows
 FROM inference_logs
-WHERE source = 'annotation-queue-seed-v1';
+WHERE source = 'annotation-queue-seed-v2';
 ```
 
 최근 seed row 보기:
@@ -323,9 +325,37 @@ WHERE source = 'annotation-queue-seed-v1';
 ```sql
 SELECT id, raw_utterance, source, outcome, created_at
 FROM inference_logs
-WHERE source = 'annotation-queue-seed-v1'
+WHERE source = 'annotation-queue-seed-v2'
 ORDER BY created_at DESC
 LIMIT 20;
+```
+
+v1과 v2를 함께 비교하려면 다음 query를 사용한다.
+
+```sql
+SELECT source, COUNT(*) AS count
+FROM inference_logs
+WHERE source LIKE 'annotation-queue-seed-v%'
+GROUP BY source
+ORDER BY source;
+```
+
+v1 annotation은 그대로 보존된다. 아직 annotation하지 않은 v1 expiry 후보를
+production queue에서 제거하고 v2만 검수하려면 먼저 v2 seed가 정상적으로 들어간
+것을 확인한 뒤, v1 proposal과 unannotated inference만 삭제한다.
+
+```sql
+DELETE FROM annotation_proposals
+WHERE inference_id IN (
+  SELECT il.id
+  FROM inference_logs il
+  LEFT JOIN annotations a ON a.inference_id = il.id
+  WHERE il.source = 'annotation-queue-seed-v1' AND a.id IS NULL
+);
+
+DELETE FROM inference_logs
+WHERE source = 'annotation-queue-seed-v1'
+  AND id NOT IN (SELECT inference_id FROM annotations);
 ```
 
 correction queue 후보 수 확인:

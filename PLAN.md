@@ -106,6 +106,8 @@ These limitations are acceptable only while every state-changing action requires
 - Runtime parsing now uses shared temporal grounding for explicit
   natural-language expiry phrases. Missing reference dates are derived from the
   request timestamp in the validated user timezone, with UTC fallback.
+- Deterministic queue seed v2 assigns each expiry phrase an explicit reference
+  date, timezone, and verified ISO result in a non-overwriting namespace.
 - Reviewed export now separates train/evaluation splits and supports task-aware
   filtering for `relevance`, `intent`, `slots`, and `joint` exports.
 - Effective `reference_date` and validated `timezone` are now persisted through

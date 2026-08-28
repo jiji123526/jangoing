@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Annotation queue seed v2 uses per-example expiry grounding, a non-overwriting
+  ID namespace, and generation-time normalization validation.
 - Expiry queue responses and `/annotate` now expose original temporal context
   and a server-derived normalized expiry suggestion.
 - Annotation assistant prompt v6 receives the original temporal context, while
@@ -31,6 +33,33 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Temporally explicit annotation seed v2 added
+
+### Completed
+
+- Replaced shared hidden expiry seed dates with explicit phrase-level
+  `reference_date`, `timezone`, and expected ISO cases.
+- Aligned synthetic inference timestamps to each date case.
+- Added the `annotation-queue-seed-v2` source and a distinct deterministic UUID
+  namespace, preserving all v1 rows and annotations.
+- Made repeated v2 imports non-mutating with `ON CONFLICT DO NOTHING`.
+- Excluded every `annotation-queue-seed-v*` source from actual-user queues.
+- Added regression checks for every configured date case and every generated
+  expiry phrase, including holdout examples.
+
+### Decision
+
+- Seed meaning is immutable after publication; semantic changes require v3
+  rather than modifying v2 rows.
+- Seed data remains synthetic provenance and must never enter correction,
+  confirmed, or evaluation queues intended for actual user traffic.
+
+### Deployment
+
+- No D1 schema migration is required.
+- Run the existing remote seed command after deploying the updated Worker to
+  insert v2 records. Existing v1 rows are not overwritten.
 
 ## 2026-08-28 - Expiry queue temporal context exposed
 

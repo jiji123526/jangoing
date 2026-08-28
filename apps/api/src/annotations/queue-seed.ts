@@ -1,11 +1,18 @@
 import type { AnnotationQueueType, CommandSlots, Interpretation } from "@jangoing/contracts";
+import {
+  normalizeExpiryDate,
+  type TemporalGroundingContext,
+} from "../nlp/temporal-grounding";
 
-export const annotationQueueSeedSource = "annotation-queue-seed-v1";
-const parserVersion = "seeded-rules-v1";
-const normalizerVersion = "seeded-normalizers-v1";
+export const annotationQueueSeedSourcePrefix = "annotation-queue-seed-v";
+export const annotationQueueSeedSource = `${annotationQueueSeedSourcePrefix}2`;
+const parserVersion = "seeded-rules-v2";
+const normalizerVersion = "seeded-normalizers-v2";
 const schemaVersion = "inference-v1";
-const baseReferenceDate = "2026-09-01";
-const baseTimezone = "America/Los_Angeles";
+const defaultTemporalContext: TemporalGroundingContext = {
+  reference_date: "2026-09-01",
+  timezone: "America/Los_Angeles",
+};
 
 type QueueSeedKind =
   | "correction"
@@ -88,13 +95,48 @@ const lowConfidencePhrases = [
   "Do something about the yogurt.",
 ];
 
-const datePhrases = [
-  { phrase: "tomorrow", iso: "2026-09-02" },
-  { phrase: "next Friday", iso: "2026-09-04" },
-  { phrase: "next Monday", iso: "2026-09-07" },
-  { phrase: "September tenth", iso: "2026-09-10" },
-  { phrase: "September twelfth", iso: "2026-09-12" },
-  { phrase: "August twenty-eighth", iso: "2026-08-28" },
+export const expirySeedDateCases: Array<{
+  phrase: string;
+  reference_date: string;
+  timezone: string;
+  iso: string;
+}> = [
+  {
+    phrase: "tomorrow",
+    reference_date: "2026-08-27",
+    timezone: "America/Los_Angeles",
+    iso: "2026-08-28",
+  },
+  {
+    phrase: "next Friday",
+    reference_date: "2026-08-26",
+    timezone: "America/Los_Angeles",
+    iso: "2026-09-04",
+  },
+  {
+    phrase: "next Monday",
+    reference_date: "2026-08-28",
+    timezone: "America/Los_Angeles",
+    iso: "2026-08-31",
+  },
+  {
+    phrase: "September tenth",
+    reference_date: "2026-09-01",
+    timezone: "America/Los_Angeles",
+    iso: "2026-09-10",
+  },
+  {
+    phrase: "September twelfth",
+    reference_date: "2026-09-01",
+    timezone: "America/Los_Angeles",
+    iso: "2026-09-12",
+  },
+  {
+    phrase: "August twenty-eighth",
+    reference_date: "2026-08-26",
+    timezone: "America/Los_Angeles",
+    iso: "2026-08-28",
+  },
 ];
 
 const locations: Array<CommandSlots["location"]> = ["fridge", "freezer", "pantry"];
@@ -126,13 +168,15 @@ function interpretation(
   };
 }
 
-function isoTimestamp(index: number): string {
-  return new Date(Date.UTC(2026, 8, 1, 8, index, 0)).toISOString();
+function isoTimestamp(index: number, referenceDate: string): string {
+  const timestamp = new Date(`${referenceDate}T12:00:00.000Z`);
+  timestamp.setUTCSeconds(timestamp.getUTCSeconds() + index);
+  return timestamp.toISOString();
 }
 
 function prefixedUuid(prefix: string, index: number): string {
-  const value = index.toString(16).padStart(23, "0");
-  return `${prefix}${value.slice(0, 7)}-${value.slice(7, 11)}-4000-8000-${value.slice(11, 23)}`;
+  const value = index.toString(16).padStart(22, "0");
+  return `${prefix}2${value.slice(0, 6)}-${value.slice(6, 10)}-4000-8000-${value.slice(10, 22)}`;
 }
 
 function queuePrefix(type: QueueSeedKind): string {
@@ -150,11 +194,13 @@ function queuePrefix(type: QueueSeedKind): string {
   }
 }
 
-function seedRequestContext(queueType: QueueSeedKind): string {
+function seedRequestContext(
+  queueType: QueueSeedKind,
+  temporalContext: TemporalGroundingContext,
+): string {
   return JSON.stringify({
     expiration_date: null,
-    reference_date: baseReferenceDate,
-    timezone: baseTimezone,
+    ...temporalContext,
     seed_queue_type: queueType,
   });
 }
@@ -169,16 +215,18 @@ function makeRecord(
     corrected?: Interpretation;
     outcome?: "pending" | "confirmed" | "corrected";
     uuidLead?: string;
+    temporalContext?: TemporalGroundingContext;
   },
 ): SeededInferenceLogRecord {
-  const createdAt = isoTimestamp(sequence);
+  const temporalContext = options?.temporalContext ?? defaultTemporalContext;
+  const createdAt = isoTimestamp(sequence, temporalContext.reference_date);
   const outcome = options?.outcome ?? "pending";
   const corrected = options?.corrected ?? (outcome === "confirmed" ? predicted : undefined);
 
   return {
     id: prefixedUuid(options?.uuidLead ?? queuePrefix(queueType), queueIndex),
     raw_utterance: rawUtterance,
-    request_context: seedRequestContext(queueType),
+    request_context: seedRequestContext(queueType, temporalContext),
     predicted_interpretation: JSON.stringify(predicted),
     corrected_interpretation: corrected ? JSON.stringify(corrected) : null,
     parser_version: parserVersion,
@@ -258,7 +306,17 @@ function correctionRecord(index: number, sequence: number): SeededInferenceLogRe
 
 function expiryRecord(index: number, sequence: number): SeededInferenceLogRecord {
   const item = expiryItems[index % expiryItems.length];
-  const date = datePhrases[index % datePhrases.length];
+  const date = expirySeedDateCases[index % expirySeedDateCases.length];
+  const temporalContext = {
+    reference_date: date.reference_date,
+    timezone: date.timezone,
+  };
+  const normalizedDate = normalizeExpiryDate(date.phrase, temporalContext);
+  if (normalizedDate !== date.iso) {
+    throw new Error(
+      `Expiry seed mismatch for "${date.phrase}": expected ${date.iso}, received ${normalizedDate}`,
+    );
+  }
   const pattern = Math.floor(index / expiryItems.length) % 4;
 
   if (pattern === 0) {
@@ -272,6 +330,7 @@ function expiryRecord(index: number, sequence: number): SeededInferenceLogRecord
       {
         corrected: interpretation(text, "add_item", { item_name: item.normalized, expiration_date: date.iso }, 1),
         outcome: "confirmed",
+        temporalContext,
       },
     );
   }
@@ -287,6 +346,7 @@ function expiryRecord(index: number, sequence: number): SeededInferenceLogRecord
       {
         corrected: interpretation(text, "update_expiry", { item_name: item.normalized, expiration_date: date.iso }, 1),
         outcome: "corrected",
+        temporalContext,
       },
     );
   }
@@ -302,6 +362,7 @@ function expiryRecord(index: number, sequence: number): SeededInferenceLogRecord
       {
         corrected: interpretation(text, "update_expiry", { item_name: item.normalized, expiration_date: date.iso }, 1),
         outcome: "corrected",
+        temporalContext,
       },
     );
   }
@@ -313,6 +374,7 @@ function expiryRecord(index: number, sequence: number): SeededInferenceLogRecord
     sequence,
     text,
     interpretation(text, "unknown", {}, 0.31),
+    { temporalContext },
   );
 }
 
@@ -415,7 +477,11 @@ function confirmedRecord(index: number, sequence: number): SeededInferenceLogRec
 
 function holdoutRecord(index: number, sequence: number): SeededInferenceLogRecord {
   const item = holdoutItems[index % holdoutItems.length];
-  const date = datePhrases[index % datePhrases.length];
+  const date = expirySeedDateCases[index % expirySeedDateCases.length];
+  const temporalContext = {
+    reference_date: date.reference_date,
+    timezone: date.timezone,
+  };
   const location = locations[index % locations.length];
   const pattern = Math.floor(index / holdoutItems.length) % 4;
   const uuidLead = holdoutUuidLeads[index % holdoutUuidLeads.length];
@@ -427,6 +493,7 @@ function holdoutRecord(index: number, sequence: number): SeededInferenceLogRecor
       corrected: reviewed,
       outcome: "confirmed",
       uuidLead,
+      temporalContext,
     });
   }
 
@@ -455,6 +522,7 @@ function holdoutRecord(index: number, sequence: number): SeededInferenceLogRecor
         }, 1),
         outcome: "corrected",
         uuidLead,
+        temporalContext,
       },
     );
   }

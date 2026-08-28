@@ -99,13 +99,13 @@ cd /home/jjiwoo/.workspace/jangoing/apps/api
 npx wrangler d1 execute jangoing-db --remote --command \
 "SELECT COUNT(*) AS seeded_rows
  FROM inference_logs
- WHERE source = 'annotation-queue-seed-v1';"
+ WHERE source = 'annotation-queue-seed-v2';"
 
 # Show recent seed rows
 npx wrangler d1 execute jangoing-db --remote --command \
 "SELECT id, raw_utterance, source, outcome, created_at
  FROM inference_logs
- WHERE source = 'annotation-queue-seed-v1'
+ WHERE source = 'annotation-queue-seed-v2'
  ORDER BY created_at DESC
  LIMIT 20;"
 ```

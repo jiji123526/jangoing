@@ -7,7 +7,7 @@ import {
   type AnnotationQueueType,
   type Interpretation,
 } from "@jangoing/contracts";
-import { annotationQueueSeedSource } from "./queue-seed";
+import { annotationQueueSeedSourcePrefix } from "./queue-seed";
 import { generatedReviewSourcePrefix } from "./generated-review";
 import {
   extractInlineExpiry,
@@ -62,7 +62,7 @@ const expirySignals = [
 
 const generatedReviewSourceLike = `${generatedReviewSourcePrefix}%`;
 const actualUserSourceFilter =
-  `il.source != '${annotationQueueSeedSource}' AND il.source NOT LIKE '${generatedReviewSourceLike}'`;
+  `il.source NOT LIKE '${annotationQueueSeedSourcePrefix}%' AND il.source NOT LIKE '${generatedReviewSourceLike}'`;
 const nonGeneratedReviewFilter = `il.source NOT LIKE '${generatedReviewSourceLike}'`;
 const candidateRelevance = "json_extract(il.request_context, '$.candidate_relevance')";
 

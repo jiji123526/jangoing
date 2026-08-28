@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { annotationQueueQuery } from "../src/annotations/queue";
 import {
+  annotationQueueSeedSource,
   buildQueueSeedRecords,
   defaultQueueSeedPlan,
   seededQueueTargets,
@@ -266,6 +267,7 @@ const records = buildQueueSeedRecords(options);
 const targets = seededQueueTargets(options);
 
 process.stdout.write("Seeding annotation queues with deterministic synthetic reviewed samples.\n");
+process.stdout.write(`- source: ${annotationQueueSeedSource}\n`);
 for (const [queueType, count] of Object.entries(targets)) {
   process.stdout.write(`- target ${queueType}: ${count}\n`);
 }

@@ -196,3 +196,7 @@ The current language layer is a deterministic regular-expression parser, not a t
   `item_name`. Always review the interpretation before confirming.
 
 The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.
+
+Deterministic annotation queue seeds use the versioned
+`annotation-queue-seed-v2` source. Expiry cases carry explicit temporal context,
+and rerunning the seed command never mutates existing v2 rows.

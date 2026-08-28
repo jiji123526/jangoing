@@ -65,11 +65,24 @@ prioritizes the server-derived suggestion, then falls back to previously
 reviewed or predicted ISO values. The browser formats the original timestamp
 for display but never recomputes date semantics from its current clock.
 
+### Completed: explicit expiry seed v2
+
+The queue seed source is now `annotation-queue-seed-v2`, with a distinct UUID
+namespace that cannot overwrite v1 records. Every expiry phrase defines its
+own `reference_date`, `timezone`, and expected ISO date. Seed generation fails
+if the shared normalizer disagrees with that expectation.
+
+Synthetic `created_at` timestamps are aligned to each example's reference date.
+Rerunning v2 uses `ON CONFLICT DO NOTHING`; changing seed semantics requires a
+new versioned namespace rather than mutating existing reviewed provenance.
+
+Tests validate every explicit date case and every generated expiry phrase,
+including expiry examples inside evaluation holdout records.
+
 ### Remaining
 
-- Replace the v1 expiry seed assumptions with explicit per-example temporal
-  cases and a new non-overwriting seed namespace.
-- Add end-to-end regression coverage for assistant, queue, UI, and seed paths.
+- Add browser-level UI regression coverage if an end-to-end test framework is
+  introduced.
 
 ## Background
 
@@ -325,6 +338,8 @@ That distinction can be added later if temporal language coverage expands.
 
 ## Required Fix 1: Remove Hidden Fixed-Date Semantics From Expiry Seeds
 
+**Status: implemented in `annotation-queue-seed-v2`.**
+
 Current:
 
 ```ts
@@ -534,6 +549,10 @@ Without the original reference date, a human annotator cannot reliably determine
 
 ## Required Fix 6: Add Regression Tests
 
+**Status: implemented for temporal normalization, assistant materialization,
+queue responses, and seed generation. Browser rendering remains covered by
+typechecking rather than an end-to-end UI suite.**
+
 At minimum, add tests covering the following cases.
 
 ### Relative date uses stored reference date
@@ -717,15 +736,13 @@ unless they explicitly represent the original event being described.
 
 ## Implementation Priority
 
-1. Load `request_context` in `/annotations/proposal`.
-2. Pass `reference_date` and `timezone` into assistant proposal context.
-3. Normalize EXPIRY_DATE spans deterministically rather than trusting the LLM.
-4. Prevent invalid LLM date output from causing HTTP 500.
-5. Surface reference date/timezone in `/annotate`.
-6. Remove or clearly expose the hidden `2026-09-01` seed reference date.
-7. Add temporal regression tests.
-8. Preserve event timestamps for future elapsed-time queries.
-9. Later introduce semantic `event_time` if retrospective statements are supported.
+1. Completed: load and preserve original inference temporal context.
+2. Completed: deterministically normalize parser, assistant, and queue expiry
+   values from that context.
+3. Completed: surface temporal context in expiry annotation.
+4. Completed: replace hidden expiry seed dates with explicit v2 cases.
+5. Next: preserve and query event timestamps for elapsed-time questions.
+6. Later: introduce semantic `event_time` for retrospective statements.
 
 ---
 

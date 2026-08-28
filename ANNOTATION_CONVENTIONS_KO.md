@@ -627,6 +627,8 @@ train과 evaluation에 나누어 넣지 않는다.
   `train_candidate` 수집이다.
   화면의 reference date, timezone, original inference timestamp는 원래 발화의
   의미를 복원하기 위한 값이며 annotation 시각으로 바꾸지 않는다.
+  `annotation-queue-seed-v2`의 각 expiry 문장은 서로 명시적인 temporal context를
+  가지며, v1의 hidden shared-date 의미를 정답으로 재사용하지 않는다.
 
 - `low-confidence queue`
   confidence가 낮거나 `unknown`, `needs_clarification`에 가까운 문장을 모은다.
