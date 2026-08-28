@@ -53,6 +53,7 @@ interface RequestContextPayload {
   turn_index?: number | null;
   speaker_role?: string | null;
   activation_mode?: string | null;
+  phrase_family?: string | null;
 }
 
 function parseDatasetExportTask(value: string): DatasetExportTask {
@@ -198,7 +199,11 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
       .slice(0, 12);
     const isSingleAction = exportedActions.length === 1;
     const phraseFamily = exportedActions.length === 0
-      ? String(row.annotation_phrase_family ?? generatedPhraseFamily)
+      ? String(
+          requestContext?.phrase_family ??
+          row.annotation_phrase_family ??
+          generatedPhraseFamily
+        )
       : isSingleAction
         ? String(exportedActions[0].phrase_family ?? generatedPhraseFamily)
         : `multi:${exportedActions.map((action) => action.phrase_family ?? action.intent).join("+")}`;

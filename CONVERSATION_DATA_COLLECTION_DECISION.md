@@ -322,6 +322,13 @@ silently mix. The new queues remain empty until an appropriate candidate JSONL
 is imported; this implementation provides collection infrastructure, not an
 automatically generated relevance corpus.
 
+The repository now includes `relevance-candidates-v1` as the first corpus for
+that import step. It contains 200 contextual/preference candidates, 300
+domain-non-actionable hard negatives, and 100 unrelated negatives across 35
+phrase families. The generated values remain candidate routing metadata; the
+addition of a committed candidate file does not change the human-ground-truth
+policy.
+
 ### Implementation commits
 
 - `b59d137`: persist first-class annotation relevance and add migration `0008`;

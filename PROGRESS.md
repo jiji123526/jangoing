@@ -20,6 +20,29 @@ Add new entries at the top of the log so the latest state is easy to find.
   domain-adjacent non-actionable language, and unrelated negatives.
 - Inference logs and reviewed exports now preserve optional conversation, turn,
   speaker, and activation metadata.
+- `relevance-candidates-v1` provides 600 reproducible non-actionable review
+  candidates across 35 phrase families.
+
+## 2026-08-28 - Relevance candidate dataset generated
+
+### Completed
+
+- Added a deterministic relevance candidate generator and versioned scenario
+  file.
+- Generated 200 contextual/preference, 300 domain non-actionable, and 100
+  unrelated candidates.
+- Added duplicate, class-count, phrase-family, grocery-overlap, candidate-only,
+  and manifest-hash validation.
+- Preserved imported generated phrase families through reviewed relevance
+  export so family leakage checks remain effective.
+- Documented production import and a 120-record pilot annotation plan.
+
+### Decision
+
+- Prioritize domain-adjacent hard negatives over easy unrelated negatives.
+- Keep generated relevance as queue metadata, not supervised ground truth.
+- Use existing reviewed actionable data for the fourth relevance class rather
+  than duplicating it in this non-actionable candidate corpus.
 
 ## 2026-08-28 - Conversation and activation metadata foundation added
 

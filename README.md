@@ -84,6 +84,9 @@ whether the final saved annotation matched that draft or was edited.
 Generated relevance candidates can be routed into dedicated preference/context,
 domain-non-actionable, and unrelated-negative queues. Their candidate label is
 only a UI preselection; the reviewed annotation remains the ground truth.
+The committed `relevance-candidates-v1` corpus provides 600 such review
+candidates across 35 phrase families and can be imported with
+`annotation:import-generated`.
 
 ## First ML Baseline
 

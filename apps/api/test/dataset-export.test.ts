@@ -282,7 +282,9 @@ describe("buildDatasetRecords", () => {
           relevance: "domain_non_actionable",
           actions: [],
         }),
-        request_context: null,
+        request_context: JSON.stringify({
+          phrase_family: "domain_non_actionable:price_observation",
+        }),
         parser_version: "rules-v1",
         outcome: "annotated",
         created_at: "2026-08-28T00:00:00.000Z",
@@ -307,6 +309,7 @@ describe("buildDatasetRecords", () => {
       intents: [],
       actions: [],
       has_annotation: true,
+      phrase_family: "domain_non_actionable:price_observation",
     });
     expect(record.intent).toBeUndefined();
   });

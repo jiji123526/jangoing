@@ -1,0 +1,256 @@
+{
+  "version": "relevance-scenarios-v1",
+  "classes": {
+    "contextual_preference": [
+      {
+        "id": "positive_preference",
+        "templates": [
+          "I prefer {item} to {other_item}.",
+          "Given a choice, I usually go for {item}."
+        ]
+      },
+      {
+        "id": "negative_preference",
+        "templates": [
+          "I do not really care for {item}.",
+          "The taste of {item} is not for me."
+        ]
+      },
+      {
+        "id": "dietary_restriction",
+        "templates": [
+          "{household_member} avoids {item}.",
+          "For {meal}, I try to stay away from {item}."
+        ]
+      },
+      {
+        "id": "texture_preference",
+        "templates": [
+          "The texture of {item} matters to me.",
+          "Texture is important to me when I choose {item}."
+        ]
+      },
+      {
+        "id": "household_preference",
+        "templates": [
+          "{household_member} really likes {item}.",
+          "Our household often chooses {item}."
+        ]
+      },
+      {
+        "id": "meal_routine",
+        "templates": [
+          "I usually include {meal_item} in {meal}.",
+          "I often choose {meal_item} for {meal}."
+        ]
+      },
+      {
+        "id": "budget_preference",
+        "templates": [
+          "I try to keep the cost of {item} low.",
+          "Price matters to me when I shop for {item}."
+        ]
+      },
+      {
+        "id": "cooking_preference",
+        "templates": [
+          "I enjoy recipes that use {cooking_item}.",
+          "When cooking, I prefer using {cooking_item}."
+        ]
+      },
+      {
+        "id": "health_goal",
+        "templates": [
+          "I am trying to include more {item} in my diet.",
+          "I want {meal} to include more {item}."
+        ]
+      },
+      {
+        "id": "substitution_preference",
+        "templates": [
+          "I would choose {item} instead of {other_item}.",
+          "When both are available, I prefer {item} over {other_item}."
+        ]
+      }
+    ],
+    "domain_non_actionable": [
+      {
+        "id": "price_observation",
+        "templates": [
+          "The cost of {item} has gone up lately.",
+          "The price of {item} was surprisingly high at {store}."
+        ]
+      },
+      {
+        "id": "past_meal_report",
+        "templates": [
+          "We had {meal_item} with {meal} yesterday.",
+          "{household_member} had {meal_item} for {meal} last week."
+        ]
+      },
+      {
+        "id": "recipe_instruction_quote",
+        "templates": [
+          "The recipe says to add {cooking_item} near the end.",
+          "This recipe tells you to mix {cooking_item} into the {dish}."
+        ]
+      },
+      {
+        "id": "store_availability_report",
+        "templates": [
+          "Yesterday, {store} was out of {item}.",
+          "I noticed {item} on display at {store}."
+        ]
+      },
+      {
+        "id": "product_comparison",
+        "templates": [
+          "I noticed a taste difference between {item} and {other_item}.",
+          "The packages for {item} and {other_item} are different sizes."
+        ]
+      },
+      {
+        "id": "nutrition_observation",
+        "templates": [
+          "I was surprised by the nutrition label on {item}.",
+          "I read that {item} can be part of a balanced {meal}."
+        ]
+      },
+      {
+        "id": "cooking_process_report",
+        "templates": [
+          "I added {cooking_item} while I was making {dish}.",
+          "Preparing {cooking_item} took longer than expected."
+        ]
+      },
+      {
+        "id": "future_meal_speculation",
+        "templates": [
+          "Maybe we will have {meal_item} for {meal} this weekend.",
+          "I might cook with {cooking_item} sometime next week."
+        ]
+      },
+      {
+        "id": "restaurant_experience",
+        "templates": [
+          "The restaurant included {meal_item} on its menu.",
+          "I tried a {dish} made with {cooking_item} at a restaurant."
+        ]
+      },
+      {
+        "id": "food_trend",
+        "templates": [
+          "People seem to be talking about {item} a lot lately.",
+          "I have seen {cooking_item} in more recipes lately."
+        ]
+      },
+      {
+        "id": "seasonality_observation",
+        "templates": [
+          "The quality of {produce_item} changes with the season.",
+          "During {season}, {store} carries more {produce_item}."
+        ]
+      },
+      {
+        "id": "package_observation",
+        "templates": [
+          "The new package for {item} is easier to recognize.",
+          "The packaging for {item} looks different now."
+        ]
+      },
+      {
+        "id": "food_memory",
+        "templates": [
+          "That smell reminds me of the {meal_item} we ate as kids.",
+          "I remember having {meal_item} on family trips."
+        ]
+      },
+      {
+        "id": "social_food_report",
+        "templates": [
+          "{household_member} said the {item} at the party was good.",
+          "A friend told me about a {dish} that uses {item}."
+        ]
+      },
+      {
+        "id": "general_food_question",
+        "templates": [
+          "Why does the taste of {cooking_item} change after cooking?",
+          "How do recipes typically use {cooking_item}?"
+        ]
+      }
+    ],
+    "unrelated": [
+      {
+        "id": "weather_statement",
+        "templates": [
+          "The weather in {place} has been {weather} all week.",
+          "It might be {weather} in {place} tomorrow."
+        ]
+      },
+      {
+        "id": "transport_statement",
+        "templates": [
+          "The {transport} was late again this morning.",
+          "Traffic near {place} was unusually slow today."
+        ]
+      },
+      {
+        "id": "work_statement",
+        "templates": [
+          "My {work_item} took most of the afternoon.",
+          "We moved the {work_item} to next week."
+        ]
+      },
+      {
+        "id": "entertainment_statement",
+        "templates": [
+          "I watched a {entertainment} last night.",
+          "That {entertainment} had a surprising ending."
+        ]
+      },
+      {
+        "id": "technology_statement",
+        "templates": [
+          "My {device} needs another software update.",
+          "The {device} has been running slowly today."
+        ]
+      },
+      {
+        "id": "sports_statement",
+        "templates": [
+          "The {sport} game went into overtime.",
+          "{household_member} watched the {sport} match yesterday."
+        ]
+      },
+      {
+        "id": "travel_statement",
+        "templates": [
+          "The flight to {place} was delayed.",
+          "I would like to visit {place} someday."
+        ]
+      },
+      {
+        "id": "home_maintenance_statement",
+        "templates": [
+          "The {home_item} needs to be repaired.",
+          "Someone is coming to inspect the {home_item} tomorrow."
+        ]
+      },
+      {
+        "id": "social_statement",
+        "templates": [
+          "{household_member} called me after work.",
+          "I met an old friend near {place}."
+        ]
+      },
+      {
+        "id": "finance_statement",
+        "templates": [
+          "The {finance_item} arrived earlier than expected.",
+          "I need to review the {finance_item} this weekend."
+        ]
+      }
+    ]
+  }
+}

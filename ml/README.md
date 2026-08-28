@@ -8,6 +8,25 @@ Generate the reproducible 800-record English bootstrap dataset:
 python ml/data_generation/generate_synthetic.py
 ```
 
+Generate the 600-record non-actionable relevance review candidates:
+
+```bash
+python3 ml/data_generation/generate_relevance_candidates.py
+```
+
+This produces 200 contextual/preference candidates, 300 domain-adjacent hard
+negatives, and 100 unrelated negatives across 35 phrase families. These are
+annotation candidates, not training labels. Import them to production D1 and
+human-review them before using `--task relevance`:
+
+```bash
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/relevance-candidates-v1.jsonl \
+  --label relevance-candidates-v1
+```
+
+See [the Korean candidate dataset record](../RELEVANCE_CANDIDATES_V1_KO.md).
+
 The current `synthetic-v1` keeps the same 800 balanced records but now draws
 from a broader 34-item grocery taxonomy and rotates English aliases for more
 surface variation. Condition-like modifiers such as `ripe` and `fresh` are no

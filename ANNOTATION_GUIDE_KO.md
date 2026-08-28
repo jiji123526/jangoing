@@ -284,6 +284,18 @@ relevance 후보 JSONL은 action intent 대신 `relevance`를 넣을 수 있다.
 `annotations.relevance` ground truth가 된다. `relevance`가 없는 기존 actionable
 JSONL은 계속 일반 `generated_review` queue로 간다.
 
+현재 repository에는 검수용 `relevance-candidates-v1` 600개가 포함되어 있다.
+
+```bash
+npm run annotation:import-generated -- --remote \
+  --input ml/datasets/relevance-candidates-v1.jsonl \
+  --label relevance-candidates-v1
+```
+
+구성은 preference/context 200, domain non-actionable 300, unrelated 100이다.
+처음에는 각각 40, 60, 20개만 pilot으로 검수한 뒤 family ambiguity와 문장 품질을
+확인한다. 상세 생성 기준은 `RELEVANCE_CANDIDATES_V1_KO.md`를 따른다.
+
 ### D1에서 queue data 확인하는 방법
 
 queue는 D1 안에 `correction_queue` 같은 별도 테이블로 저장되지 않는다. queue는

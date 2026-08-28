@@ -64,6 +64,9 @@ The text MVP is implemented and deployable:
   confirmed, and evaluation-holdout samples
 - Generated relevance review queues for contextual preferences,
   domain-adjacent non-actionable language, and small unrelated negative sets
+- Reproducible 600-record `relevance-candidates-v1` review corpus across 35
+  phrase families, with domain hard negatives prioritized over easy unrelated
+  negatives
 - Assistant-generated annotation drafts with proposal tracking and parser fallback
 - Production counters for training candidates (100–200 target) and evaluation
   candidates (100+ target)
@@ -124,9 +127,9 @@ These limitations are acceptable only while every state-changing action requires
   human review and do not yet provide calibrated confidence per span.
 - The single-action baseline gate is still implicit in ML code rather than a
   first-class export or annotation flag.
-- Relevance queue candidates currently depend on imported JSONL carrying an
-  explicit candidate relevance; broad, diverse candidate generation is still a
-  separate data-design task.
+- Relevance queue candidates now have a deterministic v1 corpus, but it remains
+  template-generated routing data. Human review and independent natural
+  evaluation utterances are still required.
 
 ## MVP Boundary
 
