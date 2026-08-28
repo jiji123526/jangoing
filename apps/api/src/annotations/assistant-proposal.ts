@@ -9,7 +9,7 @@ import {
 } from "@jangoing/contracts";
 import { z } from "zod";
 
-export const annotationAssistantPromptVersion = "annotation-ai-v2";
+export const annotationAssistantPromptVersion = "annotation-ai-v3";
 
 export interface InferenceProposalContext {
   inference_id: string;
@@ -156,7 +156,7 @@ function systemPrompt(): string {
     "Create 1 to 8 actions.",
     "Each action must contain:",
     "- intent",
-    "- optional phrase_family",
+    "- phrase_family selected from allowed_phrase_families for that action's intent, or null only when no family is semantically supported",
     "- entities with label, exact text from the utterance, start, end, and normalized_value when clear",
     "Entity start is the zero-based inclusive character offset and end is the zero-based exclusive offset.",
     "The utterance slice from start to end must exactly equal entity text, including case and punctuation.",
@@ -173,6 +173,7 @@ function userPrompt(context: InferenceProposalContext): string {
     raw_utterance: context.raw_utterance,
     parser_prediction: context.predicted_interpretation,
     allowed_intents: IntentSchema.options,
+    allowed_phrase_families: AnnotationPhraseFamilies,
     output_shape: {
       note: "string or null",
       actions: [{

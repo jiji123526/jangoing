@@ -263,6 +263,9 @@ Add new entries at the top of the log so the latest state is easy to find.
   annotator only reviews and edits.
 - Added entity highlights in the source utterance and a readable assistant label
   summary for each proposed action.
+- Added the complete intent-to-phrase-family convention map to assistant prompt
+  v3. The model selects only a family allowed for its chosen intent, while the
+  server retains whitelist validation and permits null when no family fits.
 - Documented parser fallback behavior and the conservative exact-substring span
   reconstruction rule.
 

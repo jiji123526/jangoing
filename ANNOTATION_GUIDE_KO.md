@@ -152,7 +152,8 @@ https://jangoing-web.vercel.app/annotate
    - system prompt:
      grocery annotation draft를 만들고 JSON만 반환하라는 규칙
    - user prompt:
-     `raw_utterance`, `parser_prediction`, `allowed_intents`
+     `raw_utterance`, `parser_prediction`, `allowed_intents`, intent별
+     `allowed_phrase_families`
    - model:
      `OPENAI_MODEL`이 있으면 그 값, 없으면 기본값 `gpt-4.1-mini`
    - decoding:
@@ -163,6 +164,8 @@ https://jangoing-web.vercel.app/annotate
    substring 검색으로 span 복원을 다시 시도한다.
 8. 두 복원 방식 모두 원문과 일치하지 않는 entity text는 버린다. intent에 맞지 않는
    phrase family도 저장하지 않고 `null`로 떨어뜨린다.
+   model은 선택한 intent에 허용된 phrase family 중 의미상 맞는 값을 선택하며,
+   어느 family도 확실히 맞지 않을 때만 `null`을 반환한다.
 9. 정리된 proposal은 `annotation_proposals` 테이블에 저장된다.
    저장 항목:
    `provider`, `model`, `prompt_version`, `proposal`, `note`, `status`,
