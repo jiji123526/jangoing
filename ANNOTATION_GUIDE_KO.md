@@ -113,8 +113,7 @@ https://jangoing-web.vercel.app/annotate
 13. `Save annotation`을 누른다.
 14. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열리고,
     화면 스크롤도 다시 맨 위로 돌아간다.
-    직접 입력한 수동 샘플이었다면 기본적으로 `generated_review` queue의 다음 샘플을
-    자동으로 시도한다.
+    직접 입력한 수동 샘플이었다면 마지막으로 선택한 queue의 다음 샘플을 시도한다.
 
 `contextual_preference`, `domain_non_actionable`, `unrelated`를 선택하면 AI draft,
 action, entity 단계가 숨겨지고 빈 action list로 저장된다. 이 세 relevance에
@@ -224,14 +223,19 @@ action, entity 단계가 숨겨지고 빈 action list로 저장된다. 이 세 r
 - `Load confirmed queue`: 실사용에서 맞았고 confirmed된 문장
 - `Load evaluation holdout`: evaluation 후보로 분리하려는 reviewed 문장
 
-페이지 첫 진입 시에는 annotator가 바로 시작할 수 있도록 `generated_review` queue를
-한 번 자동으로 불러온다. 이후에는 각 버튼으로 원하는 queue를 수동 전환하면 된다.
+이 브라우저에서 queue를 선택한 적이 없으면 첫 진입 시 `generated_review`를
+자동으로 불러온다. 이전 선택이 있으면 `localStorage`에서 마지막 queue를 복원하고
+그 queue를 자동으로 불러온다. 선택한 queue 버튼은 활성 상태로 표시된다.
 또한 queue에서 작업을 시작한 경우 `Save annotation` 뒤에는 같은 queue의 다음 샘플이
 자동으로 이어서 열리므로 반복 라벨링 속도가 더 빠르다.
 
 queue에서 불러온 샘플은 해당 raw text와 예측값을 기반으로 편집한다. correction이
-이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다. evaluation
-holdout 샘플은 dataset purpose도 기본적으로 `Evaluation candidate`로 선택된다.
+이미 저장된 샘플이면 reviewed intent가 기본 intent 선택에 반영된다.
+
+Dataset metadata의 `Purpose`도 이 브라우저의 마지막 선택을 `localStorage`에
+보존한다. queue 전환, annotation 저장 후 다음 샘플 로드, 새로고침은 purpose를
+강제로 바꾸지 않는다. 따라서 evaluation holdout을 사용할 때도 현재 purpose를
+반드시 확인하고 필요하면 직접 `Evaluation candidate`로 선택한다.
 
 로컬 annotation queue를 빠르게 채우고 싶다면 아래 명령으로 deterministic synthetic
 reviewed sample을 넣을 수 있다.
@@ -459,8 +463,9 @@ WHERE a.id IS NULL
   나중에 validation 또는 frozen test로 승인할 수 있는 independent evaluation
   candidate를 production flow에서 일찍부터 따로 쌓는 것
 - 주의:
-  이 큐에서 불러오면 dataset purpose가 기본적으로 `Evaluation candidate`가 된다.
-  다만 이것이 자동으로 최종 test set을 뜻하는 것은 아니다.
+  queue는 마지막 dataset purpose 선택을 덮어쓰지 않는다. 이 queue를 검수할 때는
+  `Evaluation candidate`가 선택됐는지 확인해야 하며, 이것이 자동으로 최종 test
+  set 승인을 뜻하는 것은 아니다.
 
 ### Queue와 dataset의 관계
 

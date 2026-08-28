@@ -651,6 +651,11 @@ queue는 **샘플을 어디서 가져왔는지**를 나타내고, dataset purpos
 근거가 있을 때 다른 purpose로 저장할 수 있다. 다만 이런 경우 notes에 이유를 남기는
 편이 좋다.
 
+UI는 마지막 queue와 dataset purpose를 브라우저에 각각 저장한다. 새로고침과 연속
+제출은 두 선택을 유지하며, queue가 purpose를 자동으로 바꾸지 않는다. 특히
+`evaluation holdout`을 검수할 때는 `Evaluation candidate`가 선택됐는지 사람이
+확인한다.
+
 세 relevance queue의 `candidate_relevance`는 생성 단계의 routing hint일 뿐 정답이
 아니다. 화면에서 preselect되어도 문장 자체를 읽고 네 relevance 중 하나를 다시
 판단한다. 사람이 저장한 `annotations.relevance`만 학습 ground truth로 사용한다.

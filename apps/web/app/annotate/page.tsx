@@ -17,6 +17,8 @@ import type {
 import {
   AnnotationNormalizedValues,
   AnnotationPhraseFamilies,
+  AnnotationQueueTypeSchema,
+  DatasetPurposeSchema,
 } from "@jangoing/contracts";
 import { ArrowLeft, Check, ChevronDown, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -69,6 +71,19 @@ const relevanceOptions: Array<{
     description: "Outside the kitchen, grocery, preference, and household context.",
   },
 ];
+const queueOptions: Array<{ type: AnnotationQueueType; label: string }> = [
+  { type: "correction", label: "Load correction queue" },
+  { type: "expiry", label: "Load expiry queue" },
+  { type: "low_confidence", label: "Load low-confidence queue" },
+  { type: "generated_review", label: "Load generated review" },
+  { type: "preference_context", label: "Load preference/context" },
+  { type: "domain_non_actionable", label: "Load domain non-actionable" },
+  { type: "unrelated_negative", label: "Load unrelated negative" },
+  { type: "confirmed_unannotated", label: "Load confirmed queue" },
+  { type: "evaluation_holdout", label: "Load evaluation holdout" },
+];
+const queueStorageKey = "jangoing.annotation.queue-type";
+const purposeStorageKey = "jangoing.annotation.dataset-purpose";
 const labels: EntityLabel[] = [
   "ITEM",
   "CATEGORY",
@@ -106,6 +121,22 @@ function readable(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function readStoredPreference(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storePreference(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Annotation remains usable when browser storage is unavailable.
+  }
 }
 
 function actionsEqual(left: AnnotationAction[], right: AnnotationAction[]): boolean {
@@ -506,7 +537,7 @@ function annotationSegments(text: string, entities: EntityAnnotation[]) {
 
 export default function AnnotatePage() {
   const textRef = useRef<HTMLDivElement>(null);
-  const initialGeneratedQueueLoadedRef = useRef(false);
+  const initialQueueLoadedRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [sample, setSample] = useState<LoggedInterpretation | null>(null);
   const [relevance, setRelevance] = useState<Relevance>("actionable");
@@ -516,6 +547,7 @@ export default function AnnotatePage() {
   const [purpose, setPurpose] = useState<DatasetPurpose>("train_candidate");
   const [notes, setNotes] = useState("");
   const [queueItem, setQueueItem] = useState<AnnotationQueueItem | null>(null);
+  const [selectedQueueType, setSelectedQueueType] = useState<AnnotationQueueType>("generated_review");
   const [stats, setStats] = useState<AnnotationStats>(emptyStats);
   const [normalizedOptions, setNormalizedOptions] = useState<AnnotationNormalizedValuesResponse>(
     initialNormalizedValueOptions(),
@@ -543,12 +575,23 @@ export default function AnnotatePage() {
   }, []);
 
   useEffect(() => {
-    if (initialGeneratedQueueLoadedRef.current) {
+    if (initialQueueLoadedRef.current) {
       return;
     }
 
-    initialGeneratedQueueLoadedRef.current = true;
-    void loadQueue("generated_review");
+    initialQueueLoadedRef.current = true;
+    const storedQueue = AnnotationQueueTypeSchema.safeParse(
+      readStoredPreference(queueStorageKey),
+    );
+    const storedPurpose = DatasetPurposeSchema.safeParse(
+      readStoredPreference(purposeStorageKey),
+    );
+    const initialQueue = storedQueue.success ? storedQueue.data : "generated_review";
+    setSelectedQueueType(initialQueue);
+    if (storedPurpose.success) {
+      setPurpose(storedPurpose.data);
+    }
+    void loadQueue(initialQueue);
   }, []);
 
   function resetEditorState() {
@@ -619,11 +662,15 @@ export default function AnnotatePage() {
     }]);
     setActiveActionIndex(0);
     setSelection(null);
-    setPurpose(item.queue_type === "evaluation_holdout" ? "evaluation_candidate" : "train_candidate");
     setNotes("");
     setDraft(item.text);
     setQueueItem(item);
     setAssistantProposal(null);
+  }
+
+  function selectPurpose(nextPurpose: DatasetPurpose) {
+    setPurpose(nextPurpose);
+    storePreference(purposeStorageKey, nextPurpose);
   }
 
   function selectRelevance(nextRelevance: Relevance) {
@@ -644,6 +691,8 @@ export default function AnnotatePage() {
   }
 
   async function loadQueue(type: AnnotationQueueType) {
+    setSelectedQueueType(type);
+    storePreference(queueStorageKey, type);
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -657,7 +706,7 @@ export default function AnnotatePage() {
       const correctedIntent = item.reviewed_interpretation?.intent;
       setNotice(
         type === "evaluation_holdout"
-          ? "Loaded a reviewed holdout example and preselected it as an evaluation candidate."
+          ? "Loaded a reviewed holdout example. Your current dataset purpose selection was preserved."
           : type === "generated_review"
           ? "Loaded a pregenerated review example. Use it to broaden coverage, but treat the reference intent as a starting point rather than final truth."
           : type === "preference_context"
@@ -793,7 +842,7 @@ export default function AnnotatePage() {
 
   async function saveAnnotation() {
     if (!sample) return;
-    const nextQueueType: AnnotationQueueType = queueItem?.queue_type ?? "generated_review";
+    const nextQueueType = selectedQueueType;
     const submittedActions = relevance === "actionable" ? actions : [];
     const validationError = missingNormalizedValueError(submittedActions);
     if (validationError) {
@@ -888,38 +937,26 @@ export default function AnnotatePage() {
               aria-controls="annotation-queue-options"
               onClick={() => setQueueSelectorOpen((current) => !current)}
             >
-              <span><b>Queue selector</b><small>Load a specific review source</small></span>
+              <span><b>Queue selector</b><small>Last queue: {readable(selectedQueueType)}</small></span>
               <ChevronDown className={queueSelectorOpen ? styles.queueChevronOpen : ""} size={18} />
             </button>
             {queueSelectorOpen ? <div id="annotation-queue-options" className={styles.queueActions}>
               <div className={styles.queueButtons}>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("correction")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load correction queue
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("expiry")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load expiry queue
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("low_confidence")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load low-confidence queue
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("generated_review")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load generated review
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("preference_context")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load preference/context
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("domain_non_actionable")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load domain non-actionable
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("unrelated_negative")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load unrelated negative
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("confirmed_unannotated")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load confirmed queue
-              </button>
-              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("evaluation_holdout")}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load evaluation holdout
-              </button>
+              {queueOptions.map((option) => (
+                <button
+                  key={option.type}
+                  type="button"
+                  className={`${styles.secondaryButton} ${
+                    selectedQueueType === option.type ? styles.selectedQueueButton : ""
+                  }`}
+                  disabled={busy}
+                  aria-pressed={selectedQueueType === option.type}
+                  onClick={() => void loadQueue(option.type)}
+                >
+                  {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />}
+                  {option.label}
+                </button>
+              ))}
               </div>
               <p>Review actionable coverage, production corrections, or generated relevance candidates. Candidate relevance is only a preselection and must be confirmed by the annotator.</p>
             </div> : null}
@@ -1123,7 +1160,7 @@ export default function AnnotatePage() {
             <section className={styles.card}>
               <div className={styles.step}><span>{relevance === "actionable" ? "5" : "3"}</span><div><b>Dataset metadata</b><small>Evaluation candidates should be natural, independent examples—not rewritten training templates.</small></div></div>
               <div className={styles.metaGrid}>
-                <label><span>Purpose</span><select value={purpose} onChange={(event) => setPurpose(event.target.value as DatasetPurpose)}>
+                <label><span>Purpose</span><select value={purpose} onChange={(event) => selectPurpose(event.target.value as DatasetPurpose)}>
                   <option value="train_candidate">Training candidate</option><option value="evaluation_candidate">Evaluation candidate</option>
                 </select></label>
                 <label className={styles.full}><span>Notes <small>optional</small></span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ambiguity or labeling rationale" /></label>

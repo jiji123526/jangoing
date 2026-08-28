@@ -22,6 +22,28 @@ Add new entries at the top of the log so the latest state is easy to find.
   speaker, and activation metadata.
 - `relevance-candidates-v1` provides 600 reproducible non-actionable review
   candidates across 35 phrase families.
+- `/annotate` preserves the last queue and dataset purpose across refreshes and
+  consecutive submissions in the same browser.
+
+## 2026-08-28 - Annotation queue and purpose preferences persisted
+
+### Completed
+
+- Stored the last selected queue type and dataset purpose in browser
+  `localStorage`.
+- Reloaded the last queue on page refresh instead of always returning to
+  `generated_review`.
+- Preserved dataset purpose while switching queues and loading the next sample
+  after submission.
+- Added an active visual state and accessible `aria-pressed` value to the
+  selected queue button.
+- Kept the annotation page usable when browser storage is unavailable.
+
+### Decision
+
+- Queue source and dataset purpose are independent annotator choices.
+- Evaluation holdout no longer silently overrides a deliberately selected
+  purpose; the annotator must verify the metadata before saving.
 
 ## 2026-08-28 - Relevance candidate dataset generated
 
