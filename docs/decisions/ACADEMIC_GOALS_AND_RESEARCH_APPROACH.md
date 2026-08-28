@@ -274,6 +274,8 @@ Evaluation also separates generated and actual-user performance.
 | Entity representation | Exact character spans plus normalized values | Supports independent span and normalization evaluation. |
 | Product conditions | Identity-changing modifiers remain in ITEM; temporary state wording usually remains contextual | Distinguishes products such as `frozen_blueberries` from transient states such as `spoiled`. |
 | Canonical vocabulary | Reviewed ITEM/CATEGORY/UNIT values may grow during annotation | A closed grocery list cannot cover real products, but reviewed growth preserves human oversight. |
+| External product data | Use Open Food Facts as a curated catalog and entity-linking source, not utterance ground truth | Product records provide names, brands, and categories but do not provide household action intents or natural command labels. |
+| Brand representation | Keep branded product mentions as full ITEM spans for the MVP | A separate BRAND label adds cost without a current independent brand-level action or constraint. |
 | Relative dates | Original `reference_date + timezone` | Keeps meaning stable when annotation occurs later. |
 | Date calculation | Deterministic normalizer, not LLM output | Calendar calculation must be reproducible and schema-valid. |
 | Annotation assistance | AI drafts followed by mandatory human review | Reduces labeling effort without treating model output as ground truth. |
@@ -483,6 +485,8 @@ Implemented:
 Open:
 
 - dataset audit and near-duplicate reports;
+- versioned `grocery-v2` catalog schema and canonical migration rules;
+- curated Open Food Facts import and exact-alias entity-linking baseline;
 - frozen external-evaluation support in the trainer;
 - relevance baseline training;
 - DistilBERT intent and relevance models;
@@ -494,6 +498,9 @@ Open:
 
 Immediate execution items are tracked in
 [ACTION_ITEMS.md](../planning/ACTION_ITEMS.md).
+The external product-catalog decision and implementation sequence are detailed
+in
+[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md).
 
 ## Selected Foundations
 

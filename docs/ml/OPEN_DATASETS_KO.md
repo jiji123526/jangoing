@@ -272,6 +272,12 @@ data/external/grocery_ner/mapped/
 `MASSIVE`와 `SNIPS`는 vocabulary import가 아니라 model experiment track으로 다루는
 편이 낫다.
 
+Open Food Facts는 같은 원칙으로 다루되 규모와 product-record 중복을 고려해 별도
+catalog track으로 관리한다. 브랜드, alias, category 후보로 사용하는 방법과
+`grocery-v2` 선행 조건은
+[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](./OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)에
+정리되어 있다.
+
 ## synthetic-v1 확장과의 관계
 
 이번 synthetic 확장은 공개셋이 아직 직접 연결되지 않은 상태에서, 내부 bootstrap

@@ -21,6 +21,7 @@ operational guides, decisions, and learning references live in this directory.
 - [Model evaluation standard](./ml/MODEL_EVALUATION.md)
 - [Synthetic dataset design](./ml/SYNTHETIC_V1_KO.md)
 - [Open dataset research](./ml/OPEN_DATASETS_KO.md)
+- [Open Food Facts and brand normalization strategy](./ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)
 
 ## Decisions
 

@@ -169,3 +169,25 @@ Before accepting a new model:
 
 Verify one production expiry annotation end to end, and then complete the
 300/100 workflow pilot before expanding the dataset aggressively.
+
+## Product Catalog Track
+
+This track is independent of the first intent/relevance baseline. Do not delay
+the current annotation milestone to import a large external catalog.
+
+- [ ] Verify the current Open Food Facts schema and license obligations from
+  its official dataset documentation.
+- [ ] Define a versioned `grocery-v2` schema for category, product family,
+  brand, item, aliases, provenance, and canonical lifecycle.
+- [ ] Write migration decisions for current conflicts including `soda`,
+  `milk`, and `whole_milk`.
+- [ ] Remove taxonomy knowledge duplication between the catalog and hardcoded
+  normalized-value seeds.
+- [ ] Build a filtered importer for 100-500 curated English product concepts.
+- [ ] Implement an exact-alias entity-linking baseline before fuzzy or
+  embedding retrieval.
+- [ ] Add seen-product, unseen-alias, unseen-product, and catalog-unknown
+  evaluation slices.
+
+The rationale and safeguards are in
+[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md).

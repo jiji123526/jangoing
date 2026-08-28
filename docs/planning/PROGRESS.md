@@ -2,6 +2,36 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-28 - Open Food Facts and brand normalization decision documented
+
+### Completed
+
+- Documented Open Food Facts as a product catalog and entity-linking source,
+  not an intent or relevance utterance dataset.
+- Defined MVP branded mentions as full `ITEM` spans and deferred a separate
+  `BRAND` entity until the product supports independent brand constraints.
+- Proposed a `grocery-v2` structure with category, product family, brand, item,
+  aliases, provenance, and canonical lifecycle.
+- Recorded a curated 100-500 English concept import strategy, exact-alias
+  linker baseline, and leakage-safe product evaluation slices.
+- Added explicit license and dataset-schema verification gates before download
+  or production use.
+
+### Decisions
+
+- Do not copy the complete Open Food Facts database into D1 or the normalized
+  annotation list.
+- Keep external rows as candidates until filtering and human canonical review.
+- Preserve mention specificity: generic categories, generic items, and branded
+  products must not be silently collapsed into one another.
+- Define `grocery-v2` and migration rules before implementing the importer.
+
+### Next
+
+- Continue the current reviewed-annotation milestone independently.
+- Verify official Open Food Facts terms and schema.
+- Design and review the `grocery-v2` schema as the first catalog implementation.
+
 ## Current state as of 2026-08-28
 
 - The project now has an explicit academic framing covering research questions,
