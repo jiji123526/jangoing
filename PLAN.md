@@ -124,7 +124,9 @@ These limitations are acceptable only while every state-changing action requires
   aliases such as `ripe bananas`, but it still does not emit comprehensive
   `ITEM_CONDITION` span labels for condition-sensitive slot training.
 - Assistant drafts can accelerate labeling, but they are not a substitute for
-  human review and do not yet provide calibrated confidence per span.
+  human review and do not yet provide calibrated confidence per span. Prompt
+  v6 receives original temporal context, and server code deterministically
+  normalizes expiry spans instead of trusting model-generated calendar dates.
 - The single-action baseline gate is still implicit in ML code rather than a
   first-class export or annotation flag.
 - Relevance queue candidates now have a deterministic v1 corpus, but it remains

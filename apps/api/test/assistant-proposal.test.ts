@@ -9,6 +9,10 @@ import {
 const context = {
   inference_id: "00000000-0000-4000-8000-000000000010",
   raw_utterance: "Please add milk and eggs expiring tomorrow.",
+  temporal_context: {
+    reference_date: "2026-08-27",
+    timezone: "America/Los_Angeles",
+  },
   predicted_interpretation: {
     intent: "add_item" as const,
     slots: {
@@ -56,6 +60,10 @@ describe("buildAnnotationAssistantUserPrompt", () => {
     expect(prompt.preferred_normalized_values.ITEM[0]).toBe("item_0");
     expect(prompt.preferred_normalized_values.UNIT).toEqual(["carton"]);
     expect(prompt.preferred_normalized_values.ITEM_CONDITION).toBeUndefined();
+    expect(prompt.temporal_context).toEqual({
+      reference_date: "2026-08-27",
+      timezone: "America/Los_Angeles",
+    });
   });
 });
 
@@ -74,7 +82,7 @@ describe("materializeProposalDraft", () => {
           },
         ],
       }],
-    })).toEqual([{
+    }, context.temporal_context)).toEqual([{
       intent: "throw_away",
       phrase_family: "spoiled_item_discard",
       entities: [{
@@ -98,7 +106,7 @@ describe("materializeProposalDraft", () => {
           normalized_value: "frozen_blueberry",
         }],
       }],
-    })).toEqual([{
+    }, context.temporal_context)).toEqual([{
       intent: "add_item",
       phrase_family: "explicit_add_to_inventory",
       entities: [{
@@ -118,7 +126,7 @@ describe("materializeProposalDraft", () => {
         phrase_family: null,
         entities: [{ label: "ITEM", normalized_value: "milk" }],
       }],
-    })).toEqual([{
+    }, context.temporal_context)).toEqual([{
       intent: "mark_out",
       phrase_family: null,
       entities: [],
@@ -137,6 +145,7 @@ describe("materializeProposalDraft", () => {
           ],
         }],
       },
+      context.temporal_context,
     );
 
     expect(actions).toEqual([{
@@ -163,7 +172,7 @@ describe("materializeProposalDraft", () => {
           { label: "ITEM", text: "oat milk", start: 19, end: 27, normalized_value: "oat_milk" },
         ],
       }],
-    });
+    }, context.temporal_context);
 
     expect(actions[0]?.entities).toEqual([
       { label: "QUANTITY", text: "two", start: 4, end: 7, normalized_value: 2 },
@@ -184,9 +193,70 @@ describe("materializeProposalDraft", () => {
           ],
         }],
       },
+      context.temporal_context,
     );
 
     expect(actions[0]?.phrase_family).toBeNull();
+  });
+
+  it("overrides an LLM expiry value using the original temporal context", () => {
+    const actions = materializeProposalDraft(
+      "The milk expires tomorrow.",
+      {
+        actions: [{
+          intent: "update_expiry",
+          phrase_family: "expiry_metadata_report",
+          entities: [
+            { label: "ITEM", text: "milk", normalized_value: "milk" },
+            {
+              label: "EXPIRY_DATE",
+              text: "tomorrow",
+              normalized_value: "tomorrow",
+            },
+          ],
+        }],
+      },
+      context.temporal_context,
+    );
+
+    expect(actions[0]?.entities).toContainEqual({
+      label: "EXPIRY_DATE",
+      start: 17,
+      end: 25,
+      text: "tomorrow",
+      normalized_value: "2026-08-28",
+    });
+  });
+
+  it("drops only an unparseable expiry entity", () => {
+    expect(materializeProposalDraft(
+      "Update the milk expiry to whenever.",
+      {
+        actions: [{
+          intent: "update_expiry",
+          phrase_family: null,
+          entities: [
+            { label: "ITEM", text: "milk", normalized_value: "milk" },
+            {
+              label: "EXPIRY_DATE",
+              text: "whenever",
+              normalized_value: "not-an-iso-date",
+            },
+          ],
+        }],
+      },
+      context.temporal_context,
+    )).toEqual([{
+      intent: "update_expiry",
+      phrase_family: null,
+      entities: [{
+        label: "ITEM",
+        start: 11,
+        end: 15,
+        text: "milk",
+        normalized_value: "milk",
+      }],
+    }]);
   });
 });
 
@@ -203,6 +273,7 @@ describe("proposalMatchesActions", () => {
           ],
         }],
       },
+      context.temporal_context,
     );
 
     expect(proposalMatchesActions({ actions }, actions)).toBe(true);

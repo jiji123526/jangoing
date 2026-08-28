@@ -26,6 +26,10 @@ function isValidTimezone(timezone: string): boolean {
   }
 }
 
+function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 export function localIsoDate(
   timestamp: Date,
   timezone: string,
@@ -53,11 +57,41 @@ export function resolveTemporalGrounding(
     ? input.timezone
     : "UTC";
   return {
-    reference_date: input.reference_date ?? (
+    reference_date: input.reference_date && isIsoDate(input.reference_date)
+      ? input.reference_date
+      : (
       timezone === "UTC" ? utcIsoDate(now) : localIsoDate(now, timezone)
-    ),
+      ),
     timezone,
   };
+}
+
+export function resolveStoredTemporalGrounding(
+  requestContext: string | null,
+  inferenceCreatedAt: string,
+): TemporalGroundingContext {
+  let input: TemporalGroundingInput = {};
+  if (requestContext) {
+    try {
+      const parsed = JSON.parse(requestContext) as Record<string, unknown>;
+      input = {
+        ...(typeof parsed.reference_date === "string"
+          ? { reference_date: parsed.reference_date }
+          : {}),
+        ...(typeof parsed.timezone === "string"
+          ? { timezone: parsed.timezone }
+          : {}),
+      };
+    } catch {
+      // Old or malformed context still has a stable fallback in created_at.
+    }
+  }
+
+  const createdAt = new Date(inferenceCreatedAt);
+  return resolveTemporalGrounding(
+    input,
+    Number.isNaN(createdAt.getTime()) ? new Date(0) : createdAt,
+  );
 }
 
 function utcNoonForIsoDate(value: string): Date {
@@ -74,7 +108,7 @@ export function normalizeExpiryDate(
   }
 
   const value = rawValue.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (isIsoDate(value)) {
     return value;
   }
 

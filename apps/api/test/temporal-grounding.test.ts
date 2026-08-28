@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeExpiryDate,
+  resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
 } from "../src/nlp/temporal-grounding";
 
@@ -58,5 +59,28 @@ describe("temporal grounding", () => {
       reference_date: "2026-08-27",
       timezone: "UTC",
     })).toBeUndefined();
+  });
+
+  it("recovers stored context without using the current processing time", () => {
+    expect(resolveStoredTemporalGrounding(
+      JSON.stringify({
+        reference_date: "2026-08-27",
+        timezone: "America/Los_Angeles",
+      }),
+      "2026-09-15T10:00:00.000Z",
+    )).toEqual({
+      reference_date: "2026-08-27",
+      timezone: "America/Los_Angeles",
+    });
+  });
+
+  it("falls back to inference creation time for malformed stored context", () => {
+    expect(resolveStoredTemporalGrounding(
+      "{not-json",
+      "2026-08-28T06:30:00.000Z",
+    )).toEqual({
+      reference_date: "2026-08-28",
+      timezone: "UTC",
+    });
   });
 });

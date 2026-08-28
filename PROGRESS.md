@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Annotation assistant prompt v6 receives the original temporal context, while
+  deterministic server code validates and normalizes expiry spans.
 - Interpretation now resolves and stores an effective `reference_date` and
   validated `timezone` for every request, and shared deterministic code
   normalizes relative expiry phrases from that original temporal context.
@@ -27,6 +29,33 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Assistant expiry proposals grounded to inference time
+
+### Completed
+
+- Loaded `request_context` and original `created_at` for Worker and local
+  assistant proposal requests.
+- Included effective `reference_date` and `timezone` in assistant prompt v6.
+- Restricted the LLM to exact expiry span identification instead of calendar
+  calculation.
+- Ignored model-supplied expiry normalization and recomputed it with the shared
+  deterministic normalizer.
+- Dropped only an unparseable expiry entity while preserving its action and
+  other valid entities.
+- Added prompt, valid relative-date, invalid model-date, and stored-context
+  fallback regression tests.
+
+### Decision
+
+- An LLM may identify temporal language but is not a calendar authority.
+- Old records with missing or malformed request context fall back to the
+  original inference timestamp in UTC, never the later proposal timestamp.
+
+### Remaining
+
+- Queue responses and `/annotate` still need to expose this context and the
+  server-derived expiry suggestion.
 
 ## 2026-08-28 - Shared temporal grounding added
 

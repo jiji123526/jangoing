@@ -24,10 +24,29 @@ consulting its current clock.
 Regression tests cover stored reference dates, later processing, timezone
 boundaries, invalid timezone fallback, and invalid date text.
 
+### Completed: temporally grounded assistant drafts
+
+Assistant proposal lookup now loads `request_context` and the original
+inference `created_at`. The resulting effective `reference_date` and `timezone`
+are included in the assistant prompt.
+
+The assistant is responsible only for locating the exact `EXPIRY_DATE` text
+span. During proposal materialization, the API ignores any expiry normalized
+value supplied by the model and computes the ISO date with the shared
+deterministic normalizer:
+
+```text
+exact raw span + original temporal context -> YYYY-MM-DD
+```
+
+If the date span cannot be normalized, only that entity is dropped. The action
+and other valid entities remain available for human review, so malformed model
+date output no longer turns the proposal into an HTTP 500 response.
+
+The prompt contract is versioned as `annotation-ai-v6`.
+
 ### Remaining
 
-- Pass stored temporal context into assistant proposals and deterministically
-  normalize assistant-produced `EXPIRY_DATE` spans.
 - Return stored context and normalized expiry suggestions from annotation
   queues, then display them in `/annotate`.
 - Replace the v1 expiry seed assumptions with explicit per-example temporal
@@ -339,6 +358,8 @@ The date must never be hidden from the annotator.
 
 ## Required Fix 2: Pass Temporal Context Into Assistant Drafts
 
+**Status: implemented in `annotation-ai-v6`.**
+
 The current assistant proposal lookup reads:
 
 ```sql
@@ -387,6 +408,8 @@ Conceptually:
 ---
 
 ## Required Fix 3: Do Not Let the LLM Calculate Calendar Dates
+
+**Status: implemented in `annotation-ai-v6`.**
 
 The existing project principle should remain:
 

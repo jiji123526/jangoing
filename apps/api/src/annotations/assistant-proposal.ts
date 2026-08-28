@@ -9,13 +9,18 @@ import {
   type Interpretation,
 } from "@jangoing/contracts";
 import { z } from "zod";
+import {
+  normalizeExpiryDate,
+  type TemporalGroundingContext,
+} from "../nlp/temporal-grounding";
 
-export const annotationAssistantPromptVersion = "annotation-ai-v5";
+export const annotationAssistantPromptVersion = "annotation-ai-v6";
 
 export interface InferenceProposalContext {
   inference_id: string;
   raw_utterance: string;
   predicted_interpretation: Interpretation;
+  temporal_context: TemporalGroundingContext;
   preferred_normalized_values?: AnnotationNormalizedValuesResponse;
 }
 
@@ -82,6 +87,7 @@ function uniqueEntityTextRanges(
 function materializeAction(
   rawUtterance: string,
   action: LlmProposalDraft["actions"][number],
+  temporalContext: TemporalGroundingContext,
 ): AnnotationAction {
   const usedRanges: Array<{ start: number; end: number }> = [];
 
@@ -117,14 +123,21 @@ function materializeAction(
       return [];
     }
 
+    const normalizedValue = entity.label === "EXPIRY_DATE"
+      ? normalizeExpiryDate(match.text, temporalContext)
+      : entity.normalized_value;
+    if (entity.label === "EXPIRY_DATE" && !normalizedValue) {
+      return [];
+    }
+
     usedRanges.push({ start: match.start, end: match.end });
     return [{
       label: entity.label,
       start: match.start,
       end: match.end,
       text: match.text,
-      ...(entity.normalized_value !== undefined
-        ? { normalized_value: entity.normalized_value }
+      ...(normalizedValue !== undefined
+        ? { normalized_value: normalizedValue }
         : {}),
     }];
   });
@@ -144,9 +157,12 @@ function materializeAction(
 export function materializeProposalDraft(
   rawUtterance: string,
   draft: unknown,
+  temporalContext: TemporalGroundingContext,
 ): AnnotationAction[] {
   const parsed = LlmProposalDraftSchema.parse(draft);
-  return parsed.actions.map((action) => materializeAction(rawUtterance, action));
+  return parsed.actions.map((action) =>
+    materializeAction(rawUtterance, action, temporalContext)
+  );
 }
 
 function parserFallbackActions(context: InferenceProposalContext): AnnotationAction[] {
@@ -176,6 +192,8 @@ function systemPrompt(): string {
     "Use the intent and phrase_family to capture those linguistic patterns instead of turning them into entity spans.",
     "For normalized_value, reuse a semantically equivalent value from preferred_normalized_values whenever one exists.",
     "Create a new canonical normalized value only when none of the existing values accurately represents the entity.",
+    "For EXPIRY_DATE, return the exact temporal text span but do not calculate or guess its normalized calendar date.",
+    "The server deterministically normalizes EXPIRY_DATE from temporal_context.",
     "Do not invent text that does not appear in the utterance.",
     "If unsure, omit the entity instead of hallucinating it.",
     "Prefer conservative intents such as needs_clarification over overcommitting.",
@@ -193,6 +211,7 @@ export function buildAnnotationAssistantUserPrompt(context: InferenceProposalCon
 
   return JSON.stringify({
     raw_utterance: context.raw_utterance,
+    temporal_context: context.temporal_context,
     parser_prediction: context.predicted_interpretation,
     allowed_intents: IntentSchema.options,
     allowed_phrase_families: AnnotationPhraseFamilies,
@@ -274,7 +293,11 @@ async function requestOpenAiDraft(
     provider: "openai",
     model,
     note: draft.note ?? null,
-    actions: materializeProposalDraft(context.raw_utterance, draft),
+    actions: materializeProposalDraft(
+      context.raw_utterance,
+      draft,
+      context.temporal_context,
+    ),
     usage: {
       input_tokens: inputTokens,
       output_tokens: outputTokens,

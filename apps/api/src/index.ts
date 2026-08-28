@@ -26,7 +26,10 @@ import {
 } from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { parseCommand } from "./nlp/parse-command";
-import { resolveTemporalGrounding } from "./nlp/temporal-grounding";
+import {
+  resolveStoredTemporalGrounding,
+  resolveTemporalGrounding,
+} from "./nlp/temporal-grounding";
 
 interface Env {
   DB: D1Database;
@@ -260,10 +263,13 @@ async function handleAnnotationAssistantProposal(
   }
 
   const inference = await env.DB.prepare(
-    "SELECT raw_utterance, predicted_interpretation FROM inference_logs WHERE id = ?",
+    `SELECT raw_utterance, predicted_interpretation, request_context, created_at
+     FROM inference_logs WHERE id = ?`,
   ).bind(parsed.data.inference_id).first<{
     raw_utterance: string;
     predicted_interpretation: string;
+    request_context: string | null;
+    created_at: string;
   }>();
 
   if (!inference) {
@@ -293,6 +299,10 @@ async function handleAnnotationAssistantProposal(
     inference_id: parsed.data.inference_id,
     raw_utterance: inference.raw_utterance,
     predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
+    temporal_context: resolveStoredTemporalGrounding(
+      inference.request_context,
+      inference.created_at,
+    ),
     preferred_normalized_values: collectAnnotationNormalizedValues(normalizedValueRows.results),
   });
   const { usage, ...proposalDraft } = generated;

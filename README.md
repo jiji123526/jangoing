@@ -172,6 +172,8 @@ The current language layer is a deterministic regular-expression parser, not a t
 - Item normalization currently contains only a small alias list.
 - Assistant drafts are annotation helpers only. They can miss spans, choose the
   wrong phrase family, or fall back to the parser when no OpenAI key is configured.
+  Expiry spans are deterministically normalized from stored inference context;
+  model-supplied calendar dates are never trusted directly.
 - `ITEM_CONDITION` is available in reviewed annotation, but the runtime parser
   and bootstrap synthetic generator do not yet emit that entity label
   consistently on their own.
