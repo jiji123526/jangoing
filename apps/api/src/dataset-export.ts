@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { RelevanceSchema, type Relevance } from "@jangoing/contracts";
+import {
+  ActivationModeSchema,
+  RelevanceSchema,
+  SpeakerRoleSchema,
+  type ActivationMode,
+  type Relevance,
+  type SpeakerRole,
+} from "@jangoing/contracts";
 
 export type DatasetPurpose = "train_candidate" | "evaluation_candidate";
 export type DatasetExportTask = "relevance" | "intent" | "slots" | "joint";
@@ -29,6 +36,10 @@ export interface DatasetRecord {
   has_annotation: boolean;
   reference_date?: string;
   timezone?: string;
+  conversation_id?: string;
+  turn_index?: number;
+  speaker_role?: SpeakerRole;
+  activation_mode?: ActivationMode;
   intent?: string;
   slots?: unknown;
   entities?: unknown;
@@ -38,6 +49,10 @@ interface RequestContextPayload {
   expiration_date?: string | null;
   reference_date?: string | null;
   timezone?: string | null;
+  conversation_id?: string | null;
+  turn_index?: number | null;
+  speaker_role?: string | null;
+  activation_mode?: string | null;
 }
 
 function parseDatasetExportTask(value: string): DatasetExportTask {
@@ -209,6 +224,16 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
       has_annotation: row.annotation_created_at !== null,
       ...(requestContext?.reference_date ? { reference_date: requestContext.reference_date } : {}),
       ...(requestContext?.timezone ? { timezone: requestContext.timezone } : {}),
+      ...(requestContext?.conversation_id ? { conversation_id: requestContext.conversation_id } : {}),
+      ...(typeof requestContext?.turn_index === "number"
+        ? { turn_index: requestContext.turn_index }
+        : {}),
+      ...(requestContext?.speaker_role
+        ? { speaker_role: SpeakerRoleSchema.parse(requestContext.speaker_role) }
+        : {}),
+      ...(requestContext?.activation_mode
+        ? { activation_mode: ActivationModeSchema.parse(requestContext.activation_mode) }
+        : {}),
     });
   }
 

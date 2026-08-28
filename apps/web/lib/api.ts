@@ -19,6 +19,8 @@ import {
   type UpdateInferenceOutcomeRequest,
   type InventoryItem,
   type ShoppingListItem,
+  type ActivationMode,
+  type SpeakerRole,
 } from "@jangoing/contracts";
 import { z } from "zod";
 
@@ -66,6 +68,12 @@ async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
 export async function interpretCommand(
   text: string,
   expirationDate?: string,
+  context?: {
+    conversation_id?: string;
+    turn_index?: number;
+    speaker_role?: SpeakerRole;
+    activation_mode?: ActivationMode;
+  },
 ): Promise<LoggedInterpretation> {
   const body = await apiRequest("/commands/interpret", {
     method: "POST",
@@ -74,6 +82,10 @@ export async function interpretCommand(
       ...(expirationDate ? { expiration_date: expirationDate } : {}),
       reference_date: localReferenceDate(),
       timezone: localTimezone(),
+      speaker_role: context?.speaker_role ?? "user",
+      activation_mode: context?.activation_mode ?? "manual_text",
+      ...(context?.conversation_id ? { conversation_id: context.conversation_id } : {}),
+      ...(context?.turn_index !== undefined ? { turn_index: context.turn_index } : {}),
     }),
   });
 

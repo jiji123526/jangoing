@@ -58,9 +58,10 @@ Report at minimum:
 - p50/p95 end-to-end and stage latency
 - multi-action exact match, per-action intent F1, and action-to-entity assignment F1
 
-Always slice results by phrasing family, input modality, utterance length,
-action count, multi-turn dependency, ambiguity, ASR noise, unseen item, date expression, and
-user goal. A single aggregate score is not sufficient.
+Always slice results by phrasing family, input modality or activation mode,
+speaker role, utterance length, action count, multi-turn dependency, ambiguity,
+ASR noise, unseen item, date expression, and user goal. A single aggregate
+score is not sufficient.
 
 The current TF-IDF baseline is explicitly single-intent. Exported multi-action
 records must not be collapsed to their first intent; they are excluded and the

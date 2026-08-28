@@ -182,6 +182,9 @@ The current language layer is a deterministic regular-expression parser, not a t
   `expiring tomorrow`, `expires next Friday`, and `with expiry date on August twenty-eighth`,
   and the browser's `reference_date` and `timezone` are now logged for replay,
   but broader date-context handling is still incomplete.
+- Interpretation requests can carry optional `conversation_id`, `turn_index`,
+  `speaker_role`, and `activation_mode` metadata. The current UI records manual
+  text from a user; context resolution across turns is not implemented yet.
 - The parser may still incorrectly include unsupported date or unit phrases in
   `item_name`. Always review the interpretation before confirming.
 

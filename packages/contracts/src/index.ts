@@ -22,6 +22,15 @@ export const IntentSchema = z.enum([
 
 export const LocationSchema = z.enum(["fridge", "freezer", "pantry"]);
 
+export const SpeakerRoleSchema = z.enum(["user", "assistant", "system"]);
+
+export const ActivationModeSchema = z.enum([
+  "manual_text",
+  "push_to_talk",
+  "wake_word",
+  "always_listening",
+]);
+
 export const CommandSlotsSchema = z
   .object({
     item_name: z.string().min(1).optional(),
@@ -38,8 +47,21 @@ export const InterpretCommandRequestSchema = z
     expiration_date: IsoDateSchema.optional(),
     reference_date: IsoDateSchema.optional(),
     timezone: z.string().trim().min(1).max(100).optional(),
+    conversation_id: z.string().uuid().optional(),
+    turn_index: z.number().int().nonnegative().optional(),
+    speaker_role: SpeakerRoleSchema.optional(),
+    activation_mode: ActivationModeSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((request, context) => {
+    if (request.turn_index !== undefined && request.conversation_id === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["conversation_id"],
+        message: "conversation_id is required when turn_index is provided",
+      });
+    }
+  });
 
 export const InterpretationSchema = z
   .object({
@@ -500,6 +522,8 @@ export const ShoppingListItemSchema = z.object({
 });
 
 export type Intent = z.infer<typeof IntentSchema>;
+export type SpeakerRole = z.infer<typeof SpeakerRoleSchema>;
+export type ActivationMode = z.infer<typeof ActivationModeSchema>;
 export type CommandSlots = z.infer<typeof CommandSlotsSchema>;
 export type InterpretCommandRequest = z.infer<
   typeof InterpretCommandRequestSchema

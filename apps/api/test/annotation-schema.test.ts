@@ -1,7 +1,36 @@
-import { AnnotationStatsSchema, CreateAnnotationRequestSchema } from "@jangoing/contracts";
+import {
+  AnnotationStatsSchema,
+  CreateAnnotationRequestSchema,
+  InterpretCommandRequestSchema,
+} from "@jangoing/contracts";
 import { describe, expect, it } from "vitest";
 
 const inferenceId = "00000000-0000-4000-8000-000000000001";
+
+describe("InterpretCommandRequestSchema", () => {
+  it("accepts optional conversation and activation metadata", () => {
+    expect(InterpretCommandRequestSchema.safeParse({
+      text: "We're almost out of milk.",
+      conversation_id: inferenceId,
+      turn_index: 3,
+      speaker_role: "user",
+      activation_mode: "wake_word",
+    }).success).toBe(true);
+  });
+
+  it("requires a conversation id when a turn index is provided", () => {
+    expect(InterpretCommandRequestSchema.safeParse({
+      text: "We're almost out of milk.",
+      turn_index: 3,
+    }).success).toBe(false);
+  });
+
+  it("keeps existing command clients backward compatible", () => {
+    expect(InterpretCommandRequestSchema.safeParse({
+      text: "Add milk.",
+    }).success).toBe(true);
+  });
+});
 
 describe("CreateAnnotationRequestSchema", () => {
   it("accepts multiple action groups with action-specific entities", () => {

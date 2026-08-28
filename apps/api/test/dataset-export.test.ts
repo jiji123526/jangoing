@@ -236,6 +236,10 @@ describe("buildDatasetRecords", () => {
         request_context: JSON.stringify({
           reference_date: "2026-08-26",
           timezone: "America/New_York",
+          conversation_id: "00000000-0000-4000-8000-000000000099",
+          turn_index: 2,
+          speaker_role: "user",
+          activation_mode: "push_to_talk",
         }),
         parser_version: "rules-v1",
         outcome: "confirmed",
@@ -255,6 +259,10 @@ describe("buildDatasetRecords", () => {
     expect(record).toMatchObject({
       reference_date: "2026-08-26",
       timezone: "America/New_York",
+      conversation_id: "00000000-0000-4000-8000-000000000099",
+      turn_index: 2,
+      speaker_role: "user",
+      activation_mode: "push_to_talk",
     });
   });
 

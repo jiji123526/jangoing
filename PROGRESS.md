@@ -18,6 +18,34 @@ Add new entries at the top of the log so the latest state is easy to find.
   non-actionable records from entering intent, slot, or joint datasets.
 - Dedicated generated-review queues now cover context/preferences,
   domain-adjacent non-actionable language, and unrelated negatives.
+- Inference logs and reviewed exports now preserve optional conversation, turn,
+  speaker, and activation metadata.
+
+## 2026-08-28 - Conversation and activation metadata foundation added
+
+### Completed
+
+- Added optional `conversation_id`, `turn_index`, `speaker_role`, and
+  `activation_mode` fields to the interpretation request contract.
+- Required `conversation_id` whenever `turn_index` is present.
+- Persisted all four values in the existing inference `request_context` for
+  both Worker and local API paths.
+- Added the metadata to reviewed dataset exports.
+- Made browser text requests explicitly identify `speaker_role = user` and
+  `activation_mode = manual_text`.
+- Added contract and export tests.
+
+### Decision
+
+- Keep activation metadata separate from utterance text.
+- Strip a wake word before downstream NLU rather than training the relevance
+  model to depend on it.
+- Use existing request-context JSON, so this step requires no D1 migration.
+
+### Limitation
+
+- This records conversation structure but does not resolve pronouns, ellipsis,
+  or references from earlier turns. A context resolver remains future work.
 
 ## 2026-08-28 - Relevance review queues added
 
@@ -100,8 +128,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Next
 
-- Add conversation and activation metadata without putting wake words into the
-  downstream NLU text.
+- Collect reviewed relevance data and design the first relevance-classification
+  baseline.
 - New annotations treat `ITEM_CONDITION` as legacy-only. Product-identity
   modifiers stay inside ITEM (`frozen blueberries` -> `frozen_blueberry`),
   while temporary state and intent-trigger wording (`spoiled`, `gone bad`,

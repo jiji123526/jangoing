@@ -317,6 +317,27 @@ The resulting project can be described as:
 
 If a trigger word is introduced later, it should ideally remain an activation-layer feature rather than becoming part of the language-model task itself.
 
+### Implemented metadata boundary
+
+Interpretation requests now accept optional metadata:
+
+- `conversation_id`: UUID shared by turns in one conversation;
+- `turn_index`: zero-based or monotonically increasing turn position, valid only
+  with a conversation ID;
+- `speaker_role`: `user`, `assistant`, or `system`;
+- `activation_mode`: `manual_text`, `push_to_talk`, `wake_word`, or
+  `always_listening`.
+
+The Worker and local API store these values in the inference
+`request_context`, and reviewed dataset export preserves them. Existing clients
+may omit all four fields. The current parser does not read previous turns, so
+this is a collection and replay foundation rather than a context resolver.
+
+For `wake_word`, upstream activation must strip the trigger before
+`POST /commands/interpret`. For example, the stored NLU text should be
+`We're almost out of milk`, not `Hey Jango, we're almost out of milk`. This
+prevents the downstream model from using the trigger as a relevance shortcut.
+
 ---
 
 ## Current Decision Summary
@@ -330,4 +351,6 @@ If a trigger word is introduced later, it should ideally remain an activation-la
 - Keep human-reviewed annotations as ground truth.
 - Consider introducing a separate relevance label/task as the conversational dataset grows.
 - If a wake word is added later, treat it as an activation mechanism and remove it before downstream NLU.
+- Preserve conversation, turn, speaker, and activation metadata separately from
+  the normalized NLU text.
 - Keep raw conversational datasets private; publish only reviewed/anonymized examples or derived artifacts.

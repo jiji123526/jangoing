@@ -69,6 +69,8 @@ The text MVP is implemented and deployable:
   candidates (100+ target)
 - Reviewed dataset export split into separate train/evaluation JSONL files with
   cross-split text and phrase-family leakage checks
+- Optional conversation, turn, speaker, and activation metadata persisted in
+  inference request context and reviewed exports
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -106,6 +108,8 @@ These limitations are acceptable only while every state-changing action requires
 - `reference_date` and `timezone` are now persisted through inference request
   context and reviewed export, but they are not yet surfaced in the annotation
   UI or used for deeper timezone-aware normalization logic.
+- `conversation_id`, `turn_index`, `speaker_role`, and `activation_mode` can now
+  be logged and exported, but no context resolver consumes prior turns yet.
 - Reviewed annotations now enforce normalized-value completeness for
   ITEM, ITEM_CONDITION, CATEGORY, UNIT, LOCATION, and EXPIRY_DATE.
 - ITEM, ITEM_CONDITION, CATEGORY, and UNIT normalized values can now grow directly from
@@ -350,15 +354,24 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - `GET /annotations/stats`: return aggregate training/evaluation candidate counts
 - `GET /annotations/queue`: return prioritized unlabeled inference samples for annotation
 
-Future interpretation requests will include date context:
+Interpretation requests support date, conversation, and activation context:
 
 ```json
 {
   "text": "Add eggs expiring next Friday",
   "reference_date": "2026-08-26",
-  "timezone": "America/New_York"
+  "timezone": "America/New_York",
+  "conversation_id": "75206db2-2907-4a09-98a7-1844f5be8fdb",
+  "turn_index": 4,
+  "speaker_role": "user",
+  "activation_mode": "push_to_talk"
 }
 ```
+
+`turn_index` requires a `conversation_id`. Allowed activation modes are
+`manual_text`, `push_to_talk`, `wake_word`, and `always_listening`. If
+`wake_word` is used, the activation layer removes the trigger before sending
+`text`; the wake phrase is not an NLU feature.
 
 ## Language Understanding Architecture
 
