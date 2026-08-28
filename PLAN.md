@@ -103,14 +103,14 @@ These limitations are acceptable only while every state-changing action requires
   non-actionable records.
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
-- Runtime parsing now normalizes explicit natural-language expiry phrases, but
-  broader timezone-aware normalization and annotation-surface visibility are
-  still missing.
+- Runtime parsing now uses shared temporal grounding for explicit
+  natural-language expiry phrases. Missing reference dates are derived from the
+  request timestamp in the validated user timezone, with UTC fallback.
 - Reviewed export now separates train/evaluation splits and supports task-aware
   filtering for `relevance`, `intent`, `slots`, and `joint` exports.
-- `reference_date` and `timezone` are now persisted through inference request
-  context and reviewed export, but they are not yet surfaced in the annotation
-  UI or used for deeper timezone-aware normalization logic.
+- Effective `reference_date` and validated `timezone` are now persisted through
+  inference request context and reviewed export, but they are not yet surfaced
+  in the annotation UI or passed into assistant proposals.
 - `conversation_id`, `turn_index`, `speaker_role`, and `activation_mode` can now
   be logged and exported, but no context resolver consumes prior turns yet.
 - Reviewed annotations now enforce normalized-value completeness for

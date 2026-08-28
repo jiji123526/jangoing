@@ -1,5 +1,39 @@
 # Temporal Grounding and Expiry Annotation Fix
 
+## Implementation Status
+
+### Completed: shared temporal grounding
+
+The Worker API and local API now resolve an effective temporal context when an
+interpretation request arrives:
+
+```text
+explicit reference_date
+or local calendar date at request time
++
+validated timezone
+or UTC fallback
+```
+
+Both values are persisted in `inference_logs.request_context`, including when
+the client omitted them. The parser and future annotation paths share
+`apps/api/src/nlp/temporal-grounding.ts` for relative expiry normalization.
+This makes parsing reproducible and prevents the parser from independently
+consulting its current clock.
+
+Regression tests cover stored reference dates, later processing, timezone
+boundaries, invalid timezone fallback, and invalid date text.
+
+### Remaining
+
+- Pass stored temporal context into assistant proposals and deterministically
+  normalize assistant-produced `EXPIRY_DATE` spans.
+- Return stored context and normalized expiry suggestions from annotation
+  queues, then display them in `/annotate`.
+- Replace the v1 expiry seed assumptions with explicit per-example temporal
+  cases and a new non-overwriting seed namespace.
+- Add end-to-end regression coverage for assistant, queue, UI, and seed paths.
+
 ## Background
 
 The project currently stores timestamps for inference creation and annotation creation, while expiry normalization also uses a separate `reference_date`.

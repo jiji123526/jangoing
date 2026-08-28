@@ -35,6 +35,7 @@ import {
 } from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { parseCommand } from "./nlp/parse-command";
+import { resolveTemporalGrounding } from "./nlp/temporal-grounding";
 
 const apiDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const databasePath =
@@ -218,6 +219,7 @@ async function route(
   }
 
   if (request.method === "POST" && path === "/commands/interpret") {
+    const receivedAt = new Date();
     const startedAt = Date.now();
     const parsed = InterpretCommandRequestSchema.safeParse(
       await readBody(request),
@@ -232,7 +234,8 @@ async function route(
       return;
     }
 
-    const result = parseCommand(parsed.data);
+    const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
+    const result = parseCommand({ ...parsed.data, ...temporalContext });
     const inferenceId = crypto.randomUUID();
     const latencyMs = Date.now() - startedAt;
     database.prepare(
@@ -245,8 +248,8 @@ async function route(
       inferenceId, result.raw_utterance,
       JSON.stringify({
         expiration_date: parsed.data.expiration_date ?? null,
-        reference_date: parsed.data.reference_date ?? null,
-        timezone: parsed.data.timezone ?? null,
+        reference_date: temporalContext.reference_date,
+        timezone: temporalContext.timezone,
         conversation_id: parsed.data.conversation_id ?? null,
         turn_index: parsed.data.turn_index ?? null,
         speaker_role: parsed.data.speaker_role ?? null,

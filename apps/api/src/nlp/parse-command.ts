@@ -1,9 +1,12 @@
-import { parseDate } from "chrono-node";
 import type {
   CommandSlots,
   InterpretCommandRequest,
   Interpretation,
 } from "@jangoing/contracts";
+import {
+  normalizeExpiryDate,
+  resolveTemporalGrounding,
+} from "./temporal-grounding";
 
 const numberWords: Record<string, number> = {
   a: 1,
@@ -109,49 +112,6 @@ function extractInlineExpiry(text: string): {
   return { text };
 }
 
-function utcNoonForIsoDate(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 12));
-}
-
-function todayAtUtcNoon(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-    12,
-  ));
-}
-
-function toIsoDate(value: Date): string {
-  const year = value.getUTCFullYear();
-  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(value.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function normalizeExpiryDate(
-  rawValue: string | undefined,
-  referenceDate: Date,
-): string | undefined {
-  if (!rawValue) {
-    return undefined;
-  }
-
-  const isoMatch = rawValue.match(/^\d{4}-\d{2}-\d{2}$/);
-  if (isoMatch) {
-    return isoMatch[0];
-  }
-
-  const parsed = parseDate(rawValue, referenceDate, { forwardDate: true });
-  if (!parsed) {
-    return undefined;
-  }
-
-  return toIsoDate(parsed);
-}
-
 function interpretation(
   rawUtterance: string,
   intent: Interpretation["intent"],
@@ -174,11 +134,9 @@ export function parseCommand(
   const rawUtterance = request.text.trim();
   const inlineExpiry = extractInlineExpiry(rawUtterance);
   const text = inlineExpiry.text;
-  const referenceDate = request.reference_date
-    ? utcNoonForIsoDate(request.reference_date)
-    : todayAtUtcNoon();
+  const temporalContext = resolveTemporalGrounding(request);
   const expirationDate = request.expiration_date
-    ?? normalizeExpiryDate(inlineExpiry.expirationDateText, referenceDate);
+    ?? normalizeExpiryDate(inlineExpiry.expirationDateText, temporalContext);
 
   const shoppingMatch = text.match(
     /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?shopping list$/i,

@@ -4,6 +4,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Interpretation now resolves and stores an effective `reference_date` and
+  validated `timezone` for every request, and shared deterministic code
+  normalizes relative expiry phrases from that original temporal context.
 - `main` includes annotation-v2 multi-action collection, prioritized annotation
   queues, deterministic queue seeding, generated-review dataset import, split
   train/evaluation dataset export validation, task-aware reviewed export
@@ -24,6 +27,32 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Shared temporal grounding added
+
+### Completed
+
+- Added one shared temporal-grounding module for the parser and upcoming
+  annotation-assistant paths.
+- Made explicit request `reference_date` authoritative and derived a missing
+  date from the request timestamp in the validated user timezone.
+- Added a safe UTC fallback for missing or invalid timezones.
+- Persisted effective temporal context in both Worker and local inference logs
+  instead of nullable client input.
+- Added deterministic relative-date, delayed-processing, timezone-boundary,
+  invalid-timezone, and invalid-date regression tests.
+
+### Decision
+
+- Relative language is always grounded to the original inference context.
+- Annotation time and assistant processing time must never reinterpret an
+  existing utterance.
+- Calendar normalization remains deterministic code rather than an LLM task.
+
+### Remaining
+
+- Assistant drafts, annotation queue responses/UI, and expiry seed v2 still
+  need to consume this shared temporal context.
 
 ## 2026-08-28 - Annotation queue and purpose preferences persisted
 
