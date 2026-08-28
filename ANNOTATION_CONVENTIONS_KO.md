@@ -1,4 +1,4 @@
-# Annotation Convention v3
+# Annotation Convention v4
 
 ## 문서 목적
 
@@ -7,7 +7,7 @@
 라벨링하더라도 intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
 것이 이 문서의 목표다.
 
-- convention version: `annotation-v3`
+- convention version: `annotation-v4`
 - 기본 언어/locale: 영어, `en-US`
 - 적용 범위: 실제 사용자 표현과 사람이 검토하는 영어 문장
 - 우선순위: 원문 의미 > 대화 맥락 > parser 예측
@@ -118,10 +118,12 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - 의미 없는 앞뒤 공백, 관사, 소유격, 구두점은 제외한다.
 - 수량과 단위는 합치지 않고 따로 선택한다: `[two] [cartons] of [milk]`.
 - 복합 상품명은 의미 단위 전체를 선택한다: `[peanut butter]`.
-- 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`.
-- item의 상태·품질·추론 표현은 신규 entity로 잡지 않는다. `ripe`, `frozen`,
-  `spoiled`, `no longer usable`, `gone bad` 등은 raw context로 남겨 intent와
-  phrase family 학습에 사용한다.
+- 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`,
+  `[frozen blueberries]`. 보관·구매·검색·추천에서 별도 상품으로 구별해야 하는지가
+  기준이다.
+- 일시적인 상태·품질·추론 표현은 신규 entity로 잡지 않는다. `ripe`, `spoiled`,
+  `moldy`, `no longer usable`, `gone bad` 등은 raw context로 남겨 intent와 phrase
+  family 학습에 사용한다.
 - 단순 행동 상태 표현은 entity에 포함하지 않는다: `low on`, `out of`.
 - `expired`가 item을 직접 꾸미지 않고 discard/expiry 판단의 trigger로만 쓰일 때는
   phrase family 판단에만 사용하고 entity로 억지로 잡지 않는다.
@@ -138,7 +140,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - `oat milk` → `ITEM: oat_milk`
 - `Coke` → `ITEM: coke`
 - `ripe bananas` → `ITEM: banana`; `ripe`는 raw context로 남김
-- `frozen blueberries` → `ITEM: blueberry`; `frozen`은 raw context로 남김
+- `frozen blueberries` → 전체 span `ITEM: frozen_blueberry`
 - `spoiled milk` → `ITEM: milk`; `spoiled`은 raw context로 남김
 - `drinks` / `beverages` / `something to drink` → `CATEGORY: beverage`
 - `fruit` → 문맥상 특정 과일이 정해지지 않았다면 `CATEGORY: fruit`
@@ -175,16 +177,17 @@ annotator는 **원문에 직접 나온 specificity 수준**을 유지한다. inv
 annotation의 기본 entity scope에서는 제외한다. 상태 표현을 구조화해 실제 product
 기능에서 저장·검색·추천 입력으로 사용하기로 결정한 이후 별도 task로 다시 도입한다.
 
-`oat milk`, `green tea`, `ground coffee`, `baby spinach`처럼 상품 정체성의 일부인
-수식어는 계속 ITEM span 전체에 포함한다. 반면 `frozen blueberries`의 `frozen`은
-raw context로 남기고 ITEM은 `blueberries`만 선택한다.
+`frozen blueberries`, `oat milk`, `green tea`, `ground coffee`, `baby spinach`처럼
+보관·구매·검색·추천에서 별도 상품을 뜻하는 수식어는 ITEM span 전체에 포함한다.
+따라서 `blueberries`는 `blueberry`, `frozen blueberries`는 `frozen_blueberry`로
+구분한다. 반면 `spoiled blueberries`, `blueberries are no longer usable`처럼 같은
+상품의 일시적 상태를 설명하는 말은 ITEM 밖의 raw context로 남긴다.
 
 ## Normalization convention
 
 Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 canonical ID다.
 
 - 영문 소문자 `snake_case`를 사용한다: `oat_milk`, `peanut_butter`.
-- `ITEM_CONDITION`도 같은 canonical 형식을 쓴다: `very_ripe`, `flash_frozen`.
 - 공백이 있는 표현은 단어 사이를 underscore로 바꾼다:
   `oat milk` → `oat_milk`, `greek yogurt` → `greek_yogurt`.
 - 대문자, 하이픈, 여러 공백은 canonical ID에서 정리한다:
@@ -200,22 +203,21 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 상대 날짜는 annotation 날짜와 timezone이 명확할 때만 ISO 날짜로 변환한다.
   확신할 수 없으면 원문 표현을 유지하고 notes에 기록한다.
 - taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
-- ITEM, ITEM_CONDITION, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
+- ITEM, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
   annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
   추천값으로 다시 나타난다.
 - 단, 더 넓은 generic canonical이 이미 있다고 해서 사용자가 말한 specific subtype을
   억지로 generic으로 내리지 않는다. 반대로 generic mention을 inventory 사정만 보고
   specific subtype으로 올리지도 않는다.
-- `/annotate` UI의 `Save ...` 버튼은 새 ITEM/ITEM_CONDITION/CATEGORY/UNIT 값을 lower_snake_case로
+- `/annotate` UI의 `Save ...` 버튼은 새 ITEM/CATEGORY/UNIT 값을 lower_snake_case로
   정리해 현재 추천 목록에 추가하는 보조 기능이다. 예: `oat milk`를 입력한 뒤
   `Save oat_milk`를 누르면 canonical 값 `oat_milk`로 맞춰진다.
-- condition도 같은 규칙을 쓴다. 예: `very ripe` → `very_ripe`, `flash frozen` → `flash_frozen`.
 - 확실하지 않은 정규화 값을 추측하지 않는다. 이 경우 새 값을 만들어 넣지 말고
   span 또는 intent 판단을 다시 검토하고 notes에 이유를 남긴다.
 
 ### reviewed annotation에서 normalized value 필수 규칙
 
-- `ITEM`, `ITEM_CONDITION`, `CATEGORY`, `UNIT`, `LOCATION`, `EXPIRY_DATE`는 reviewed annotation에서
+- 신규 annotation의 `ITEM`, `CATEGORY`, `UNIT`, `LOCATION`, `EXPIRY_DATE`는 reviewed annotation에서
   normalized value가 **필수**다.
 - `EXPIRY_DATE`의 normalized value는 반드시 `YYYY-MM-DD` 형식이어야 한다.
 - `QUANTITY`는 현재 예외적으로 비워 둘 수 있다. 다만 가능하면 숫자 값으로 채운다.
@@ -224,13 +226,13 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 
 `/annotate`는 이 규칙을 지키도록 label별 normalized value 입력 방식을 구분한다.
 
-- ITEM, ITEM_CONDITION, CATEGORY, UNIT: 기존 canonical 값 검색 + 없으면 `Save ...` 버튼으로
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 검색 + 없으면 `Save ...` 버튼으로
   lower_snake_case canonical 값 추가
 - QUANTITY: 숫자 입력 + 기존 숫자 추천
 - LOCATION: `fridge`, `freezer`, `pantry` 중 선택
 - EXPIRY_DATE: ISO 형식을 보장하는 날짜 선택기
 
-ITEM, ITEM_CONDITION, CATEGORY, UNIT은 추천 목록에 없는 새 canonical 값을 바로
+ITEM, CATEGORY, UNIT은 추천 목록에 없는 새 canonical 값을 바로
 입력할 수 있다. 저장되면 이후 annotation에서 자동 추천 목록에 합쳐진다.
 LOCATION은 product contract 제약 때문에 새 값을 만들지 않는다.
 

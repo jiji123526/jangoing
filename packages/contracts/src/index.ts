@@ -114,6 +114,7 @@ export const AnnotationNormalizedValues = {
     "ice_cream",
     "peanut_butter",
     "blueberry",
+    "frozen_blueberry",
   ],
   ITEM_CONDITION: [
     "ripe",

@@ -138,8 +138,12 @@ https://jangoing-web.vercel.app/annotate
   추천 목록에 즉시 추가한다.
 - 이미 존재하는 값과 형식만 다른 경우 버튼은 새 값을 추가하지 않고 기존 canonical
   값으로 맞춰 준다.
-- 상태·품질·추론 표현은 신규 ITEM_CONDITION entity로 추가하지 않고 raw text에
-  남겨 intent와 phrase family의 학습 신호로 사용한다.
+- `frozen blueberries`, `oat milk`, `diet Coke`처럼 별도 상품으로 보관·구매·검색할
+  표현은 수식어까지 전체 ITEM span으로 잡고 각각 `frozen_blueberry`, `oat_milk`,
+  `diet_coke`로 정규화한다.
+- `spoiled`, `moldy`, `no longer usable`, `gone bad`, `out of`처럼 일시적 상태나
+  요청을 추론하게 하는 표현은 신규 ITEM_CONDITION entity로 추가하지 않고 raw
+  text에 남겨 intent와 phrase family의 학습 신호로 사용한다.
 
 ### Assistant draft API 흐름
 
@@ -490,7 +494,7 @@ review status를 추가해야 한다.
 
 ## Normalized value 입력 방식
 
-annotation-v3는 label별로 다른 입력 방식을 사용한다.
+annotation-v4는 label별로 다른 입력 방식을 사용한다.
 
 - ITEM, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
 - QUANTITY: 숫자 입력 + 기존 숫자 추천

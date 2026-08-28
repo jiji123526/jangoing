@@ -9,9 +9,10 @@ Add new entries at the top of the log so the latest state is easy to find.
   train/evaluation dataset export validation, task-aware reviewed export
   filtering, dynamic normalized-value suggestions, and assistant-draft proposal
   plumbing.
-- Annotation now supports `ITEM_CONDITION` as a first-class entity label, so
-  phrases such as `ripe bananas`, `frozen blueberries`, and `spoiled milk` can
-  be split into condition + item instead of collapsing everything into `ITEM`.
+- New annotations treat `ITEM_CONDITION` as legacy-only. Product-identity
+  modifiers stay inside ITEM (`frozen blueberries` -> `frozen_blueberry`),
+  while temporary state and intent-trigger wording (`spoiled`, `gone bad`,
+  `out of`) stays as raw context for intent and phrase-family learning.
 - Shared canonical defaults now also include `blueberry`, and the synthetic
   taxonomy no longer treats condition-like phrases such as `ripe bananas` or
   `fresh strawberries` as plain ITEM aliases.
@@ -23,7 +24,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 - After each successful save, `/annotate` also resets the page scroll to the top
   so the next sample starts at the beginning of the workflow.
 - Freeform normalized-value dropdowns now show only actual canonical values, and
-  new ITEM/ITEM_CONDITION/CATEGORY/UNIT values can be added inline with a
+  new ITEM/CATEGORY/UNIT values can be added inline with a
   `Save ...` helper.
 - Newly added entity cards now appear at the top of the current action group
   instead of being reordered to the bottom by text span position.
@@ -40,7 +41,27 @@ Add new entries at the top of the log so the latest state is easy to find.
   `we have no milk` can drive an explicit inventory-to-zero update instead of
   being forced into clarification-only handling.
 
-## 2026-08-27 - Item-condition annotation support added
+## 2026-08-27 - Product identity versus temporary condition clarified
+
+### Completed
+
+- Updated annotation convention to v4 and assistant prompt to distinguish
+  identity-changing modifiers from temporary conditions.
+- Full product mentions such as `frozen blueberries`, `oat milk`, and
+  `diet Coke` are one ITEM span with distinct canonical values.
+- Temporary state and intent-trigger wording such as `spoiled`, `moldy`,
+  `no longer usable`, and `out of` remains unlabeled raw context.
+- Added server tests for both boundaries: `frozen blueberries` remains a full
+  ITEM, while an AI-proposed legacy ITEM_CONDITION is discarded.
+
+### Decision
+
+- The operational test is whether the phrase identifies a product that should
+  be stored, bought, searched, or recommended separately. If yes, include it
+  in ITEM; if it only describes the current state or requested action, leave it
+  outside the entity span.
+
+## 2026-08-27 - Item-condition annotation support added (superseded by v4)
 
 ### Completed
 
@@ -57,6 +78,10 @@ Add new entries at the top of the log so the latest state is easy to find.
   synthetic taxonomy to stop treating condition phrases as plain item aliases.
 
 ### Decisions
+
+> Historical decision below is retained as an implementation log. Annotation
+> convention v4 supersedes it: `frozen` belongs inside ITEM when it identifies
+> a separately stored or purchased product.
 
 - Treat temporary state modifiers such as `ripe`, `frozen`, `spoiled`, and
   `moldy` as `ITEM_CONDITION`, not as part of ITEM canonical identity.

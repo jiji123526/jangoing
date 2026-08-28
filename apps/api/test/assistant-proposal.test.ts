@@ -87,6 +87,30 @@ describe("materializeProposalDraft", () => {
     }]);
   });
 
+  it("keeps identity-changing modifiers inside the item span", () => {
+    expect(materializeProposalDraft("Add frozen blueberries", {
+      actions: [{
+        intent: "add_item",
+        phrase_family: "explicit_add_to_inventory",
+        entities: [{
+          label: "ITEM",
+          text: "frozen blueberries",
+          normalized_value: "frozen_blueberry",
+        }],
+      }],
+    })).toEqual([{
+      intent: "add_item",
+      phrase_family: "explicit_add_to_inventory",
+      entities: [{
+        label: "ITEM",
+        start: 4,
+        end: 22,
+        text: "frozen blueberries",
+        normalized_value: "frozen_blueberry",
+      }],
+    }]);
+  });
+
   it("drops incomplete AI entities without discarding the action", () => {
     expect(materializeProposalDraft("We are out of milk", {
       actions: [{

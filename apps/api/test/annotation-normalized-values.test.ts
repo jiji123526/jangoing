@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { collectAnnotationNormalizedValues } from "../src/annotations/normalized-values";
 
 describe("collectAnnotationNormalizedValues", () => {
+  it("includes identity-distinct product defaults", () => {
+    const values = collectAnnotationNormalizedValues([]);
+
+    expect(values.ITEM).toContain("blueberry");
+    expect(values.ITEM).toContain("frozen_blueberry");
+  });
+
   it("keeps the shared defaults and appends reviewed custom values", () => {
     const values = collectAnnotationNormalizedValues([
       {
