@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- `ACTION_ITEMS.md` now defines deployment, annotation-volume, quality, export,
+  and model-training gates from the workflow pilot through the English MVP.
 - Annotation queue seed v2 uses per-example expiry grounding, a non-overwriting
   ID namespace, and generation-time normalization validation.
 - Expiry queue responses and `/annotate` now expose original temporal context
@@ -33,6 +35,24 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Operational action-item checklist added
+
+### Completed
+
+- Added one checklist connecting the current temporal implementation to
+  production deployment, annotation collection, dataset export, and training.
+- Defined a 300/100 workflow pilot, 1,000/200 first baseline, and
+  3,000-5,000/500 English MVP dataset gates.
+- Added intent, relevance, entity-span, duplicate, phrase-family leakage, and
+  reproducibility requirements.
+- Clarified that generated or AI-drafted candidates count only after human
+  review.
+
+### Next
+
+- Deploy and verify temporal grounding in production.
+- Complete the workflow pilot before scaling annotation volume.
 
 ## 2026-08-28 - Temporally explicit annotation seed v2 added
 
