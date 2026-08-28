@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Expiry queue responses and `/annotate` now expose original temporal context
+  and a server-derived normalized expiry suggestion.
 - Annotation assistant prompt v6 receives the original temporal context, while
   deterministic server code validates and normalizes expiry spans.
 - Interpretation now resolves and stores an effective `reference_date` and
@@ -29,6 +31,35 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Expiry queue temporal context exposed
+
+### Completed
+
+- Added temporal context and optional normalized expiry suggestion to the
+  shared annotation queue contract.
+- Preserved the actual inference `created_at` in queue responses instead of
+  returning the later resolution timestamp.
+- Reused one inline-expiry extractor across runtime parsing and queue
+  suggestions, including `expires`, `expiration date`, `best by`, and `use by`.
+- Normalized queue suggestions on the server from stored reference date and
+  timezone.
+- Added an expiry annotation card showing reference date, timezone, original
+  inference time, and normalized suggestion.
+- Made the apply helper prefer the server-grounded value over legacy reviewed
+  or parser values.
+
+### Decision
+
+- Browser time is display-only during annotation and never changes temporal
+  meaning.
+- Queue sorting may still use resolution time, but the returned original
+  inference timestamp must remain semantically accurate.
+
+### Remaining
+
+- Expiry seed v2 must replace hidden shared-date assumptions with explicit
+  per-example temporal cases.
 
 ## 2026-08-28 - Assistant expiry proposals grounded to inference time
 

@@ -186,8 +186,9 @@ The current language layer is a deterministic regular-expression parser, not a t
 - Natural-language expiry parsing now covers explicit expiry phrases such as
   `expiring tomorrow`, `expires next Friday`, and `with expiry date on August twenty-eighth`,
   and every inference now stores an effective `reference_date` and validated
-  `timezone` for deterministic replay. Assistant drafts and annotation UI still
-  need to surface that stored temporal context.
+  `timezone` for deterministic replay. Assistant drafts and the expiry
+  annotation UI consume that stored context; expiry normalization is performed
+  server-side rather than from the annotation browser's current date.
 - Interpretation requests can carry optional `conversation_id`, `turn_index`,
   `speaker_role`, and `activation_mode` metadata. The current UI records manual
   text from a user; context resolution across turns is not implemented yet.

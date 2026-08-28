@@ -4,6 +4,7 @@ import type {
   Interpretation,
 } from "@jangoing/contracts";
 import {
+  extractInlineExpiry,
   normalizeExpiryDate,
   resolveTemporalGrounding,
 } from "./temporal-grounding";
@@ -86,30 +87,6 @@ function parseItemPhrase(value: string): Pick<
     ...(quantity ? { quantity } : {}),
     ...(unit ? { unit } : {}),
   };
-}
-
-function extractInlineExpiry(text: string): {
-  text: string;
-  expirationDateText?: string;
-} {
-  const patterns = [
-    /\s+with\s+(?:an?\s+)?expiry(?:\s+date)?(?:\s+(?:on|for|of|is))?\s+(.+?)\s*$/i,
-    /\s+(?:expiring|expires|expiry(?: date)?(?: is)?)\s+(?:on\s+)?(.+?)\s*$/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (!match) {
-      continue;
-    }
-
-    return {
-      text: text.slice(0, match.index).trim(),
-      expirationDateText: match[1],
-    };
-  }
-
-  return { text };
 }
 
 function interpretation(

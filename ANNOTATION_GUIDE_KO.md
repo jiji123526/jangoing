@@ -367,9 +367,11 @@ WHERE a.id IS NULL
   `add_item`, 기존 item의 expiry metadata를 추가·수정하는 문장은 `update_expiry`,
   만료 때문에 버리는 문장은 `throw_away`가 될 수 있으므로 실제 intent와 entity span은
   사람이 다시 확정해야 한다.
-  expiry queue 샘플에는 parser가 계산한 ISO expiry date가 있으면
-  `Apply parsed expiry date` helper 버튼이 나타난다. 먼저 사람이 정확한
-  `EXPIRY_DATE` span을 만든 뒤, 그 값이 맞아 보일 때만 적용한다.
+  expiry queue 샘플에는 `Temporal context` 카드가 나타나 원래 inference의
+  reference date, timezone, timestamp, 서버가 계산한 ISO suggestion을 보여준다.
+  `Apply parsed expiry date` helper는 현재 annotation 날짜가 아니라 이 저장된
+  context로 계산한 값을 우선 사용한다. 먼저 사람이 정확한 `EXPIRY_DATE` span을
+  만든 뒤, 원문과 기준 날짜를 대조해 값이 맞을 때만 적용한다.
 
 #### `low-confidence queue`
 

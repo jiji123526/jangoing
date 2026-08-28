@@ -45,10 +45,28 @@ date output no longer turns the proposal into an HTTP 500 response.
 
 The prompt contract is versioned as `annotation-ai-v6`.
 
+### Completed: queue and annotation temporal context
+
+Every annotation queue item now returns:
+
+```text
+temporal_context.reference_date
+temporal_context.timezone
+temporal_context.inference_created_at
+temporal_context.normalized_expiry_suggestion (when parseable)
+```
+
+Queue SQL preserves `il.created_at` as the original inference timestamp instead
+of substituting the later `resolved_at`. The queue builder extracts supported
+expiry spans and normalizes them on the server with stored temporal context.
+
+The expiry annotation screen displays all four values. Its apply action
+prioritizes the server-derived suggestion, then falls back to previously
+reviewed or predicted ISO values. The browser formats the original timestamp
+for display but never recomputes date semantics from its current clock.
+
 ### Remaining
 
-- Return stored context and normalized expiry suggestions from annotation
-  queues, then display them in `/annotate`.
 - Replace the v1 expiry seed assumptions with explicit per-example temporal
   cases and a new non-overwriting seed namespace.
 - Add end-to-end regression coverage for assistant, queue, UI, and seed paths.
@@ -459,6 +477,8 @@ which fails the ISO-date annotation schema.
 
 ## Required Fix 4: Make Expiry Suggestions Use Stored Temporal Context
 
+**Status: implemented in annotation queue responses and `/annotate`.**
+
 The annotation UI currently reuses `expiration_date` stored in the reviewed or predicted interpretation.
 
 That is acceptable when the value was computed correctly at inference time.
@@ -484,6 +504,8 @@ This guarantees reproducibility.
 ---
 
 ## Required Fix 5: Display Temporal Context During Annotation
+
+**Status: implemented for expiry queue samples.**
 
 For any utterance containing relative temporal language, the annotation UI should display something like:
 

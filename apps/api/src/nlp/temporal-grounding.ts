@@ -10,6 +10,11 @@ export interface TemporalGroundingContext {
   timezone: string;
 }
 
+export interface InlineExpiry {
+  text: string;
+  expirationDateText?: string;
+}
+
 function utcIsoDate(value: Date): string {
   const year = value.getUTCFullYear();
   const month = String(value.getUTCMonth() + 1).padStart(2, "0");
@@ -92,6 +97,36 @@ export function resolveStoredTemporalGrounding(
     input,
     Number.isNaN(createdAt.getTime()) ? new Date(0) : createdAt,
   );
+}
+
+export function extractInlineExpiry(text: string): InlineExpiry {
+  const useInstruction = text.match(/^use\s+(.+?)\s+by\s+(.+?)\s*$/i);
+  if (useInstruction) {
+    return {
+      text: `Use ${useInstruction[1]}`,
+      expirationDateText: useInstruction[2],
+    };
+  }
+
+  const patterns = [
+    /\s+with\s+(?:an?\s+)?(?:expiry|expiration)(?:\s+date)?(?:\s+(?:on|for|of|is))?\s+(.+?)\s*$/i,
+    /\s+(?:expiring|expires|(?:expiry|expiration)(?: date)?(?:\s+(?:is|of|on|for))?)\s+(?:on\s+)?(.+?)\s*$/i,
+    /\s+(?:best|use)\s+by\s+(.+?)\s*$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    return {
+      text: text.slice(0, match.index).trim(),
+      expirationDateText: match[1],
+    };
+  }
+
+  return { text };
 }
 
 function utcNoonForIsoDate(value: string): Date {

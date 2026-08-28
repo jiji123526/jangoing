@@ -68,6 +68,42 @@ describe("buildAnnotationQueueItems", () => {
       reviewed_interpretation: {
         intent: "add_to_buy",
       },
+      temporal_context: {
+        reference_date: "2026-08-27",
+        timezone: "UTC",
+        inference_created_at: "2026-08-27T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("normalizes an expiry suggestion from stored temporal context", () => {
+    const [item] = buildAnnotationQueueItems("expiry", [
+      {
+        inference_id: "00000000-0000-4000-8000-000000000003",
+        text: "The milk expires tomorrow",
+        predicted_interpretation: JSON.stringify({
+          intent: "update_expiry",
+          slots: { item_name: "milk" },
+          confidence: 0.7,
+          requires_confirmation: true,
+          raw_utterance: "The milk expires tomorrow",
+        }),
+        corrected_interpretation: null,
+        request_context: JSON.stringify({
+          reference_date: "2026-08-27",
+          timezone: "America/Los_Angeles",
+        }),
+        parser_version: "rules-v1",
+        outcome: "pending",
+        created_at: "2026-08-28T03:00:00.000Z",
+      },
+    ]);
+
+    expect(item.temporal_context).toEqual({
+      reference_date: "2026-08-27",
+      timezone: "America/Los_Angeles",
+      inference_created_at: "2026-08-28T03:00:00.000Z",
+      normalized_expiry_suggestion: "2026-08-28",
     });
   });
 });
@@ -80,6 +116,7 @@ describe("annotationQueueQuery", () => {
     expect(expiryQueue.query).toContain("august");
     expect(expiryQueue.query).toContain("best by");
     expect(expiryQueue.query).toContain("next friday");
+    expect(expiryQueue.query).toContain("il.created_at AS created_at");
   });
 
   it("prioritizes low-confidence and ambiguous predictions", () => {

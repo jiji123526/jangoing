@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractInlineExpiry,
   normalizeExpiryDate,
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
@@ -82,5 +83,14 @@ describe("temporal grounding", () => {
       reference_date: "2026-08-28",
       timezone: "UTC",
     });
+  });
+
+  it.each([
+    ["Milk expires tomorrow", "tomorrow"],
+    ["Milk has an expiration date of next Friday", "next Friday"],
+    ["Milk is best by September 2", "September 2"],
+    ["Use milk by August twenty-eighth", "August twenty-eighth"],
+  ])("extracts supported inline expiry language from %s", (text, expected) => {
+    expect(extractInlineExpiry(text).expirationDateText).toBe(expected);
   });
 });

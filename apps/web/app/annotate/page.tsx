@@ -342,6 +342,11 @@ function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
     return null;
   }
 
+  const groundedSuggestion = item.temporal_context.normalized_expiry_suggestion;
+  if (groundedSuggestion) {
+    return groundedSuggestion;
+  }
+
   const reviewedExpiry = item.reviewed_interpretation?.slots.expiration_date;
   if (typeof reviewedExpiry === "string" && reviewedExpiry.length > 0) {
     return reviewedExpiry;
@@ -353,6 +358,22 @@ function suggestedExpiryDate(item: AnnotationQueueItem | null): string | null {
   }
 
   return null;
+}
+
+function formatInferenceTime(item: AnnotationQueueItem): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: item.temporal_context.timezone,
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(new Date(item.temporal_context.inference_created_at));
+  } catch {
+    return item.temporal_context.inference_created_at;
+  }
 }
 
 function NormalizedValueControl({
@@ -1007,6 +1028,20 @@ export default function AnnotatePage() {
                 Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
                 {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
               </p>
+              {queueItem?.queue_type === "expiry" ? (
+                <aside className={styles.temporalContext}>
+                  <b>Temporal context</b>
+                  <dl>
+                    <div><dt>Reference date</dt><dd>{queueItem.temporal_context.reference_date}</dd></div>
+                    <div><dt>Timezone</dt><dd>{queueItem.temporal_context.timezone}</dd></div>
+                    <div><dt>Original inference</dt><dd>{formatInferenceTime(queueItem)}</dd></div>
+                    <div>
+                      <dt>Normalized suggestion</dt>
+                      <dd>{queueItem.temporal_context.normalized_expiry_suggestion ?? "Not available"}</dd>
+                    </div>
+                  </dl>
+                </aside>
+              ) : null}
             </section>
 
             {relevance === "actionable" ? (
@@ -1124,7 +1159,7 @@ export default function AnnotatePage() {
               </div>
               {expirySuggestion ? (
                 <p className={styles.inputHint}>
-                  Expiry queue helper: parser suggested <code>{expirySuggestion}</code>.{" "}
+                  Expiry queue helper: stored temporal context suggests <code>{expirySuggestion}</code>.{" "}
                   <button type="button" className={styles.secondaryButton} onClick={applySuggestedExpiryDate}>
                     Apply parsed expiry date
                   </button>

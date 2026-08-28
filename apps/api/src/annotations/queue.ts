@@ -9,6 +9,11 @@ import {
 } from "@jangoing/contracts";
 import { annotationQueueSeedSource } from "./queue-seed";
 import { generatedReviewSourcePrefix } from "./generated-review";
+import {
+  extractInlineExpiry,
+  normalizeExpiryDate,
+  resolveStoredTemporalGrounding,
+} from "../nlp/temporal-grounding";
 
 export interface AnnotationQueueRow {
   inference_id: string;
@@ -79,7 +84,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -101,7 +106,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -132,7 +137,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -164,7 +169,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -186,7 +191,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -209,7 +214,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.request_context,
           il.parser_version,
           il.outcome,
-          COALESCE(il.resolved_at, il.created_at) AS created_at
+          il.created_at AS created_at
         FROM inference_logs il
         LEFT JOIN annotations a ON a.inference_id = il.id
         WHERE
@@ -251,7 +256,7 @@ function relevanceQueueDefinition(relevance: string, reason: string): QueueDefin
       il.request_context,
       il.parser_version,
       il.outcome,
-      COALESCE(il.resolved_at, il.created_at) AS created_at
+      il.created_at AS created_at
     FROM inference_logs il
     LEFT JOIN annotations a ON a.inference_id = il.id
     WHERE
@@ -322,8 +327,18 @@ export function buildAnnotationQueueItems(
 ): AnnotationQueueItem[] {
   const definition = queueDefinition(type);
 
-  return rows.map((row) =>
-    AnnotationQueueItemSchema.parse({
+  return rows.map((row) => {
+    const temporalContext = resolveStoredTemporalGrounding(
+      row.request_context,
+      row.created_at,
+    );
+    const expiryText = extractInlineExpiry(row.text).expirationDateText;
+    const normalizedExpirySuggestion = normalizeExpiryDate(
+      expiryText,
+      temporalContext,
+    );
+
+    return AnnotationQueueItemSchema.parse({
       inference_id: row.inference_id,
       text: row.text,
       queue_type: type,
@@ -334,8 +349,15 @@ export function buildAnnotationQueueItems(
       outcome: row.outcome,
       parser_version: row.parser_version,
       created_at: row.created_at,
-    }),
-  );
+      temporal_context: {
+        ...temporalContext,
+        inference_created_at: row.created_at,
+        ...(normalizedExpirySuggestion
+          ? { normalized_expiry_suggestion: normalizedExpirySuggestion }
+          : {}),
+      },
+    });
+  });
 }
 
 export function annotationQueueQuery(

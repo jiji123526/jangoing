@@ -229,8 +229,12 @@ Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 c
 - 숫자 표현은 숫자로 통일한다: `two`, `a couple` → `2`.
 - 단위는 단수 canonical form을 쓴다: `bottles` → `bottle`.
 - LOCATION은 현재 contract가 허용하는 `fridge`, `freezer`, `pantry`만 사용한다.
-- 상대 날짜는 annotation 날짜와 timezone이 명확할 때만 ISO 날짜로 변환한다.
-  확신할 수 없으면 원문 표현을 유지하고 notes에 기록한다.
+- 상대 날짜는 화면의 `Temporal context`에 표시된 **원래 inference의**
+  `reference_date`와 `timezone`으로만 ISO 날짜로 변환한다. annotation을 수행하는
+  현재 날짜나 브라우저 timezone으로 다시 해석하지 않는다.
+- expiry queue의 `Normalized suggestion`은 서버가 저장된 temporal context로 계산한
+  보조값이다. 원문 `EXPIRY_DATE` span과 결과가 일치하는지 사람이 확인한 뒤 적용한다.
+  suggestion이 없거나 문맥상 맞지 않으면 추측해 저장하지 말고 notes에 기록한다.
 - taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
 - ITEM, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
   annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
@@ -621,6 +625,8 @@ train과 evaluation에 나누어 넣지 않는다.
   날짜/유통기한 signal이 있는 문장을 모은다.
   기본 목적은 `EXPIRY_DATE` span과 normalization 품질을 높이는
   `train_candidate` 수집이다.
+  화면의 reference date, timezone, original inference timestamp는 원래 발화의
+  의미를 복원하기 위한 값이며 annotation 시각으로 바꾸지 않는다.
 
 - `low-confidence queue`
   confidence가 낮거나 `unknown`, `needs_clarification`에 가까운 문장을 모은다.
@@ -666,7 +672,7 @@ UI는 마지막 queue와 dataset purpose를 브라우저에 각각 저장한다.
 
 - 두 intent 사이에서 결정한 근거
 - taxonomy에 없는 canonical value
-- 상대 날짜를 해석한 기준 날짜/timezone
+- 상대 날짜 suggestion이 없거나 저장된 기준 날짜/timezone에 문제가 있는 경우
 - multi-intent 또는 문맥 부족 문제
 - convention에서 다루지 않은 새로운 edge case
 

@@ -410,6 +410,12 @@ export const AnnotationQueueItemSchema = z.object({
   outcome: InferenceOutcomeSchema,
   parser_version: z.string(),
   created_at: z.string(),
+  temporal_context: z.object({
+    reference_date: IsoDateSchema,
+    timezone: z.string().trim().min(1).max(100),
+    inference_created_at: z.string(),
+    normalized_expiry_suggestion: IsoDateSchema.optional(),
+  }),
 });
 
 export const AnnotationQueueQuerySchema = z.object({
