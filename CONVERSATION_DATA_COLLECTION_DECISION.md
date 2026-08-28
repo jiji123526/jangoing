@@ -190,18 +190,18 @@ Possible interpretation:
 actionable
 -> throw_away
 -> ITEM: spinach
--> ITEM_CONDITION: bad/spoiled if supported by the annotation convention
+-> "looks bad" remains unlabeled state/intent context
 ```
 
 ---
 
 ## Implication for Annotation Design
 
-The current annotation system mainly represents actionable structure through intents, actions, entities, normalized values, and phrase families.
+The annotation system represents utterance-level relevance first and actionable
+structure second through intents, actions, entities, normalized values, and
+phrase families.
 
-As the dataset becomes more conversational, it may be useful to explicitly separate **relevance classification** from **action annotation**.
-
-A future conceptual pipeline could be:
+The implemented pipeline is:
 
 ```text
 raw conversation utterance
@@ -227,9 +227,9 @@ This separation would make it possible to evaluate two distinct model capabiliti
 1. whether the system correctly identifies language that requires action;
 2. whether it correctly structures the action once detected.
 
-### Implementation status
+### Implemented annotation boundary
 
-The first implementation step is now defined as `annotation-v3`:
+`annotation-v3` defines the persisted boundary:
 
 - annotations store a first-class `relevance` value;
 - allowed values are `actionable`, `contextual_preference`,
@@ -241,22 +241,94 @@ The first implementation step is now defined as `annotation-v3`:
 - existing preference and unrelated annotations are backfilled from their
   phrase families when migration `0008_add_annotation_relevance.sql` runs.
 
-This establishes the data boundary first. The annotation UI,
-relevance-specific dataset export, and collection queues are implemented as
-separate steps so each layer can be tested independently.
-
 The production annotation UI now applies that boundary as a relevance-first
 workflow. Action and entity controls are shown only for `actionable` utterances;
 the other three classes are saved with an empty action list.
 
-Reviewed dataset export now supports `--task relevance`. It retains all four
-relevance classes, requires a human annotation, and permits empty action lists.
-The existing `intent`, `slots`, and `joint` tasks exclude non-actionable records
-instead of turning them into false `unknown` actions. Relevance-focused
-collection queues now separate generated context/preference,
-domain-non-actionable, and unrelated-negative candidates. The generated label
-is stored only as `candidate_relevance` and preselects the UI; it does not become
-ground truth until a human saves the annotation.
+Unsupported but understandable requests remain `actionable` and use
+`unknown > unsupported_request`. This is different from a non-actionable
+utterance: `unknown` means an action exists but the current action taxonomy does
+not represent it, while non-actionable relevance means no inventory action
+should be stored.
+
+### Implemented dataset boundary
+
+Reviewed export supports four task modes:
+
+| Export task | Included records |
+| --- | --- |
+| `relevance` | All four human-reviewed relevance classes |
+| `intent` | Actionable records only |
+| `slots` | Human-reviewed actionable records only |
+| `joint` | Human-reviewed actionable records only |
+
+The relevance task permits `actions: []` and `intents: []` for non-actionable
+records. The other tasks exclude those records rather than converting them into
+false `unknown` actions. Legacy action payloads are also removed when a
+first-class reviewed relevance says the utterance is non-actionable.
+
+Production relevance data can be exported with:
+
+```bash
+npm run dataset:export -- --remote --task relevance \
+  --train-output ml/data/relevance-train.jsonl \
+  --evaluation-output ml/data/relevance-evaluation.jsonl
+```
+
+Train/evaluation text duplication and phrase-family leakage checks still apply.
+The resulting files contain conversational data and should not be committed to
+the public repository.
+
+### Implemented relevance review queues
+
+Generated candidates are divided into three non-actionable review queues:
+
+| Queue | Candidate relevance | Purpose |
+| --- | --- | --- |
+| `preference_context` | `contextual_preference` | Preferences, goals, dietary constraints, and useful household context |
+| `domain_non_actionable` | `domain_non_actionable` | Grocery-domain hard negatives with no immediate action |
+| `unrelated_negative` | `unrelated` | A smaller set of outside-domain negatives |
+
+Candidate JSONL can omit an intent for non-actionable examples:
+
+```json
+{"id":"pref-001","text":"I prefer oat milk in coffee.","relevance":"contextual_preference"}
+{"id":"domain-001","text":"Milk has gotten expensive lately.","relevance":"domain_non_actionable"}
+{"id":"negative-001","text":"The train was late again.","relevance":"unrelated"}
+```
+
+It is imported through the existing generated-review command:
+
+```bash
+npm run annotation:import-generated -- --remote \
+  --input path/to/relevance-candidates.jsonl \
+  --label relevance-candidates-v1
+```
+
+The importer stores the generated value in
+`inference_logs.request_context.candidate_relevance`. It does not write an
+annotation or training label. The queue uses this value only for routing, and
+the web UI uses it only as an initial selection. The annotator can change it;
+only the final human-saved `annotations.relevance` is ground truth.
+
+This separation avoids creating a circular keyword classifier. For example,
+the queue does not infer that every sentence containing `prefer` is contextual
+or every sentence containing `milk` is actionable. Candidate generation and
+human annotation remain distinct stages.
+
+The general `generated_review` queue excludes records carrying a non-actionable
+candidate relevance, so actionable synthetic review and relevance review do not
+silently mix. The new queues remain empty until an appropriate candidate JSONL
+is imported; this implementation provides collection infrastructure, not an
+automatically generated relevance corpus.
+
+### Implementation commits
+
+- `b59d137`: persist first-class annotation relevance and add migration `0008`;
+- `7f4074f`: make `/annotate` relevance-first;
+- `5572798`: add relevance-specific reviewed dataset export;
+- `006c532`: add generated relevance review queues and candidate routing;
+- `b4a31e8`: preserve conversation and activation metadata.
 
 ---
 
@@ -333,10 +405,33 @@ The Worker and local API store these values in the inference
 may omit all four fields. The current parser does not read previous turns, so
 this is a collection and replay foundation rather than a context resolver.
 
+Current manual web requests identify `speaker_role = user` and
+`activation_mode = manual_text`. Future Raspberry Pi or speech clients can set
+another activation mode without changing the utterance schema.
+
 For `wake_word`, upstream activation must strip the trigger before
 `POST /commands/interpret`. For example, the stored NLU text should be
 `We're almost out of milk`, not `Hey Jango, we're almost out of milk`. This
 prevents the downstream model from using the trigger as a relevance shortcut.
+
+These metadata fields use the existing `request_context` JSON, so they require
+no database migration. Deploying the API and web changes is still required.
+Migration `0008` is required only for the first-class annotation relevance
+column introduced earlier.
+
+### Current implementation limits
+
+- No trained relevance classifier is deployed yet.
+- The new relevance queues need imported candidate data before they contain
+  records.
+- Candidate relevance is not calibrated model output and must not be treated as
+  confidence-bearing supervision.
+- Conversation metadata is persisted, but pronouns, ellipsis, and references
+  across turns are not resolved.
+- Wake-word detection, speech segmentation, and ASR remain upstream future
+  components.
+- Fully unrelated negatives should remain smaller than domain-adjacent hard
+  negatives to avoid inflating relevance accuracy with easy examples.
 
 ---
 
@@ -349,7 +444,8 @@ prevents the downstream model from using the trigger as a relevance shortcut.
 - Route generated relevance candidates through separate review queues and treat
   their labels as suggestions rather than ground truth.
 - Keep human-reviewed annotations as ground truth.
-- Consider introducing a separate relevance label/task as the conversational dataset grows.
+- Use the implemented relevance label and export as a separate utterance-level
+  training task.
 - If a wake word is added later, treat it as an activation mechanism and remove it before downstream NLU.
 - Preserve conversation, turn, speaker, and activation metadata separately from
   the normalized NLU text.
