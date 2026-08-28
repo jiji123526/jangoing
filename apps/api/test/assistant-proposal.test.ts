@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAnnotationAssistantProposal,
+  buildAnnotationAssistantUserPrompt,
   materializeProposalDraft,
   proposalMatchesActions,
 } from "../src/annotations/assistant-proposal";
@@ -32,6 +33,28 @@ describe("buildAnnotationAssistantProposal", () => {
       entities: [],
     }]);
     expect(proposal.note).toContain("OPENAI_API_KEY");
+  });
+});
+
+describe("buildAnnotationAssistantUserPrompt", () => {
+  it("passes existing normalized values as preferred canonical choices", () => {
+    const preferred = Array.from({ length: 205 }, (_, index) => `item_${index}`);
+    const prompt = JSON.parse(buildAnnotationAssistantUserPrompt({
+      ...context,
+      preferred_normalized_values: {
+        ITEM: preferred,
+        ITEM_CONDITION: ["fresh"],
+        CATEGORY: ["dairy"],
+        QUANTITY: [1, 2],
+        UNIT: ["carton"],
+        LOCATION: ["fridge"],
+        EXPIRY_DATE: [],
+      },
+    }));
+
+    expect(prompt.preferred_normalized_values.ITEM).toHaveLength(200);
+    expect(prompt.preferred_normalized_values.ITEM[0]).toBe("item_0");
+    expect(prompt.preferred_normalized_values.UNIT).toEqual(["carton"]);
   });
 });
 

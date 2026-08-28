@@ -359,10 +359,15 @@ async function route(
       }
     }
 
+    const normalizedValueRows = database.prepare(
+      "SELECT actions, entities FROM annotations ORDER BY created_at ASC, id ASC",
+    ).all() as unknown as AnnotationNormalizedValueRow[];
+
     const generated = await buildAnnotationAssistantProposal(process.env, {
       inference_id: parsed.data.inference_id,
       raw_utterance: inference.raw_utterance,
       predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
+      preferred_normalized_values: collectAnnotationNormalizedValues(normalizedValueRows),
     });
     const { usage, ...proposalDraft } = generated;
     const createdAt = new Date().toISOString();

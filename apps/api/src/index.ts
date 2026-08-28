@@ -278,10 +278,15 @@ async function handleAnnotationAssistantProposal(
     }
   }
 
+  const normalizedValueRows = await env.DB.prepare(
+    "SELECT actions, entities FROM annotations ORDER BY created_at ASC, id ASC",
+  ).all<AnnotationNormalizedValueRow>();
+
   const generated = await buildAnnotationAssistantProposal(env, {
     inference_id: parsed.data.inference_id,
     raw_utterance: inference.raw_utterance,
     predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
+    preferred_normalized_values: collectAnnotationNormalizedValues(normalizedValueRows.results),
   });
   const { usage, ...proposalDraft } = generated;
 

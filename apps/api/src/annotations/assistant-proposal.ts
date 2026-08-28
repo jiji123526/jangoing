@@ -5,16 +5,18 @@ import {
   IntentSchema,
   type AnnotationAction,
   type AnnotationAssistantProposal,
+  type AnnotationNormalizedValuesResponse,
   type Interpretation,
 } from "@jangoing/contracts";
 import { z } from "zod";
 
-export const annotationAssistantPromptVersion = "annotation-ai-v3";
+export const annotationAssistantPromptVersion = "annotation-ai-v4";
 
 export interface InferenceProposalContext {
   inference_id: string;
   raw_utterance: string;
   predicted_interpretation: Interpretation;
+  preferred_normalized_values?: AnnotationNormalizedValuesResponse;
 }
 
 export interface ProposalEnv {
@@ -161,6 +163,8 @@ function systemPrompt(): string {
     "Entity start is the zero-based inclusive character offset and end is the zero-based exclusive offset.",
     "The utterance slice from start to end must exactly equal entity text, including case and punctuation.",
     "Label every useful span, including ITEM, ITEM_CONDITION, QUANTITY, UNIT, LOCATION, EXPIRY_DATE, and CATEGORY when present.",
+    "For normalized_value, reuse a semantically equivalent value from preferred_normalized_values whenever one exists.",
+    "Create a new canonical normalized value only when none of the existing values accurately represents the entity.",
     "Use ITEM_CONDITION for modifiers like ripe, frozen, fresh, expired, spoiled, or moldy when they describe the item's state, and use ITEM for the item noun itself.",
     "Do not invent text that does not appear in the utterance.",
     "If unsure, omit the entity instead of hallucinating it.",
@@ -168,12 +172,22 @@ function systemPrompt(): string {
   ].join("\n");
 }
 
-function userPrompt(context: InferenceProposalContext): string {
+export function buildAnnotationAssistantUserPrompt(context: InferenceProposalContext): string {
+  const preferredNormalizedValues = context.preferred_normalized_values
+    ? Object.fromEntries(
+        Object.entries(context.preferred_normalized_values).map(([label, values]) => [
+          label,
+          values.slice(0, 200),
+        ]),
+      )
+    : {};
+
   return JSON.stringify({
     raw_utterance: context.raw_utterance,
     parser_prediction: context.predicted_interpretation,
     allowed_intents: IntentSchema.options,
     allowed_phrase_families: AnnotationPhraseFamilies,
+    preferred_normalized_values: preferredNormalizedValues,
     output_shape: {
       note: "string or null",
       actions: [{
@@ -224,7 +238,7 @@ async function requestOpenAiDraft(
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt() },
-        { role: "user", content: userPrompt(context) },
+        { role: "user", content: buildAnnotationAssistantUserPrompt(context) },
       ],
     }),
   });

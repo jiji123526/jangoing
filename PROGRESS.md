@@ -266,6 +266,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Added the complete intent-to-phrase-family convention map to assistant prompt
   v3. The model selects only a family allowed for its chosen intent, while the
   server retains whitelist validation and permits null when no family fits.
+- Added reviewed normalized values to assistant prompt v4, grouped by entity
+  label and capped at 200 values per label. GPT is instructed to reuse an
+  existing semantically equivalent canonical value before proposing a new one.
 - Documented parser fallback behavior and the conservative exact-substring span
   reconstruction rule.
 

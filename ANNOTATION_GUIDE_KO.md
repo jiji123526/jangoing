@@ -153,7 +153,8 @@ https://jangoing-web.vercel.app/annotate
      grocery annotation draft를 만들고 JSON만 반환하라는 규칙
    - user prompt:
      `raw_utterance`, `parser_prediction`, `allowed_intents`, intent별
-     `allowed_phrase_families`
+     `allowed_phrase_families`, reviewed annotation에서 수집한 label별
+     `preferred_normalized_values`
    - model:
      `OPENAI_MODEL`이 있으면 그 값, 없으면 기본값 `gpt-4.1-mini`
    - decoding:
@@ -166,6 +167,9 @@ https://jangoing-web.vercel.app/annotate
    phrase family도 저장하지 않고 `null`로 떨어뜨린다.
    model은 선택한 intent에 허용된 phrase family 중 의미상 맞는 값을 선택하며,
    어느 family도 확실히 맞지 않을 때만 `null`을 반환한다.
+   normalized value는 같은 의미의 기존 canonical value가 있으면 그것을 우선
+   재사용하고, 정확히 맞는 값이 없을 때만 새 값을 제안한다. prompt 크기가 계속
+   증가하지 않도록 label별 최대 200개까지만 전달한다.
 9. 정리된 proposal은 `annotation_proposals` 테이블에 저장된다.
    저장 항목:
    `provider`, `model`, `prompt_version`, `proposal`, `note`, `status`,
