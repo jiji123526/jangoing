@@ -4,6 +4,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- Detailed project documentation now lives under `docs/`; the repository and
+  ML package READMEs remain at their entry points.
 - The Korean ML/NLP guide now includes a beginner-oriented Jangoing model
   specification, first training exercise, hardware guidance, implementation
   gaps, and official references.
@@ -40,6 +42,16 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Documentation centralized
+
+### Completed
+
+- Moved all detailed root-level Markdown documents into `docs/`.
+- Kept the root `README.md` and package-specific `ml/README.md` at their
+  conventional entry points.
+- Added `docs/README.md` as a categorized documentation index.
+- Updated repository, ML, and cross-document links for the new paths.
 
 ## 2026-08-28 - Beginner model-building specification documented
 

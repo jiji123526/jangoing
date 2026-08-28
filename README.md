@@ -137,17 +137,18 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 
 ## Documentation
 
-- [MVP and product plan](./PLAN.md)
-- [Local, Cloudflare, and Vercel setup](./SETUP.md)
-- [Development progress log](./PROGRESS.md)
-- [Current action items and annotation targets](./ACTION_ITEMS.md)
-- [Model evaluation and logging standard](./MODEL_EVALUATION.md)
-- [구현 내용과 기술적 의사결정 설명서](./IMPLEMENTATION_NOTES_KO.md)
-- [영어 synthetic-v1 생성 및 의사결정 기록](./SYNTHETIC_V1_KO.md)
-- [공개 데이터셋 조사 및 도입 계획](./OPEN_DATASETS_KO.md)
-- [머신러닝·자연어 처리·언어학 개념 안내서](./ML_NLP_CONCEPTS_KO.md)
-- [Production annotation 화면 사용 및 의사결정 기록](./ANNOTATION_GUIDE_KO.md)
-- [Annotation 정답 결정 규칙 v4](./ANNOTATION_CONVENTIONS_KO.md)
+- [Documentation index](./docs/README.md)
+- [MVP and product plan](./docs/PLAN.md)
+- [Local, Cloudflare, and Vercel setup](./docs/SETUP.md)
+- [Development progress log](./docs/PROGRESS.md)
+- [Current action items and annotation targets](./docs/ACTION_ITEMS.md)
+- [Model evaluation and logging standard](./docs/MODEL_EVALUATION.md)
+- [구현 내용과 기술적 의사결정 설명서](./docs/IMPLEMENTATION_NOTES_KO.md)
+- [영어 synthetic-v1 생성 및 의사결정 기록](./docs/SYNTHETIC_V1_KO.md)
+- [공개 데이터셋 조사 및 도입 계획](./docs/OPEN_DATASETS_KO.md)
+- [머신러닝·자연어 처리·언어학 개념 안내서](./docs/ML_NLP_CONCEPTS_KO.md)
+- [Production annotation 화면 사용 및 의사결정 기록](./docs/ANNOTATION_GUIDE_KO.md)
+- [Annotation 정답 결정 규칙 v4](./docs/ANNOTATION_CONVENTIONS_KO.md)
 
 ## MVP Commands
 
@@ -196,7 +197,7 @@ The current language layer is a deterministic regular-expression parser, not a t
 - The parser may still incorrectly include unsupported date or unit phrases in
   `item_name`. Always review the interpretation before confirming.
 
-The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./PLAN.md) for the model and dataset roadmap.
+The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./docs/PLAN.md) for the model and dataset roadmap.
 
 Deterministic annotation queue seeds use the versioned
 `annotation-queue-seed-v2` source. Expiry cases carry explicit temporal context,
