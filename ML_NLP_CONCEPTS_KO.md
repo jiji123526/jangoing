@@ -157,6 +157,7 @@ annotation disagreement라고 볼 수 있다.
 현재 intent:
 
 - `add_item`: 재고 추가
+- `update_expiry`: 기존 재고의 유통기한 추가 또는 수정
 - `consume_item`: 사용 또는 소비
 - `mark_low`: 부족 상태 표시
 - `mark_out`: 재고 0 상태 표시
@@ -180,7 +181,7 @@ annotation disagreement라고 볼 수 있다.
 ### Multi-class와 multi-label
 
 현재 TF-IDF baseline은 한 문장에 하나를 선택하는 multi-class 문제다. 하지만
-`annotation-v2`는 다음과 같은 문장을 여러 action으로 저장한다.
+현재 `annotation-v3`는 다음과 같은 문장을 여러 action으로 저장한다.
 
 ```text
 "We finished the milk, so add it to the shopping list"
@@ -976,25 +977,325 @@ confidence와 n-best 후보를 기록해야 한다.
 2. 사용자 prediction/correction/outcome 기록
 3. synthetic-v1으로 파이프라인 검증
 4. synthetic-v1으로 TF-IDF single-intent baseline artifact 확정
-5. `/annotate`에서 사람 작성 training candidate 100~200개 수집
-6. 독립적인 evaluation candidate 100개 이상 수집
+5. workflow pilot으로 reviewed train 300개, evaluation 100개 수집
+6. 첫 human-data baseline으로 reviewed train 1,000개, evaluation 200개 확보
 7. 중복·phrase-family leakage를 검토해 validation/frozen test 확정
-8. 사람 training data와 synthetic data 혼합 비율 비교
-9. DistilBERT intent 모델을 동일 frozen set에서 비교
-10. 실제 span으로 slot/category resolver baseline 구축
-11. multi-action 데이터가 충분하면 structured prediction baseline 구축
-12. context evaluation과 recommendation baseline 추가
+8. relevance와 intent TF-IDF baseline을 각각 학습
+9. English MVP용 reviewed train 3,000~5,000개, evaluation 500개 확보
+10. DistilBERT relevance/intent 모델을 동일 frozen set에서 비교
+11. 실제 span으로 token-classification slot 모델 구축
+12. 모델 span과 deterministic normalizer를 hybrid pipeline으로 연결
+13. shadow mode에서 production parser와 모델 prediction 비교
+14. multi-action 데이터가 충분하면 structured prediction baseline 구축
+15. context evaluation과 recommendation baseline 추가
 ```
 
-## 30. 관련 문서
+생성 데이터와 AI draft는 사람이 확인하고 annotation으로 저장한 이후에만 reviewed
+수량으로 계산한다.
+
+## 30. 처음 모델을 만드는 사람을 위한 Jangoing 기술 사양
+
+### 처음부터 언어 모델을 pretrain하지 않는다
+
+Jangoing은 인터넷 규모의 텍스트로 새 언어 모델을 처음부터 만드는 프로젝트가
+아니다. 먼저 단순한 TF-IDF 모델을 학습하고, 이후 이미 영어를 학습한
+`distilbert-base-uncased`를 Jangoing annotation으로 fine-tuning한다.
+
+```text
+pretraining
+= 일반 영어 자체를 대규모 데이터에서 학습
+
+fine-tuning
+= pretrained 모델을 Jangoing relevance, intent, entity task에 맞게 조정
+```
+
+수천 개 annotation으로 가능한 것은 fine-tuning이지 pretraining이 아니다.
+OpenAI API는 annotation draft를 만드는 보조 기능이며 Jangoing 모델 학습에
+필수적이지 않다.
+
+### 권장 모델 분리
+
+초기에는 하나의 복잡한 모델보다 다음 네 단계를 분리한다.
+
+| 단계 | 입력 | 출력 | 초기 구현 | 이후 구현 |
+|---|---|---|---|---|
+| Relevance | 전체 발화 | 4개 relevance 중 하나 | TF-IDF + Logistic Regression | DistilBERT classification |
+| Intent | actionable 발화 | 지원 intent 중 하나 | TF-IDF + Logistic Regression | DistilBERT classification |
+| Entity/slot | actionable 발화 | 원문 entity span | 규칙/parser | DistilBERT token classification |
+| Normalization | span + temporal context | canonical value | deterministic code | deterministic code 유지 |
+
+Relevance label은 다음 네 개다.
+
+```text
+actionable
+contextual_preference
+domain_non_actionable
+unrelated
+```
+
+Relevance와 intent를 별도 모델로 시작하면 non-actionable 문장이 inventory intent로
+잘못 들어오는 원인과 intent 사이의 혼동을 따로 측정할 수 있다. shared encoder나
+multi-task model은 각 baseline이 안정된 뒤 비교한다.
+
+최종 hybrid pipeline은 다음과 같다.
+
+```text
+utterance
+-> relevance classifier
+-> intent classifier
+-> entity token classifier
+-> deterministic item/unit/quantity/date normalizers
+-> schema validation
+-> user confirmation
+-> inventory event
+```
+
+상태를 바꾸는 action은 model confidence가 높아도 사용자 confirmation을 유지한다.
+
+### Python과 라이브러리
+
+현재 `ml/pyproject.toml`에 설치되는 최소 환경:
+
+```text
+Python >= 3.11
+scikit-learn
+joblib
+pytest (dev dependency)
+```
+
+Transformer 학습 단계에서 추가할 후보:
+
+```text
+torch
+transformers
+datasets
+evaluate
+seqeval
+accelerate
+optimum
+onnxruntime
+```
+
+- PyTorch: gradient 계산과 neural network 학습
+- Transformers: pretrained DistilBERT, tokenizer, training utilities
+- Datasets: JSONL loading, mapping, batching
+- Evaluate: classification metric 계산
+- seqeval: BIO entity span precision, recall, F1
+- Accelerate: CPU, single GPU, multi-GPU 실행 차이 단순화
+- Optimum/ONNX Runtime: ONNX export, optimization, inference
+
+이 dependency들은 아직 repository에 추가되지 않았다. TF-IDF 실습에는 현재
+dependency만으로 충분하다.
+
+### Classification 모델의 입력과 출력
+
+Relevance 또는 intent classifier는 tokenized sentence를 받아 class별 logit을
+출력한다.
+
+```text
+input:
+"We're out of milk"
+
+intent logits:
+add_item       -1.3
+mark_low        0.4
+mark_out        3.2
+add_to_buy      0.1
+...
+
+softmax:
+mark_out = 0.89
+```
+
+`logit`은 확률로 변환하기 전 점수다. `softmax`가 점수를 class별 확률처럼 보이는
+값으로 바꾼다. 학습 중에는 prediction과 정답 사이의 cross-entropy loss를 줄이도록
+weight를 수정한다. softmax 값이 실제 정확도와 일치하려면 별도 calibration 검사가
+필요하다.
+
+### Slot model의 입력과 출력
+
+Slot model은 문장 하나에 label 하나를 주는 classification과 달리 각 token에 BIO
+label을 예측한다.
+
+```text
+Add       O
+two       B-QUANTITY
+cartons   B-UNIT
+of        O
+oat       B-ITEM
+milk      I-ITEM
+next      B-EXPIRY_DATE
+Friday    I-EXPIRY_DATE
+```
+
+DistilBERT tokenizer는 단어를 subword로 나눌 수 있으므로 annotation의 문자
+`start/end`를 tokenizer offset 또는 `word_ids()`에 정렬해야 한다. special token,
+padding, 정답을 줄 수 없는 subword 위치는 보통 loss에서 제외하도록 `-100`을
+사용한다. 이 alignment가 잘못되면 모델 구조가 정상이어도 slot 정답이 깨진다.
+
+모델은 `next Friday` span을 찾고, ISO 날짜 계산은 하지 않는다. 날짜는 원래
+inference의 `reference_date + timezone`을 사용하는 shared deterministic
+normalizer가 계산한다.
+
+### DistilBERT 시작 hyperparameter
+
+다음 값은 정답이 아니라 첫 reproducible experiment의 출발점이다.
+
+| 설정 | Relevance/Intent 시작값 | Slot 시작값 |
+|---|---:|---:|
+| pretrained model | `distilbert-base-uncased` | `distilbert-base-uncased` |
+| max sequence length | 128 | 128 |
+| batch size | 16 | 8~16 |
+| learning rate | `2e-5` | `3e-5` |
+| epochs | 3~5 | 4~6 |
+| weight decay | 0.01 | 0.01 |
+| warmup ratio | 0.1 | 0.1 |
+| random seed | 42 | 42 |
+| model selection | validation macro-F1 | validation entity F1 |
+
+실제 문장 길이의 95~99 percentile을 먼저 측정해 max length를 정한다. Jangoing
+문장은 짧기 때문에 처음부터 512 token을 사용하면 memory와 latency만 낭비할
+가능성이 높다. validation macro-F1이 개선되지 않으면 early stopping을 적용하고,
+최종 수치는 여러 random seed에서 확인한다.
+
+### 예상 하드웨어와 artifact
+
+- TF-IDF baseline: 일반 laptop CPU와 4GB 수준 memory로 충분
+- DistilBERT fine-tuning: 8GB 이상 NVIDIA GPU 권장
+- 3,000~5,000개 짧은 문장: GPU에서는 보통 수 분~수십 분 범위
+- CPU fine-tuning: 가능하지만 반복 실험에는 느릴 수 있음
+- DistilBERT FP32 weight: 대략 250MB 수준
+- INT8 ONNX weight: 대략 60~100MB 범위를 기대하되 실제 export 후 측정
+
+시간과 memory는 batch size, sequence length, hardware에 따라 크게 달라진다.
+Out-of-memory가 발생하면 batch size를 줄이고 gradient accumulation을 사용한다.
+Raspberry Pi 배포 전에는 ONNX INT8 모델의 memory, p50/p95 latency, 정확도 감소를
+실제 장치에서 측정한다.
+
+### 지금 실행할 첫 실습
+
+Human dataset을 기다리지 않고 synthetic-v1으로 전체 흐름을 연습할 수 있다.
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+
+python3 -m venv ml/.venv
+source ml/.venv/bin/activate
+pip install -e './ml[dev]'
+
+python ml/train_baseline.py ml/datasets/synthetic-v1.jsonl \
+  --output ml/artifacts/first-baseline
+
+pytest ml/tests
+```
+
+결과:
+
+```text
+ml/artifacts/first-baseline/model.joblib
+ml/artifacts/first-baseline/metrics.json
+```
+
+`model.joblib`은 TF-IDF vectorizer와 Logistic Regression classifier를 함께 저장한
+학습 artifact다. `metrics.json`에는 dataset hash, Git commit, seed, split 수,
+class별 precision/recall/F1, confusion matrix, 제외된 multi-action 수가 들어간다.
+
+첫 실습의 목적은 synthetic 점수를 production 성능으로 해석하는 것이 아니라 다음
+흐름을 직접 확인하는 것이다.
+
+```text
+JSONL dataset
+-> validation/split
+-> vectorization
+-> model.fit
+-> model.predict
+-> metrics
+-> versioned artifact
+```
+
+### Human dataset이 충분해진 뒤
+
+Production D1에서 reviewed task별 dataset을 export한다.
+
+```bash
+npm run dataset:export -- --remote --require-annotation \
+  --task intent \
+  --train-output ml/data/intent-train.jsonl \
+  --evaluation-output ml/data/intent-evaluation.jsonl
+
+npm run dataset:export -- --remote --task relevance \
+  --train-output ml/data/relevance-train.jsonl \
+  --evaluation-output ml/data/relevance-evaluation.jsonl
+
+npm run dataset:export -- --remote --task slots \
+  --train-output ml/data/slots-train.jsonl \
+  --evaluation-output ml/data/slots-evaluation.jsonl
+```
+
+Export 성공이 dataset freeze 완료를 의미하지는 않는다. class/entity 분포,
+near duplicate, source 비율, normalized-value 오류를 audit하고 독립적인 실제 사용자
+evaluation candidate를 다시 검수한 뒤 dataset hash와 split manifest를 고정한다.
+
+### 현재 구현된 부분과 다음 구현
+
+현재 구현:
+
+- task별 reviewed JSONL export
+- exact normalized-text와 phrase-family split leakage 거부
+- TF-IDF single-intent training
+- grouped internal train/validation/test split
+- dataset digest, Git commit, seed, metrics, confusion matrix 기록
+- multi-action record 제외 및 제외 수 기록
+
+다음 구현:
+
+- class, source, phrase family, entity span 분포 report
+- near-duplicate와 template similarity 검사
+- 별도 frozen evaluation 파일을 직접 받는 baseline trainer
+- relevance TF-IDF trainer
+- DistilBERT relevance/intent trainer
+- character span을 BIO token label로 바꾸는 alignment pipeline
+- DistilBERT slot trainer와 entity-level evaluation
+- confidence calibration과 unknown threshold 선택
+- ONNX export, quantization, Raspberry Pi benchmark
+- production shadow inference와 model-version logging
+
+현재 `ml/train_baseline.py`는 입력 dataset 하나를 내부에서 다시 나눈다. 따라서
+export한 frozen evaluation 파일을 직접 평가하지 않는다. production model 비교
+전에 `--train-dataset`과 `--evaluation-dataset`을 명시적으로 받도록 수정해야 한다.
+
+Scikit-learn `joblib` artifact와 PyTorch checkpoint는 Cloudflare Worker에서 그대로
+실행할 수 있다고 가정하면 안 된다. 학습과 offline 평가는 먼저 local에서 완료하고,
+정확도와 latency가 확인된 다음 ONNX, Raspberry Pi local inference, 별도 inference
+service 등 배포 위치를 결정한다.
+
+## 31. 공식 학습 자료
+
+권장 학습 순서는 Scikit-learn text tutorial, PyTorch basics, Hugging Face
+fine-tuning, token classification, ONNX optimization 순서다.
+
+- [Scikit-learn: Working With Text Data](https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html)
+- [PyTorch: Learn the Basics](https://pytorch.org/tutorials/beginner/basics/intro.html)
+- [Hugging Face Course: Fine-tuning a Pretrained Model](https://huggingface.co/learn/llm-course/chapter3/1)
+- [Hugging Face: Text Classification](https://huggingface.co/docs/transformers/tasks/sequence_classification)
+- [Hugging Face: Token Classification](https://huggingface.co/docs/transformers/tasks/token_classification)
+- [Hugging Face Datasets documentation](https://huggingface.co/docs/datasets/)
+- [ONNX Runtime: Model Quantization](https://onnxruntime.ai/docs/performance/model-optimizations/quantization.html)
+
+처음에는 Scikit-learn tutorial과 현재 `ml/train_baseline.py`를 이해하면 충분하다.
+PyTorch와 DistilBERT는 baseline artifact와 `metrics.json`을 직접 만들어 보고
+해석한 다음 진행한다.
+
+## 32. 관련 문서
 
 - `IMPLEMENTATION_NOTES_KO.md`: 구현 내용과 기술 선택
 - `SYNTHETIC_V1_KO.md`: synthetic-v1 생성 및 결정 기록
 - `MODEL_EVALUATION.md`: 평가와 로깅 원칙
 - `PLAN.md`: 전체 제품 및 모델 로드맵
+- `ACTION_ITEMS.md`: annotation 규모와 실행 gate
 - `ml/README.md`: 학습 명령과 환경 설정
 - `ANNOTATION_GUIDE_KO.md`: production annotation 화면 사용법
-- `ANNOTATION_CONVENTIONS_KO.md`: annotation-v2 정답 결정 규칙
+- `ANNOTATION_CONVENTIONS_KO.md`: annotation-v4 정답 결정 규칙
 
 새로운 모델이나 언어 기능을 추가할 때는 이 문서에 개념과 프로젝트 내 역할을
 추가하고, 실제 구현 여부를 명확히 표시한다.

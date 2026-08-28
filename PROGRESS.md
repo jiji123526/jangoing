@@ -4,6 +4,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## Current state as of 2026-08-28
 
+- The Korean ML/NLP guide now includes a beginner-oriented Jangoing model
+  specification, first training exercise, hardware guidance, implementation
+  gaps, and official references.
 - The current Worker, Vercel annotation UI, and annotation queue seed v2 have
   been deployed to production.
 - `ACTION_ITEMS.md` now defines deployment, annotation-volume, quality, export,
@@ -37,6 +40,22 @@ Add new entries at the top of the log so the latest state is easy to find.
   candidates across 35 phrase families.
 - `/annotate` preserves the last queue and dataset purpose across refreshes and
   consecutive submissions in the same browser.
+
+## 2026-08-28 - Beginner model-building specification documented
+
+### Completed
+
+- Explained why Jangoing fine-tunes pretrained models instead of pretraining a
+  language model from scratch.
+- Defined separate relevance, intent, slot, and deterministic normalization
+  responsibilities.
+- Recorded the current and planned Python ML stack, starter DistilBERT
+  hyperparameters, hardware expectations, and artifact sizes.
+- Added a synthetic TF-IDF hands-on exercise and explained its artifacts.
+- Documented current trainer limitations and the implementation sequence needed
+  before production model deployment.
+- Added official Scikit-learn, PyTorch, Hugging Face, Datasets, and ONNX
+  references.
 
 ## 2026-08-28 - Temporal annotation stack deployed
 
