@@ -17,6 +17,7 @@ function record(
   return {
     id,
     text,
+    relevance: "actionable",
     intents: ["add_to_buy"],
     actions: [{ intent: "add_to_buy", phrase_family: phraseFamily }],
     intent: "add_to_buy",
@@ -27,7 +28,7 @@ function record(
     parser_version: "test",
     dataset_purpose: purpose,
     phrase_family: phraseFamily,
-    annotation_schema_version: "annotation-v2",
+    annotation_schema_version: "annotation-v3",
     reviewed_at: "2026-08-27T00:00:00.000Z",
     has_annotation: true,
     ...overrides,
@@ -69,6 +70,23 @@ describe("parseDatasetExportArgs", () => {
       trainOutput: "ml/data/train.jsonl",
       evaluationOutput: "ml/data/evaluation.jsonl",
       task: "slots",
+      requireAnnotation: true,
+    });
+  });
+
+  it("enables annotation-only filtering for relevance exports", () => {
+    expect(parseDatasetExportArgs([
+      "--task",
+      "relevance",
+      "--train-output",
+      "ml/data/relevance-train.jsonl",
+      "--evaluation-output",
+      "ml/data/relevance-evaluation.jsonl",
+    ])).toEqual({
+      remote: false,
+      trainOutput: "ml/data/relevance-train.jsonl",
+      evaluationOutput: "ml/data/relevance-evaluation.jsonl",
+      task: "relevance",
       requireAnnotation: true,
     });
   });
@@ -164,6 +182,32 @@ describe("filterDatasetRecords", () => {
       requireAnnotation: true,
     })).toEqual([annotated]);
   });
+
+  it("keeps reviewed non-actionable records only for relevance export", () => {
+    const nonActionable = record(
+      "context-1",
+      "train_candidate",
+      "Milk is expensive these days",
+      "preference_statement",
+      {
+        relevance: "domain_non_actionable",
+        intents: [],
+        actions: [],
+        intent: undefined,
+        slots: undefined,
+        entities: undefined,
+      },
+    );
+
+    expect(filterDatasetRecords([nonActionable], {
+      task: "relevance",
+      requireAnnotation: true,
+    })).toEqual([nonActionable]);
+    expect(filterDatasetRecords([nonActionable], {
+      task: "intent",
+      requireAnnotation: true,
+    })).toEqual([]);
+  });
 });
 
 describe("buildDatasetRecords", () => {
@@ -202,6 +246,7 @@ describe("buildDatasetRecords", () => {
         dataset_purpose: "train_candidate",
         annotation_phrase_family: null,
         annotation_actions: null,
+        annotation_relevance: null,
         annotation_schema_version: null,
         annotation_created_at: null,
       },
@@ -211,5 +256,50 @@ describe("buildDatasetRecords", () => {
       reference_date: "2026-08-26",
       timezone: "America/New_York",
     });
+  });
+
+  it("exports reviewed non-actionable annotations without legacy actions", () => {
+    const [record] = buildDatasetRecords([
+      {
+        id: "record-2",
+        raw_utterance: "Milk is expensive these days",
+        predicted_interpretation: JSON.stringify({
+          intent: "unknown",
+          slots: {},
+          confidence: 0.52,
+          requires_confirmation: true,
+          raw_utterance: "Milk is expensive these days",
+        }),
+        corrected_interpretation: JSON.stringify({
+          relevance: "domain_non_actionable",
+          actions: [],
+        }),
+        request_context: null,
+        parser_version: "rules-v1",
+        outcome: "annotated",
+        created_at: "2026-08-28T00:00:00.000Z",
+        annotation_intent: "unknown",
+        annotation_entities: "[]",
+        annotation_normalized: "{}",
+        dataset_purpose: "train_candidate",
+        annotation_phrase_family: "unrelated_statement",
+        annotation_actions: JSON.stringify([{
+          intent: "unknown",
+          phrase_family: "unrelated_statement",
+          entities: [],
+        }]),
+        annotation_relevance: "domain_non_actionable",
+        annotation_schema_version: "annotation-v3",
+        annotation_created_at: "2026-08-28T00:00:00.000Z",
+      },
+    ]);
+
+    expect(record).toMatchObject({
+      relevance: "domain_non_actionable",
+      intents: [],
+      actions: [],
+      has_annotation: true,
+    });
+    expect(record.intent).toBeUndefined();
   });
 });

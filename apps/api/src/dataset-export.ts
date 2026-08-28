@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { RelevanceSchema, type Relevance } from "@jangoing/contracts";
 
 export type DatasetPurpose = "train_candidate" | "evaluation_candidate";
-export type DatasetExportTask = "intent" | "slots" | "joint";
+export type DatasetExportTask = "relevance" | "intent" | "slots" | "joint";
 export type ExportRow = Record<string, string | null>;
 
 export interface DatasetExportOptions {
@@ -15,6 +16,7 @@ export interface DatasetExportOptions {
 export interface DatasetRecord {
   id: string;
   text: string;
+  relevance: Relevance;
   intents: string[];
   actions: Array<Record<string, unknown> & { intent: string }>;
   predicted: unknown;
@@ -40,12 +42,13 @@ interface RequestContextPayload {
 
 function parseDatasetExportTask(value: string): DatasetExportTask {
   switch (value) {
+    case "relevance":
     case "intent":
     case "slots":
     case "joint":
       return value;
     default:
-      throw new Error(`Unknown --task value: ${value}. Use intent, slots, or joint.`);
+      throw new Error(`Unknown --task value: ${value}. Use relevance, intent, slots, or joint.`);
   }
 }
 
@@ -75,7 +78,7 @@ export function parseDatasetExportArgs(args: string[]): DatasetExportOptions {
     if (argument === "--task") {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) {
-        throw new Error("--task requires one of: intent, slots, joint");
+        throw new Error("--task requires one of: relevance, intent, slots, joint");
       }
       task = parseDatasetExportTask(value);
       index += 1;
@@ -106,7 +109,7 @@ export function parseDatasetExportArgs(args: string[]): DatasetExportOptions {
     throw new Error("Training and evaluation outputs must be different files");
   }
 
-  if (task === "slots" || task === "joint") {
+  if (task === "relevance" || task === "slots" || task === "joint") {
     requireAnnotation = true;
   }
 
@@ -160,7 +163,12 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
           ? [{ intent: correctedPayload.intent, normalized: correctedPayload.slots ?? {}, entities: [] }]
           : []);
 
-    if (!annotationActions.length || !row.predicted_interpretation || !row.raw_utterance || !row.id) {
+    if (!row.predicted_interpretation || !row.raw_utterance || !row.id) {
+      continue;
+    }
+    const relevance = RelevanceSchema.parse(row.annotation_relevance ?? "actionable");
+    const exportedActions = relevance === "actionable" ? annotationActions : [];
+    if (relevance === "actionable" && exportedActions.length === 0) {
       continue;
     }
 
@@ -173,20 +181,23 @@ export function buildDatasetRecords(rows: ExportRow[]): DatasetRecord[] {
       .update(row.raw_utterance.toLowerCase().replace(/[a-z0-9]+/g, "_"))
       .digest("hex")
       .slice(0, 12);
-    const isSingleAction = annotationActions.length === 1;
-    const phraseFamily = isSingleAction
-      ? String(annotationActions[0].phrase_family ?? generatedPhraseFamily)
-      : `multi:${annotationActions.map((action) => action.phrase_family ?? action.intent).join("+")}`;
+    const isSingleAction = exportedActions.length === 1;
+    const phraseFamily = exportedActions.length === 0
+      ? String(row.annotation_phrase_family ?? generatedPhraseFamily)
+      : isSingleAction
+        ? String(exportedActions[0].phrase_family ?? generatedPhraseFamily)
+        : `multi:${exportedActions.map((action) => action.phrase_family ?? action.intent).join("+")}`;
 
     records.push({
       id: row.id,
       text: row.raw_utterance,
-      intents: annotationActions.map((action) => action.intent),
-      actions: annotationActions,
+      relevance,
+      intents: exportedActions.map((action) => action.intent),
+      actions: exportedActions,
       ...(isSingleAction ? {
-        intent: annotationActions[0].intent,
-        slots: annotationActions[0].normalized ?? {},
-        entities: annotationActions[0].entities ?? [],
+        intent: exportedActions[0].intent,
+        slots: exportedActions[0].normalized ?? {},
+        entities: exportedActions[0].entities ?? [],
       } : {}),
       predicted: parseJson(row.predicted_interpretation, row.id, "predicted_interpretation"),
       outcome: row.outcome,
@@ -213,6 +224,14 @@ export function filterDatasetRecords(
       return false;
     }
 
+    if (options.task === "relevance") {
+      return record.has_annotation;
+    }
+
+    if (record.relevance !== "actionable") {
+      return false;
+    }
+
     if (options.task === "slots" || options.task === "joint") {
       return record.has_annotation;
     }
@@ -226,6 +245,10 @@ function normalizedText(text: string): string {
 }
 
 function recordPhraseFamilies(record: DatasetRecord): string[] {
+  if (record.actions.length === 0) {
+    return [];
+  }
+
   const actionFamilies = record.actions
     .map((action) => action.phrase_family)
     .filter((family): family is string => typeof family === "string" && family.length > 0);

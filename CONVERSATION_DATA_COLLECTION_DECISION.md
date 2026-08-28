@@ -241,13 +241,19 @@ The first implementation step is now defined as `annotation-v3`:
 - existing preference and unrelated annotations are backfilled from their
   phrase families when migration `0008_add_annotation_relevance.sql` runs.
 
-This establishes the data boundary first. The annotation UI, relevance-specific
-dataset export, and collection queues are separate follow-up steps so each layer
-can be tested independently.
+This establishes the data boundary first. The annotation UI,
+relevance-specific dataset export, and collection queues are implemented as
+separate steps so each layer can be tested independently.
 
 The production annotation UI now applies that boundary as a relevance-first
 workflow. Action and entity controls are shown only for `actionable` utterances;
 the other three classes are saved with an empty action list.
+
+Reviewed dataset export now supports `--task relevance`. It retains all four
+relevance classes, requires a human annotation, and permits empty action lists.
+The existing `intent`, `slots`, and `joint` tasks exclude non-actionable records
+instead of turning them into false `unknown` actions. Relevance-focused
+collection queues remain the next implementation step.
 
 ---
 

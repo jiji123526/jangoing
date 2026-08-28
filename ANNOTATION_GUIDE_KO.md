@@ -555,7 +555,22 @@ npm run dataset:export -- --remote \
   --evaluation-output ml/data/reviewed-evaluation.jsonl
 ```
 
-export에는 entity spans, normalized slots, dataset purpose, phrase family가 포함된다.
+relevance classifier용 네 종류의 reviewed label을 내보내려면:
+
+```bash
+npm run dataset:export -- --remote --task relevance \
+  --train-output ml/data/relevance-train.jsonl \
+  --evaluation-output ml/data/relevance-evaluation.jsonl
+```
+
+`--task relevance`는 annotation이 저장된 record만 사용하고 `actionable`,
+`contextual_preference`, `domain_non_actionable`, `unrelated`를 모두 보존한다.
+non-actionable record는 `actions: []`, `intents: []`로 export된다. 반대로
+`intent`, `slots`, `joint` task에서는 non-actionable record를 제외하므로 이를
+`unknown` action 학습 데이터로 잘못 사용하지 않는다.
+
+export에는 relevance, entity spans, normalized slots, dataset purpose, phrase family가
+포함된다.
 두 split 사이에 같은 phrase family나 동일 문장이 있으면 export가 실패한다. 원문
 데이터이므로 Git에 커밋하지 않는다.
 

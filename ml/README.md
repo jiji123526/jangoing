@@ -43,13 +43,27 @@ npm run dataset:export -- --task slots \
   --evaluation-output ml/data/reviewed-slots-evaluation.jsonl
 ```
 
+For the utterance-level relevance classifier:
+
+```bash
+npm run dataset:export -- --task relevance \
+  --train-output ml/data/relevance-train.jsonl \
+  --evaluation-output ml/data/relevance-evaluation.jsonl
+```
+
+The relevance task requires reviewed annotations and preserves
+`actionable`, `contextual_preference`, `domain_non_actionable`, and `unrelated`.
+The intent, slots, and joint tasks exclude non-actionable records.
+
 Training requires reviewed examples from at least two intents. Generated data and
 artifacts are local-only; commit code and manifests, not conversational data.
 
-`annotation-v2` exports contain `intents` and structured `actions`. A one-action
-record also receives the legacy `intent`, `slots`, and `entities` fields. The
-current baseline excludes multi-action records instead of assigning only their
-first intent, and records `excluded_multi_action_records` in `metrics.json`.
+`annotation-v3` exports contain utterance-level `relevance`, `intents`, and
+structured `actions`. A one-action record also receives the legacy `intent`,
+`slots`, and `entities` fields. Non-actionable records have empty action lists.
+The current intent baseline excludes multi-action records instead of assigning
+only their first intent, and records `excluded_multi_action_records` in
+`metrics.json`.
 
 Recommended sequence:
 

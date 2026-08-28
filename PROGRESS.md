@@ -14,6 +14,25 @@ Add new entries at the top of the log so the latest state is easy to find.
   `unrelated`.
 - `/annotate` now asks for relevance before action structure and hides action,
   AI-draft, and entity controls for non-actionable utterances.
+- Reviewed export supports a dedicated `relevance` task and prevents
+  non-actionable records from entering intent, slot, or joint datasets.
+
+## 2026-08-28 - Relevance dataset export added
+
+### Completed
+
+- Added `--task relevance` to the reviewed train/evaluation export.
+- Required human annotations for relevance data and retained all four relevance
+  classes, including actionless non-actionable records.
+- Added `relevance` to every exported dataset record.
+- Excluded non-actionable records from `intent`, `slots`, and `joint` exports.
+- Added tests for CLI parsing, task filtering, and legacy action cleanup.
+
+### Decision
+
+- Relevance is trained as an utterance-level task.
+- Intent and slot models receive only actionable utterances; preference,
+  domain-adjacent, and unrelated speech must not become false `unknown` actions.
 
 ## 2026-08-28 - Relevance-first annotation UI added
 
@@ -57,8 +76,9 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Next
 
-- Expose relevance as the first decision in `/annotate`.
-- Add relevance-specific dataset export and review queues.
+- Add relevance-specific review queues.
+- Add conversation and activation metadata without putting wake words into the
+  downstream NLU text.
 - New annotations treat `ITEM_CONDITION` as legacy-only. Product-identity
   modifiers stay inside ITEM (`frozen blueberries` -> `frozen_blueberry`),
   while temporary state and intent-trigger wording (`spoiled`, `gone bad`,

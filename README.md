@@ -112,6 +112,19 @@ npm run dataset:export -- --task slots \
   --evaluation-output ml/data/reviewed-slots-evaluation.jsonl
 ```
 
+For utterance-level relevance classification, export all four reviewed
+relevance classes:
+
+```bash
+npm run dataset:export -- --task relevance \
+  --train-output ml/data/relevance-train.jsonl \
+  --evaluation-output ml/data/relevance-evaluation.jsonl
+```
+
+Relevance exports may contain actionless records. Intent, slot, and joint
+exports include only `actionable` records so non-actionable language is not
+misrepresented as an `unknown` inventory action.
+
 The baseline writes a model plus versioned metrics including the dataset digest,
 Git commit, seed, split counts, per-class report, and confusion matrix. See
 [the ML quick start](./ml/README.md).

@@ -19,6 +19,7 @@ const query = `SELECT il.id, il.raw_utterance, il.predicted_interpretation,
   a.intent AS annotation_intent, a.entities AS annotation_entities,
   a.normalized AS annotation_normalized, a.dataset_purpose,
   a.phrase_family AS annotation_phrase_family, a.actions AS annotation_actions,
+  a.relevance AS annotation_relevance,
   a.annotation_schema_version, a.created_at AS annotation_created_at
   FROM inference_logs il
   LEFT JOIN annotations a ON a.inference_id = il.id

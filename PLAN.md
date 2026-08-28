@@ -90,15 +90,17 @@ These limitations are acceptable only while every state-changing action requires
 ### Current Data Gaps
 
 - Annotation storage and the production annotation UI now separate `actionable`,
-  `contextual_preference`, `domain_non_actionable`, and `unrelated`; a
-  task-specific relevance export is still needed.
+  `contextual_preference`, `domain_non_actionable`, and `unrelated`.
+- Reviewed export now supports a dedicated `relevance` task that retains all
+  four reviewed classes, while `intent`, `slots`, and `joint` exclude
+  non-actionable records.
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
 - Runtime parsing now normalizes explicit natural-language expiry phrases, but
   broader timezone-aware normalization and annotation-surface visibility are
   still missing.
 - Reviewed export now separates train/evaluation splits and supports task-aware
-  filtering for `intent`, `slots`, and `joint` exports.
+  filtering for `relevance`, `intent`, `slots`, and `joint` exports.
 - `reference_date` and `timezone` are now persisted through inference request
   context and reviewed export, but they are not yet surfaced in the annotation
   UI or used for deeper timezone-aware normalization logic.
