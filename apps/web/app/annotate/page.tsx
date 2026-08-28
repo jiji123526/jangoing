@@ -17,7 +17,7 @@ import {
   AnnotationNormalizedValues,
   AnnotationPhraseFamilies,
 } from "@jangoing/contracts";
-import { ArrowLeft, Check, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -478,6 +478,7 @@ export default function AnnotatePage() {
   const [busy, setBusy] = useState(false);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [assistantProposal, setAssistantProposal] = useState<AnnotationAssistantProposal | null>(null);
+  const [queueSelectorOpen, setQueueSelectorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const expirySuggestion = suggestedExpiryDate(queueItem);
@@ -806,8 +807,19 @@ export default function AnnotatePage() {
       <div className={styles.workspace}>
         <section className={styles.card}>
           <div className={styles.step}><span>1</span><div><b>Create a sample</b><small>Write it as you would actually say it.</small></div></div>
-          <div className={styles.queueActions}>
-            <div className={styles.queueButtons}>
+          <section className={styles.queueSelector}>
+            <button
+              type="button"
+              className={styles.queueToggle}
+              aria-expanded={queueSelectorOpen}
+              aria-controls="annotation-queue-options"
+              onClick={() => setQueueSelectorOpen((current) => !current)}
+            >
+              <span><b>Queue selector</b><small>Load a specific review source</small></span>
+              <ChevronDown className={queueSelectorOpen ? styles.queueChevronOpen : ""} size={18} />
+            </button>
+            {queueSelectorOpen ? <div id="annotation-queue-options" className={styles.queueActions}>
+              <div className={styles.queueButtons}>
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("correction")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load correction queue
               </button>
@@ -826,9 +838,10 @@ export default function AnnotatePage() {
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("evaluation_holdout")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load evaluation holdout
               </button>
-            </div>
-            <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, pregenerated coverage samples, confirmed production samples, or a deterministic evaluation slice.</p>
-          </div>
+              </div>
+              <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, pregenerated coverage samples, confirmed production samples, or a deterministic evaluation slice.</p>
+            </div> : null}
+          </section>
           <form onSubmit={createSample} className={styles.sampleForm}>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500}
               onKeyDown={(event) => {

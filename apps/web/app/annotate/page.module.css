@@ -24,7 +24,13 @@
 .step div { display: grid; gap: 3px; }
 .step small { color: #68716b; line-height: 1.4; }
 .sampleForm { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: stretch; }
-.queueActions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 12px; border: 1px solid #d9ded7; border-radius: 7px; background: #f7f8f3; }
+.queueSelector { margin-bottom: 14px; overflow: hidden; border: 1px solid #d9ded7; border-radius: 7px; background: #f7f8f3; }
+.queueToggle { width: 100%; min-height: 50px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; color: #17201b; background: transparent; text-align: left; }
+.queueToggle span { display: grid; gap: 2px; }
+.queueToggle small { color: #68716b; font-weight: 500; }
+.queueToggle svg { flex: 0 0 auto; transition: transform .2s ease; }
+.queueChevronOpen { transform: rotate(180deg); }
+.queueActions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border-top: 1px solid #d9ded7; }
 .queueActions p { margin: 0; color: #68716b; font-size: .75rem; }
 .queueButtons { display: flex; flex-wrap: wrap; gap: 8px; }
 .secondaryButton { min-height: 40px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #1f6b45; border-radius: 6px; color: #1f6b45; background: white; font-weight: 750; }
