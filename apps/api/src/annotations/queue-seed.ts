@@ -508,5 +508,8 @@ export function seededQueueTargets(plan: QueueSeedPlan): Record<AnnotationQueueT
     confirmed_unannotated: plan.confirmed_unannotated,
     evaluation_holdout: plan.evaluation_holdout,
     generated_review: 0,
+    preference_context: 0,
+    domain_non_actionable: 0,
+    unrelated_negative: 0,
   };
 }

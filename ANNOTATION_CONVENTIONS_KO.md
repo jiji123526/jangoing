@@ -630,6 +630,18 @@ train과 evaluation에 나누어 넣지 않는다.
   모델이 맞았고 사용자가 confirmed한 실사용 문장을 모은다.
   기본 목적은 실제 production 분포에 가까운 `train_candidate` 보강이다.
 
+- `preference/context queue`
+  `candidate_relevance = contextual_preference`인 pregenerated 문장을 모은다.
+  선호·목표·식단·household context와 즉시 action의 경계를 검수한다.
+
+- `domain non-actionable queue`
+  `candidate_relevance = domain_non_actionable`인 pregenerated 문장을 모은다.
+  grocery vocabulary가 있지만 action이 없는 hard negative를 검수한다.
+
+- `unrelated negative queue`
+  `candidate_relevance = unrelated`인 pregenerated 문장을 모은다.
+  완전 바깥-domain negative이며 domain non-actionable보다 적게 유지한다.
+
 - `evaluation holdout`
   reviewed 문장 중 deterministic bucket 규칙으로 분리한 후보를 모은다.
   기본 목적은 `evaluation_candidate` 수집이다.
@@ -638,6 +650,10 @@ queue는 **샘플을 어디서 가져왔는지**를 나타내고, dataset purpos
 어디에 들어갈지**를 나타낸다. 보통 queue의 기본 목적을 따르지만, annotator는 특별한
 근거가 있을 때 다른 purpose로 저장할 수 있다. 다만 이런 경우 notes에 이유를 남기는
 편이 좋다.
+
+세 relevance queue의 `candidate_relevance`는 생성 단계의 routing hint일 뿐 정답이
+아니다. 화면에서 preselect되어도 문장 자체를 읽고 네 relevance 중 하나를 다시
+판단한다. 사람이 저장한 `annotations.relevance`만 학습 ground truth로 사용한다.
 
 ## Notes convention
 

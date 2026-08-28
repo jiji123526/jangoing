@@ -81,6 +81,9 @@ tracks progress toward 100–200 human training candidates and 100+ independent
 evaluation candidates. These are collection targets, not model-quality claims.
 It can also request an assistant draft for the current utterance and record
 whether the final saved annotation matched that draft or was edited.
+Generated relevance candidates can be routed into dedicated preference/context,
+domain-non-actionable, and unrelated-negative queues. Their candidate label is
+only a UI preselection; the reviewed annotation remains the ground truth.
 
 ## First ML Baseline
 

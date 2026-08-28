@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   generatedReviewInterpretation,
+  generatedReviewRelevance,
   generatedReviewSlots,
 } from "../src/annotations/generated-review";
 
@@ -28,6 +29,19 @@ describe("generatedReviewSlots", () => {
       location: "counter",
       expiration_date: "tomorrow",
     })).toEqual({});
+  });
+});
+
+describe("generatedReviewRelevance", () => {
+  it("accepts supported candidate relevance values", () => {
+    expect(generatedReviewRelevance("contextual_preference")).toBe("contextual_preference");
+    expect(generatedReviewRelevance("domain_non_actionable")).toBe("domain_non_actionable");
+    expect(generatedReviewRelevance("unrelated")).toBe("unrelated");
+  });
+
+  it("ignores missing or unsupported candidate relevance values", () => {
+    expect(generatedReviewRelevance(undefined)).toBeUndefined();
+    expect(generatedReviewRelevance("maybe")).toBeUndefined();
   });
 });
 

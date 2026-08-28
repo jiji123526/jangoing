@@ -611,7 +611,7 @@ export default function AnnotatePage() {
       parser_version: item.parser_version,
       latency_ms: 0,
     });
-    setRelevance("actionable");
+    setRelevance(item.suggested_relevance ?? "actionable");
     setActions([{
       intent: item.reviewed_interpretation?.intent ?? item.predicted_interpretation.intent,
       entities: [],
@@ -660,6 +660,12 @@ export default function AnnotatePage() {
           ? "Loaded a reviewed holdout example and preselected it as an evaluation candidate."
           : type === "generated_review"
           ? "Loaded a pregenerated review example. Use it to broaden coverage, but treat the reference intent as a starting point rather than final truth."
+          : type === "preference_context"
+          ? "Loaded a generated context or preference candidate. Confirm its relevance; the preselection is not ground truth."
+          : type === "domain_non_actionable"
+          ? "Loaded a generated grocery-domain non-actionable candidate. Confirm that it contains no immediate action."
+          : type === "unrelated_negative"
+          ? "Loaded a generated unrelated negative candidate. Keep this class smaller than domain-adjacent negatives."
           : type === "expiry"
           ? "Loaded an expiry-focused example. Mark the date span, then apply the parsed expiry date if it looks correct."
           : correctedIntent
@@ -899,6 +905,15 @@ export default function AnnotatePage() {
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("generated_review")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load generated review
               </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("preference_context")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load preference/context
+              </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("domain_non_actionable")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load domain non-actionable
+              </button>
+              <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("unrelated_negative")}>
+                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load unrelated negative
+              </button>
               <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => void loadQueue("confirmed_unannotated")}>
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load confirmed queue
               </button>
@@ -906,7 +921,7 @@ export default function AnnotatePage() {
                 {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Plus size={18} />} Load evaluation holdout
               </button>
               </div>
-              <p>Start with corrected examples, expiry-heavy sentences, low-confidence predictions, pregenerated coverage samples, confirmed production samples, or a deterministic evaluation slice.</p>
+              <p>Review actionable coverage, production corrections, or generated relevance candidates. Candidate relevance is only a preselection and must be confirmed by the annotator.</p>
             </div> : null}
           </section>
           <form onSubmit={createSample} className={styles.sampleForm}>

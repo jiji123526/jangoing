@@ -16,6 +16,30 @@ Add new entries at the top of the log so the latest state is easy to find.
   AI-draft, and entity controls for non-actionable utterances.
 - Reviewed export supports a dedicated `relevance` task and prevents
   non-actionable records from entering intent, slot, or joint datasets.
+- Dedicated generated-review queues now cover context/preferences,
+  domain-adjacent non-actionable language, and unrelated negatives.
+
+## 2026-08-28 - Relevance review queues added
+
+### Completed
+
+- Added `preference_context`, `domain_non_actionable`, and
+  `unrelated_negative` queue types across contracts, API, and `/annotate`.
+- Extended generated JSONL import to accept non-actionable `relevance` records
+  without requiring an inventory intent.
+- Stored generated labels in `request_context.candidate_relevance` and used
+  them only to preselect the annotation UI.
+- Kept candidate-relevance records out of the general actionable
+  `generated_review` queue.
+- Added query and UI-payload tests for all three queue classes.
+
+### Decision
+
+- Do not infer these queues from grocery keywords; that would encode the same
+  lexical shortcut the relevance model is intended to avoid.
+- Human-saved `annotations.relevance` is ground truth. Candidate relevance is
+  routing metadata only.
+- Keep fully unrelated negatives smaller than domain-adjacent hard negatives.
 
 ## 2026-08-28 - Relevance dataset export added
 
@@ -76,7 +100,6 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Next
 
-- Add relevance-specific review queues.
 - Add conversation and activation metadata without putting wake words into the
   downstream NLU text.
 - New annotations treat `ITEM_CONDITION` as legacy-only. Product-identity

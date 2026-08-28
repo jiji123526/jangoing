@@ -216,6 +216,11 @@ action, entity 단계가 숨겨지고 빈 action list로 저장된다. 이 세 r
 - `Load low-confidence queue`: confidence가 낮거나 `unknown`,
   `needs_clarification`에 가까운 문장
 - `Load generated review`: pregenerated dataset에서 가져온 broad-coverage 문장
+- `Load preference/context`: 선호, 목표, 식습관처럼 즉시 action은 없지만 이후
+  대화에 유용할 수 있는 generated 후보
+- `Load domain non-actionable`: 식품·요리 단어가 있지만 즉시 처리할 action은 없는
+  generated hard-negative 후보
+- `Load unrelated negative`: 주방 도메인과 무관한 소량의 generated negative 후보
 - `Load confirmed queue`: 실사용에서 맞았고 confirmed된 문장
 - `Load evaluation holdout`: evaluation 후보로 분리하려는 reviewed 문장
 
@@ -264,6 +269,20 @@ npm run annotation:import-generated -- --remote \
   --input ml/datasets/synthetic-v1.jsonl \
   --label synthetic-v1
 ```
+
+relevance 후보 JSONL은 action intent 대신 `relevance`를 넣을 수 있다.
+
+```json
+{"id":"pref-001","text":"I prefer oat milk in coffee.","relevance":"contextual_preference"}
+{"id":"domain-001","text":"Milk has gotten expensive lately.","relevance":"domain_non_actionable"}
+{"id":"neg-001","text":"The train was late again.","relevance":"unrelated"}
+```
+
+이 파일도 같은 import 명령으로 넣는다. importer는 값을 annotation 정답으로 직접
+저장하지 않고 `request_context.candidate_relevance`로만 기록한다. `/annotate`는
+해당 relevance를 미리 선택하지만, 사람이 수정하거나 확인한 뒤 저장해야
+`annotations.relevance` ground truth가 된다. `relevance`가 없는 기존 actionable
+JSONL은 계속 일반 `generated_review` queue로 간다.
 
 ### D1에서 queue data 확인하는 방법
 
@@ -365,6 +384,46 @@ WHERE a.id IS NULL
   맹신하지 않는다. bootstrapping 용도로 보고, 장기적으로는 real reviewed data의
   비중이 더 커져야 한다.
 
+#### `preference/context`
+
+- 들어오는 데이터:
+  generated-review source 중 `candidate_relevance = contextual_preference`인
+  아직 annotation되지 않은 문장
+- 현재 샘플 성격:
+  선호, 식단, 목표, household context처럼 향후 대화에는 유용하지만 즉시 inventory
+  action을 만들지 않는 후보
+- 주 목적:
+  actionable command와 장기 context를 분리하는 relevance classifier 학습
+- 주의:
+  candidate label은 생성기의 제안일 뿐이다. 실제 요청이나 상태 변경이 있으면
+  `actionable`로 고친다.
+
+#### `domain non-actionable`
+
+- 들어오는 데이터:
+  generated-review source 중 `candidate_relevance = domain_non_actionable`인
+  아직 annotation되지 않은 문장
+- 현재 샘플 성격:
+  식품, 가격, 요리, 식사 이야기는 포함하지만 즉시 실행할 action은 없는 hard negative
+- 주 목적:
+  grocery 단어만 보고 action으로 오판하는 lexical shortcut 방지
+- 주의:
+  preference나 향후 context로 보존할 정보가 핵심이면
+  `contextual_preference`로 고친다.
+
+#### `unrelated negative`
+
+- 들어오는 데이터:
+  generated-review source 중 `candidate_relevance = unrelated`인 아직 annotation되지
+  않은 문장
+- 현재 샘플 성격:
+  주방, 식품, household preference와 무관한 완전 negative
+- 주 목적:
+  relevance classifier의 바깥-domain 거절 경계 확인
+- 주의:
+  쉬운 unrelated 문장을 과도하게 늘리면 평가 점수만 부풀 수 있다. 이 queue는
+  domain non-actionable보다 작게 유지한다.
+
 #### `confirmed queue`
 
 - 들어오는 데이터:
@@ -396,6 +455,8 @@ WHERE a.id IS NULL
 - `correction`, `expiry`, `low-confidence`, `confirmed`는 주로 **training candidate
   source**로 생각하면 된다.
 - `generated_review`는 **bootstrapping용 training candidate source**다.
+- 세 relevance queue는 **relevance classifier용 generated training candidate
+  source**다. preselected label은 human ground truth가 아니다.
 - `evaluation holdout`은 기본적으로 **evaluation candidate source**다.
 - 실제 저장되는 split은 queue 이름이 아니라, annotator가 최종 저장할 때의
   `dataset purpose`와 이후 export 검증으로 결정된다.

@@ -253,7 +253,10 @@ Reviewed dataset export now supports `--task relevance`. It retains all four
 relevance classes, requires a human annotation, and permits empty action lists.
 The existing `intent`, `slots`, and `joint` tasks exclude non-actionable records
 instead of turning them into false `unknown` actions. Relevance-focused
-collection queues remain the next implementation step.
+collection queues now separate generated context/preference,
+domain-non-actionable, and unrelated-negative candidates. The generated label
+is stored only as `candidate_relevance` and preselects the UI; it does not become
+ground truth until a human saves the annotation.
 
 ---
 
@@ -322,6 +325,8 @@ If a trigger word is introduced later, it should ideally remain an activation-la
 - Collect natural everyday conversational utterances.
 - Preserve unrelated and non-actionable examples as negative coverage.
 - Prioritize domain-adjacent non-actionable examples over large volumes of completely unrelated speech.
+- Route generated relevance candidates through separate review queues and treat
+  their labels as suggestions rather than ground truth.
 - Keep human-reviewed annotations as ground truth.
 - Consider introducing a separate relevance label/task as the conversational dataset grows.
 - If a wake word is added later, treat it as an activation mechanism and remove it before downstream NLU.

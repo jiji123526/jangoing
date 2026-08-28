@@ -1,9 +1,11 @@
 import {
   IsoDateSchema,
   LocationSchema,
+  RelevanceSchema,
   type CommandSlots,
   type Intent,
   type Interpretation,
+  type Relevance,
 } from "@jangoing/contracts";
 
 export const generatedReviewSourcePrefix = "generated-review:";
@@ -23,10 +25,16 @@ export interface GeneratedDatasetRecord {
   difficulty?: string;
   phrase_family?: string;
   source?: string;
+  relevance?: Relevance;
 }
 
 export function isGeneratedReviewSource(source: string): boolean {
   return source.startsWith(generatedReviewSourcePrefix);
+}
+
+export function generatedReviewRelevance(value: unknown): Relevance | undefined {
+  const parsed = RelevanceSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 export function generatedReviewSource(label: string): string {

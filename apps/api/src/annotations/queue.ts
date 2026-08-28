@@ -1,6 +1,7 @@
 import {
   AnnotationQueueItemSchema,
   AnnotationQueueQuerySchema,
+  RelevanceSchema,
   type AnnotationQueueItem,
   type AnnotationQueueQuery,
   type AnnotationQueueType,
@@ -14,6 +15,7 @@ export interface AnnotationQueueRow {
   text: string;
   predicted_interpretation: string;
   corrected_interpretation: string | null;
+  request_context: string | null;
   parser_version: string;
   outcome: string;
   created_at: string;
@@ -57,6 +59,7 @@ const generatedReviewSourceLike = `${generatedReviewSourcePrefix}%`;
 const actualUserSourceFilter =
   `il.source != '${annotationQueueSeedSource}' AND il.source NOT LIKE '${generatedReviewSourceLike}'`;
 const nonGeneratedReviewFilter = `il.source NOT LIKE '${generatedReviewSourceLike}'`;
+const candidateRelevance = "json_extract(il.request_context, '$.candidate_relevance')";
 
 export function parseAnnotationQueueQuery(
   input: Record<string, string | undefined>,
@@ -73,6 +76,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -94,6 +98,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -124,6 +129,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -155,6 +161,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -176,6 +183,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -198,6 +206,7 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           il.raw_utterance AS text,
           il.predicted_interpretation,
           il.corrected_interpretation,
+          il.request_context,
           il.parser_version,
           il.outcome,
           COALESCE(il.resolved_at, il.created_at) AS created_at
@@ -207,12 +216,67 @@ function queueDefinition(type: AnnotationQueueType): QueueDefinition {
           a.id IS NULL
           AND il.source LIKE '${generatedReviewSourceLike}'
           AND il.corrected_interpretation IS NOT NULL
+          AND ${candidateRelevance} IS NULL
         ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
         LIMIT ?`,
         reason: "generated_dataset_record",
       };
+    case "preference_context":
+      return relevanceQueueDefinition(
+        "contextual_preference",
+        "generated_context_or_preference_candidate",
+      );
+    case "domain_non_actionable":
+      return relevanceQueueDefinition(
+        "domain_non_actionable",
+        "generated_domain_non_actionable_candidate",
+      );
+    case "unrelated_negative":
+      return relevanceQueueDefinition(
+        "unrelated",
+        "generated_unrelated_negative_candidate",
+      );
     default:
       throw new Error(`Queue type is not implemented yet: ${type}`);
+  }
+}
+
+function relevanceQueueDefinition(relevance: string, reason: string): QueueDefinition {
+  return {
+    query: `SELECT
+      il.id AS inference_id,
+      il.raw_utterance AS text,
+      il.predicted_interpretation,
+      il.corrected_interpretation,
+      il.request_context,
+      il.parser_version,
+      il.outcome,
+      COALESCE(il.resolved_at, il.created_at) AS created_at
+    FROM inference_logs il
+    LEFT JOIN annotations a ON a.inference_id = il.id
+    WHERE
+      a.id IS NULL
+      AND il.source LIKE '${generatedReviewSourceLike}'
+      AND ${candidateRelevance} = '${relevance}'
+    ORDER BY COALESCE(il.resolved_at, il.created_at) ASC, il.id ASC
+    LIMIT ?`,
+    reason,
+  };
+}
+
+function candidateRelevanceFromContext(
+  requestContext: string | null,
+): ReturnType<typeof RelevanceSchema.parse> | undefined {
+  if (!requestContext) {
+    return undefined;
+  }
+
+  try {
+    const context = JSON.parse(requestContext) as Record<string, unknown>;
+    const parsed = RelevanceSchema.safeParse(context.candidate_relevance);
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -264,6 +328,7 @@ export function buildAnnotationQueueItems(
       text: row.text,
       queue_type: type,
       queue_reason: definition.reason,
+      suggested_relevance: candidateRelevanceFromContext(row.request_context),
       predicted_interpretation: asInterpretation(row.predicted_interpretation, row.text),
       reviewed_interpretation: asInterpretation(row.corrected_interpretation, row.text),
       outcome: row.outcome,

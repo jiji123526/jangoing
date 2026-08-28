@@ -53,6 +53,7 @@ describe("buildAnnotationQueueItems", () => {
           requires_confirmation: false,
           raw_utterance: "Put 12 eggs on the list",
         }),
+        request_context: null,
         parser_version: "rules-v1",
         outcome: "corrected",
         created_at: "2026-08-27T00:00:00.000Z",
@@ -115,5 +116,57 @@ describe("annotationQueueQuery", () => {
     expect(queue.reason).toBe("generated_dataset_record");
     expect(queue.query).toContain("il.source LIKE 'generated-review:%'");
     expect(queue.query).toContain("il.corrected_interpretation IS NOT NULL");
+    expect(queue.query).toContain("$.candidate_relevance");
+    expect(queue.query).toContain("IS NULL");
+  });
+
+  it.each([
+    [
+      "preference_context",
+      "contextual_preference",
+      "generated_context_or_preference_candidate",
+    ],
+    [
+      "domain_non_actionable",
+      "domain_non_actionable",
+      "generated_domain_non_actionable_candidate",
+    ],
+    [
+      "unrelated_negative",
+      "unrelated",
+      "generated_unrelated_negative_candidate",
+    ],
+  ] as const)("selects %s records by explicit candidate relevance", (type, relevance, reason) => {
+    const queue = annotationQueueQuery(type);
+
+    expect(queue.reason).toBe(reason);
+    expect(queue.query).toContain("il.source LIKE 'generated-review:%'");
+    expect(queue.query).toContain("$.candidate_relevance");
+    expect(queue.query).toContain(`= '${relevance}'`);
+  });
+
+  it("passes candidate relevance to the annotation UI as a suggestion", () => {
+    const [item] = buildAnnotationQueueItems("preference_context", [
+      {
+        inference_id: "00000000-0000-4000-8000-000000000002",
+        text: "I prefer oat milk in coffee.",
+        predicted_interpretation: JSON.stringify({
+          intent: "unknown",
+          slots: {},
+          confidence: 0.4,
+          requires_confirmation: true,
+          raw_utterance: "I prefer oat milk in coffee.",
+        }),
+        corrected_interpretation: null,
+        request_context: JSON.stringify({
+          candidate_relevance: "contextual_preference",
+        }),
+        parser_version: "rules-v1",
+        outcome: "pending",
+        created_at: "2026-08-28T00:00:00.000Z",
+      },
+    ]);
+
+    expect(item.suggested_relevance).toBe("contextual_preference");
   });
 });

@@ -62,6 +62,8 @@ The text MVP is implemented and deployable:
 - Dynamic normalized-value suggestions with controlled phrase families
 - Prioritized annotation queues for correction, expiry-heavy, low-confidence,
   confirmed, and evaluation-holdout samples
+- Generated relevance review queues for contextual preferences,
+  domain-adjacent non-actionable language, and small unrelated negative sets
 - Assistant-generated annotation drafts with proposal tracking and parser fallback
 - Production counters for training candidates (100–200 target) and evaluation
   candidates (100+ target)
@@ -118,6 +120,9 @@ These limitations are acceptable only while every state-changing action requires
   human review and do not yet provide calibrated confidence per span.
 - The single-action baseline gate is still implicit in ML code rather than a
   first-class export or annotation flag.
+- Relevance queue candidates currently depend on imported JSONL carrying an
+  explicit candidate relevance; broad, diverse candidate generation is still a
+  separate data-design task.
 
 ## MVP Boundary
 

@@ -372,6 +372,9 @@ export const AnnotationQueueTypeSchema = z.enum([
   "confirmed_unannotated",
   "evaluation_holdout",
   "generated_review",
+  "preference_context",
+  "domain_non_actionable",
+  "unrelated_negative",
 ]);
 
 export const AnnotationQueueItemSchema = z.object({
@@ -379,6 +382,7 @@ export const AnnotationQueueItemSchema = z.object({
   text: z.string(),
   queue_type: AnnotationQueueTypeSchema,
   queue_reason: z.string(),
+  suggested_relevance: RelevanceSchema.optional(),
   predicted_interpretation: InterpretationSchema,
   reviewed_interpretation: InterpretationSchema.optional(),
   outcome: InferenceOutcomeSchema,

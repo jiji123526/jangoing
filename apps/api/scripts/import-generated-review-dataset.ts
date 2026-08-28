@@ -11,6 +11,7 @@ import {
   generatedReviewInterpretation,
   generatedReviewNormalizerVersion,
   generatedReviewParserVersion,
+  generatedReviewRelevance,
   generatedReviewReferenceDate,
   generatedReviewSchemaVersion,
   generatedReviewSource,
@@ -147,10 +148,17 @@ function readGeneratedRecords(inputPath: string, limit?: number): GeneratedDatas
       throw new Error("Generated record text must be a non-empty string");
     }
 
+    const relevance = generatedReviewRelevance(parsed.relevance);
+    if (relevance === "actionable" && parsed.intent === undefined) {
+      throw new Error("Generated actionable records require a supported intent");
+    }
+
     return {
       id: typeof parsed.id === "string" ? parsed.id : undefined,
       text: parsed.text,
-      intent: normalizeIntent(parsed.intent),
+      intent: relevance && relevance !== "actionable"
+        ? "unknown"
+        : normalizeIntent(parsed.intent),
       normalized:
         parsed.normalized && typeof parsed.normalized === "object"
           ? (parsed.normalized as Record<string, unknown>)
@@ -165,6 +173,7 @@ function readGeneratedRecords(inputPath: string, limit?: number): GeneratedDatas
       difficulty: typeof parsed.difficulty === "string" ? parsed.difficulty : undefined,
       phrase_family: typeof parsed.phrase_family === "string" ? parsed.phrase_family : undefined,
       source: typeof parsed.source === "string" ? parsed.source : undefined,
+      relevance,
     };
   });
 }
@@ -213,6 +222,7 @@ function importRecord(
       difficulty: record.difficulty ?? null,
       phrase_family: record.phrase_family ?? null,
       original_source: record.source ?? null,
+      candidate_relevance: record.relevance ?? null,
     }),
     predicted_interpretation: JSON.stringify(predicted),
     corrected_interpretation: JSON.stringify(corrected),
