@@ -36,6 +36,20 @@ describe("buildAnnotationAssistantProposal", () => {
 });
 
 describe("materializeProposalDraft", () => {
+  it("drops incomplete AI entities without discarding the action", () => {
+    expect(materializeProposalDraft("We are out of milk", {
+      actions: [{
+        intent: "mark_out",
+        phrase_family: null,
+        entities: [{ label: "ITEM", normalized_value: "milk" }],
+      }],
+    })).toEqual([{
+      intent: "mark_out",
+      phrase_family: null,
+      entities: [],
+    }]);
+  });
+
   it("reconstructs entity spans from exact utterance text", () => {
     const actions = materializeProposalDraft(
       "We are out of milk, so add milk to the shopping list.",

@@ -32,7 +32,7 @@ export interface StoredProposalRecord extends AnnotationAssistantProposal {}
 
 const LlmEntityDraftSchema = z.object({
   label: EntityLabelSchema,
-  text: z.string().trim().min(1).max(200),
+  text: z.string().trim().min(1).max(200).optional(),
   normalized_value: z.union([z.string(), z.number()]).optional(),
 });
 
@@ -82,6 +82,9 @@ function materializeAction(
   const usedRanges: Array<{ start: number; end: number }> = [];
 
   const entities = action.entities.flatMap((entity) => {
+    if (!entity.text) {
+      return [];
+    }
     const match = uniqueEntityTextRanges(rawUtterance, entity.text).find((candidate) =>
       usedRanges.every((range) => candidate.end <= range.start || candidate.start >= range.end),
     );
