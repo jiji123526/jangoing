@@ -10,7 +10,7 @@ import {
 } from "@jangoing/contracts";
 import { z } from "zod";
 
-export const annotationAssistantPromptVersion = "annotation-ai-v4";
+export const annotationAssistantPromptVersion = "annotation-ai-v5";
 
 export interface InferenceProposalContext {
   inference_id: string;
@@ -86,6 +86,12 @@ function materializeAction(
   const usedRanges: Array<{ start: number; end: number }> = [];
 
   const entities = action.entities.flatMap((entity) => {
+    // State/quality wording is training context for intent and phrase-family
+    // classification, not a concrete downstream argument.
+    if (entity.label === "ITEM_CONDITION") {
+      return [];
+    }
+
     if (!entity.text) {
       return [];
     }
@@ -162,10 +168,12 @@ function systemPrompt(): string {
     "- entities with label, exact text from the utterance, start, end, and normalized_value when clear",
     "Entity start is the zero-based inclusive character offset and end is the zero-based exclusive offset.",
     "The utterance slice from start to end must exactly equal entity text, including case and punctuation.",
-    "Label every useful span, including ITEM, ITEM_CONDITION, QUANTITY, UNIT, LOCATION, EXPIRY_DATE, and CATEGORY when present.",
+    "Label only concrete downstream arguments: ITEM, QUANTITY, UNIT, LOCATION, EXPIRY_DATE, and CATEGORY when needed.",
+    "Do not label ITEM_CONDITION in new drafts.",
+    "Leave intent-trigger and descriptive condition phrases such as no longer usable, gone bad, spoiled, almost out, low on, or out of as unlabelled raw context.",
+    "Use the intent and phrase_family to capture those linguistic patterns instead of turning them into entity spans.",
     "For normalized_value, reuse a semantically equivalent value from preferred_normalized_values whenever one exists.",
     "Create a new canonical normalized value only when none of the existing values accurately represents the entity.",
-    "Use ITEM_CONDITION for modifiers like ripe, frozen, fresh, expired, spoiled, or moldy when they describe the item's state, and use ITEM for the item noun itself.",
     "Do not invent text that does not appear in the utterance.",
     "If unsure, omit the entity instead of hallucinating it.",
     "Prefer conservative intents such as needs_clarification over overcommitting.",
@@ -175,10 +183,9 @@ function systemPrompt(): string {
 export function buildAnnotationAssistantUserPrompt(context: InferenceProposalContext): string {
   const preferredNormalizedValues = context.preferred_normalized_values
     ? Object.fromEntries(
-        Object.entries(context.preferred_normalized_values).map(([label, values]) => [
-          label,
-          values.slice(0, 200),
-        ]),
+        Object.entries(context.preferred_normalized_values)
+          .filter(([label]) => label !== "ITEM_CONDITION")
+          .map(([label, values]) => [label, values.slice(0, 200)]),
       )
     : {};
 

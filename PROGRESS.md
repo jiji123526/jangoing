@@ -269,6 +269,10 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Added reviewed normalized values to assistant prompt v4, grouped by entity
   label and capped at 200 values per label. GPT is instructed to reuse an
   existing semantically equivalent canonical value before proposing a new one.
+- Narrowed assistant prompt v5 and the manual label toolbar to downstream
+  argument entities. New drafts no longer label ITEM_CONDITION; descriptive
+  state and inference phrases remain raw context for intent and phrase-family
+  learning. The schema retains ITEM_CONDITION only for legacy compatibility.
 - Replaced native normalized-value datalists with real selects so saved
   canonical values remain visible and selectable on mobile Safari. New values
   use an explicit `Enter a new canonical value` mode.

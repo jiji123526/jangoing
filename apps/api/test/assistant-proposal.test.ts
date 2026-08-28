@@ -55,10 +55,38 @@ describe("buildAnnotationAssistantUserPrompt", () => {
     expect(prompt.preferred_normalized_values.ITEM).toHaveLength(200);
     expect(prompt.preferred_normalized_values.ITEM[0]).toBe("item_0");
     expect(prompt.preferred_normalized_values.UNIT).toEqual(["carton"]);
+    expect(prompt.preferred_normalized_values.ITEM_CONDITION).toBeUndefined();
   });
 });
 
 describe("materializeProposalDraft", () => {
+  it("keeps item state wording as raw context instead of an entity", () => {
+    expect(materializeProposalDraft("The milk is no longer usable", {
+      actions: [{
+        intent: "throw_away",
+        phrase_family: "spoiled_item_discard",
+        entities: [
+          { label: "ITEM", text: "milk", normalized_value: "milk" },
+          {
+            label: "ITEM_CONDITION",
+            text: "no longer usable",
+            normalized_value: "unusable",
+          },
+        ],
+      }],
+    })).toEqual([{
+      intent: "throw_away",
+      phrase_family: "spoiled_item_discard",
+      entities: [{
+        label: "ITEM",
+        start: 4,
+        end: 8,
+        text: "milk",
+        normalized_value: "milk",
+      }],
+    }]);
+  });
+
   it("drops incomplete AI entities without discarding the action", () => {
     expect(materializeProposalDraft("We are out of milk", {
       actions: [{

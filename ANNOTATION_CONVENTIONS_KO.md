@@ -1,4 +1,4 @@
-# Annotation Convention v2
+# Annotation Convention v3
 
 ## 문서 목적
 
@@ -7,7 +7,7 @@
 라벨링하더라도 intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
 것이 이 문서의 목표다.
 
-- convention version: `annotation-v2`
+- convention version: `annotation-v3`
 - 기본 언어/locale: 영어, `en-US`
 - 적용 범위: 실제 사용자 표현과 사람이 검토하는 영어 문장
 - 우선순위: 원문 의미 > 대화 맥락 > parser 예측
@@ -105,7 +105,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 | Label | 선택 기준 | 원문 예 | normalized value 예 |
 |---|---|---|---|
 | `ITEM` | 특정 식품·제품 | `Coke`, `milk`, `apples` | `coke`, `milk`, `apple` |
-| `ITEM_CONDITION` | item의 상태·품질·보관 상태를 나타내는 수식 | `ripe`, `frozen`, `spoiled` | `ripe`, `frozen`, `spoiled` |
+| `ITEM_CONDITION` | 기존 데이터 호환용 legacy label. 신규 기본 라벨링에는 사용하지 않음 | - | - |
 | `CATEGORY` | 여러 상품을 포괄하는 상위 개념 | `drinks`, `snacks`, `fruit` | `beverage`, `snack`, `fruit` |
 | `QUANTITY` | 개수나 양의 숫자 표현 | `two`, `a couple` | `2` |
 | `UNIT` | 수량의 측정·포장 단위 | `cartons`, `bottles` | `carton`, `bottle` |
@@ -119,8 +119,9 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - 수량과 단위는 합치지 않고 따로 선택한다: `[two] [cartons] of [milk]`.
 - 복합 상품명은 의미 단위 전체를 선택한다: `[peanut butter]`.
 - 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`.
-- item의 일시적 상태·품질·보관 상태 수식어는 가능하면 별도 `ITEM_CONDITION`으로 뗀다:
-  `[ripe] [bananas]`, `[frozen] [blueberries]`, `[spoiled] [milk]`, `[expired] [yogurt]`.
+- item의 상태·품질·추론 표현은 신규 entity로 잡지 않는다. `ripe`, `frozen`,
+  `spoiled`, `no longer usable`, `gone bad` 등은 raw context로 남겨 intent와
+  phrase family 학습에 사용한다.
 - 단순 행동 상태 표현은 entity에 포함하지 않는다: `low on`, `out of`.
 - `expired`가 item을 직접 꾸미지 않고 discard/expiry 판단의 trigger로만 쓰일 때는
   phrase family 판단에만 사용하고 entity로 억지로 잡지 않는다.
@@ -128,7 +129,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - 동일 span이 실제로 여러 action에 필요하면 action별로 한 번씩 연결할 수 있다.
 - 원문에 없는 생략된 대상을 entity로 만들어내지 않는다.
 
-### ITEM, ITEM_CONDITION, CATEGORY
+### ITEM과 CATEGORY
 
 핵심 질문은 “하나의 canonical product를 가리키는가, 여러 후보를 포괄하는가?”다.
 
@@ -136,9 +137,9 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 - `whole milk` → `ITEM: whole_milk`
 - `oat milk` → `ITEM: oat_milk`
 - `Coke` → `ITEM: coke`
-- `ripe bananas` → `ITEM_CONDITION: ripe` + `ITEM: banana`
-- `frozen blueberries` → `ITEM_CONDITION: frozen` + `ITEM: blueberry`
-- `spoiled milk` → `ITEM_CONDITION: spoiled` + `ITEM: milk`
+- `ripe bananas` → `ITEM: banana`; `ripe`는 raw context로 남김
+- `frozen blueberries` → `ITEM: blueberry`; `frozen`은 raw context로 남김
+- `spoiled milk` → `ITEM: milk`; `spoiled`은 raw context로 남김
 - `drinks` / `beverages` / `something to drink` → `CATEGORY: beverage`
 - `fruit` → 문맥상 특정 과일이 정해지지 않았다면 `CATEGORY: fruit`
 - `apples` → `ITEM: apple`
@@ -170,13 +171,13 @@ annotator는 **원문에 직접 나온 specificity 수준**을 유지한다. inv
 - candidate가 여러 개면 runtime이 clarification을 요청할 수 있지만, annotator가
   그 모호성을 annotation 단계에서 임의로 제거하지 않는다.
 
-`ITEM_CONDITION`은 item 자체의 identity가 아니라 **현재 상태나 취급 조건**을 담는다.
+`ITEM_CONDITION`은 과거 실험 데이터와 schema 호환성을 위해 남겨 두지만 신규
+annotation의 기본 entity scope에서는 제외한다. 상태 표현을 구조화해 실제 product
+기능에서 저장·검색·추천 입력으로 사용하기로 결정한 이후 별도 task로 다시 도입한다.
 
-- 상태/품질/보관 상태: `ripe`, `overripe`, `fresh`, `expired`, `spoiled`, `moldy`, `frozen`, `thawed`
-- identity의 일부: `oat milk`, `green tea`, `ground coffee`, `baby spinach`
-
-즉 `green tea`는 차의 종류 이름이므로 ITEM 안에 포함하고, `frozen blueberries`의
-`frozen`은 일시적 상태이므로 `ITEM_CONDITION`으로 분리한다.
+`oat milk`, `green tea`, `ground coffee`, `baby spinach`처럼 상품 정체성의 일부인
+수식어는 계속 ITEM span 전체에 포함한다. 반면 `frozen blueberries`의 `frozen`은
+raw context로 남기고 ITEM은 `blueberries`만 선택한다.
 
 ## Normalization convention
 

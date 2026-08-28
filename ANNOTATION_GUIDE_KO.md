@@ -95,10 +95,11 @@ https://jangoing-web.vercel.app/annotate
 2. 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
 3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
 4. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
-5. ITEM, ITEM_CONDITION, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
-6. label별 실제 dropdown에서 canonical/normalized 값을 선택한다. ITEM, ITEM_CONDITION,
-   CATEGORY, UNIT은 모바일에서도 전체 existing canonical value를 펼쳐 볼 수 있다.
-7. ITEM, ITEM_CONDITION, CATEGORY, UNIT에서 관련 값이 없으면
+5. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
+   ITEM_CONDITION은 기존 데이터 호환용이며 신규 기본 라벨링에서는 사용하지 않는다.
+6. label별 실제 dropdown에서 canonical/normalized 값을 선택한다. ITEM, CATEGORY,
+   UNIT은 모바일에서도 전체 existing canonical value를 펼쳐 볼 수 있다.
+7. ITEM, CATEGORY, UNIT에서 관련 값이 없으면
    `Enter a new canonical value`를 선택하고 입력칸에 새 값을 적은 뒤 `Save ...`
    버튼을 눌러 목록에 추가한다. 이 버튼은 공백 표현을 lower_snake_case로 정리해 준다.
    예: `oat milk` → `oat_milk`
@@ -137,8 +138,8 @@ https://jangoing-web.vercel.app/annotate
   추천 목록에 즉시 추가한다.
 - 이미 존재하는 값과 형식만 다른 경우 버튼은 새 값을 추가하지 않고 기존 canonical
   값으로 맞춰 준다.
-- ITEM_CONDITION도 같은 방식으로 추가한다. 예: `Frozen`을 입력해도 저장 시
-  `frozen`으로 맞춰지고, `very ripe`는 `very_ripe`처럼 canonical form으로 정리된다.
+- 상태·품질·추론 표현은 신규 ITEM_CONDITION entity로 추가하지 않고 raw text에
+  남겨 intent와 phrase family의 학습 신호로 사용한다.
 
 ### Assistant draft API 흐름
 
@@ -489,14 +490,14 @@ review status를 추가해야 한다.
 
 ## Normalized value 입력 방식
 
-annotation-v2는 label별로 다른 입력 방식을 사용한다.
+annotation-v3는 label별로 다른 입력 방식을 사용한다.
 
-- ITEM, ITEM_CONDITION, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 추천 + 새 값 직접 입력
 - QUANTITY: 숫자 입력 + 기존 숫자 추천
 - LOCATION: API contract가 지원하는 `fridge`, `freezer`, `pantry`
 - EXPIRY_DATE: ISO 날짜를 만드는 날짜 선택기
 
-ITEM, ITEM_CONDITION, CATEGORY, UNIT은 추천 목록에 값이 없더라도 annotator가 새
+ITEM, CATEGORY, UNIT은 추천 목록에 값이 없더라도 annotator가 새
 canonical 값을 바로 입력할 수 있다. 가능하면 영문 소문자 `snake_case`를 사용한다.
 저장이 끝나면 그 값은 이후 annotation에서 자동으로 재사용 후보에 포함된다.
 

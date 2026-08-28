@@ -44,7 +44,6 @@ const intents: Intent[] = [
 ];
 const labels: EntityLabel[] = [
   "ITEM",
-  "ITEM_CONDITION",
   "CATEGORY",
   "QUANTITY",
   "UNIT",
