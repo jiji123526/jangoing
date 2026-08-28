@@ -77,6 +77,26 @@ describe("materializeProposalDraft", () => {
     }]);
   });
 
+  it("uses valid AI offsets and falls back to exact text when offsets are wrong", () => {
+    const actions = materializeProposalDraft("Add two cartons of oat milk", {
+      actions: [{
+        intent: "add_item",
+        phrase_family: null,
+        entities: [
+          { label: "QUANTITY", text: "two", start: 4, end: 7, normalized_value: 2 },
+          { label: "UNIT", text: "cartons", start: 99, end: 106, normalized_value: "carton" },
+          { label: "ITEM", text: "oat milk", start: 19, end: 27, normalized_value: "oat_milk" },
+        ],
+      }],
+    });
+
+    expect(actions[0]?.entities).toEqual([
+      { label: "QUANTITY", text: "two", start: 4, end: 7, normalized_value: 2 },
+      { label: "UNIT", text: "cartons", start: 8, end: 15, normalized_value: "carton" },
+      { label: "ITEM", text: "oat milk", start: 19, end: 27, normalized_value: "oat_milk" },
+    ]);
+  });
+
   it("drops invalid phrase families instead of failing the whole draft", () => {
     const actions = materializeProposalDraft(
       "Mark the milk as low.",

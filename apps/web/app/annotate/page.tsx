@@ -438,6 +438,28 @@ function NormalizedValueControl({
   );
 }
 
+function annotationSegments(text: string, entities: EntityAnnotation[]) {
+  const sorted = [...entities]
+    .filter((entity) => entity.start >= 0 && entity.end <= text.length && entity.start < entity.end)
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+  const segments: Array<{ text: string; entity: EntityAnnotation | null }> = [];
+  let cursor = 0;
+
+  for (const entity of sorted) {
+    if (entity.start < cursor) continue;
+    if (entity.start > cursor) {
+      segments.push({ text: text.slice(cursor, entity.start), entity: null });
+    }
+    segments.push({ text: text.slice(entity.start, entity.end), entity });
+    cursor = entity.end;
+  }
+
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), entity: null });
+  }
+  return segments;
+}
+
 export default function AnnotatePage() {
   const textRef = useRef<HTMLDivElement>(null);
   const initialGeneratedQueueLoadedRef = useRef(false);
@@ -456,11 +478,11 @@ export default function AnnotatePage() {
   const [busy, setBusy] = useState(false);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [assistantProposal, setAssistantProposal] = useState<AnnotationAssistantProposal | null>(null);
-  const [assistantApplied, setAssistantApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const expirySuggestion = suggestedExpiryDate(queueItem);
   const proposalUnchanged = assistantProposal ? actionsEqual(assistantProposal.actions, actions) : false;
+  const activeEntities = actions[activeActionIndex]?.entities ?? [];
 
   useEffect(() => {
     void getAnnotationStats()
@@ -492,7 +514,6 @@ export default function AnnotatePage() {
     setNotes("");
     setQueueItem(null);
     setAssistantProposal(null);
-    setAssistantApplied(false);
   }
 
   function resetPageScroll() {
@@ -528,7 +549,6 @@ export default function AnnotatePage() {
       setSelection(null);
       setQueueItem(null);
       setAssistantProposal(null);
-      setAssistantApplied(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create sample.");
     } finally {
@@ -555,7 +575,6 @@ export default function AnnotatePage() {
     setDraft(item.text);
     setQueueItem(item);
     setAssistantProposal(null);
-    setAssistantApplied(false);
   }
 
   async function loadQueue(type: AnnotationQueueType) {
@@ -682,34 +701,22 @@ export default function AnnotatePage() {
     try {
       const proposal = await createAnnotationAssistantProposal(sample.inference_id);
       setAssistantProposal(proposal);
-      setAssistantApplied(false);
+      setActions(proposal.actions.map((action) => ({
+        ...action,
+        entities: action.entities.map((entity) => ({ ...entity })),
+      })));
+      setActiveActionIndex(0);
+      setSelection(null);
       setNotice(
         proposal.provider === "parser-fallback"
-          ? "AI key is not configured, so the annotation draft fell back to the deterministic parser baseline."
-          : `AI draft ready from ${proposal.provider}:${proposal.model}. Review it before applying.`,
+          ? "The annotation draft used the deterministic parser fallback and is ready for review."
+          : `AI draft applied from ${proposal.provider}:${proposal.model}. Review and edit it before saving.`,
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not generate an annotation draft.");
     } finally {
       setAssistantBusy(false);
     }
-  }
-
-  function applyAssistantDraft() {
-    if (!assistantProposal) {
-      setError("Generate an assistant draft before applying it.");
-      return;
-    }
-
-    setActions(assistantProposal.actions.map((action) => ({
-      ...action,
-      entities: action.entities.map((entity) => ({ ...entity })),
-    })));
-    setActiveActionIndex(0);
-    setSelection(null);
-    setAssistantApplied(true);
-    setError(null);
-    setNotice("Applied the assistant draft. Edit anything that looks off before saving.");
   }
 
   async function saveAnnotation() {
@@ -734,7 +741,7 @@ export default function AnnotatePage() {
         dataset_purpose: purpose,
         notes: notes.trim() || null,
         annotator: "production-web",
-        ...(assistantProposal && assistantApplied
+        ...(assistantProposal
           ? {
               assistant_proposal_id: assistantProposal.proposal_id,
               assistant_resolution: proposalUnchanged ? "accepted_as_is" : "accepted_with_edits",
@@ -903,21 +910,30 @@ export default function AnnotatePage() {
                     </p>
                     <p>{assistantProposal.actions.length} proposed action{assistantProposal.actions.length === 1 ? "" : "s"}.</p>
                     {assistantProposal.note ? <p>{assistantProposal.note}</p> : null}
+                    <div className={styles.assistantLabels}>
+                      {assistantProposal.actions.map((action, actionIndex) => (
+                        <section key={`${action.intent}-${actionIndex}`}>
+                          <b>Action {actionIndex + 1}: {readable(action.intent)}</b>
+                          {action.entities.length > 0 ? (
+                            <ul>
+                              {action.entities.map((entity) => (
+                                <li key={`${entity.label}-${entity.start}-${entity.end}`}>
+                                  <code>{entity.label}</code> “{entity.text}”
+                                  {entity.normalized_value !== undefined
+                                    ? ` → ${String(entity.normalized_value)}`
+                                    : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : <span>No entity spans proposed.</span>}
+                        </section>
+                      ))}
+                    </div>
                     <p>
-                      {assistantApplied
-                        ? proposalUnchanged
-                          ? "Current annotation still matches the applied draft."
-                          : "Current annotation differs from the applied draft and will be saved as edited."
-                        : "Draft generated but not applied yet."}
+                      {proposalUnchanged
+                        ? "The applied draft is unchanged. Review it, then save when it is correct."
+                        : "The applied draft has edits and will be saved as edited."}
                     </p>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      disabled={busy || assistantBusy}
-                      onClick={applyAssistantDraft}
-                    >
-                      Apply AI draft
-                    </button>
                   </div>
                 ) : (
                   <p className={styles.assistantEmpty}>Generate a draft after loading or creating a sample.</p>
@@ -933,7 +949,16 @@ export default function AnnotatePage() {
                 onTouchEnd={() => window.setTimeout(captureSelection, 50)}
                 className={styles.annotationText}
               >
-                {sample.raw_utterance}
+                {annotationSegments(sample.raw_utterance, activeEntities).map((segment, index) =>
+                  segment.entity ? (
+                    <mark
+                      key={`${segment.entity.start}-${segment.entity.end}-${segment.entity.label}`}
+                      className={styles.entityHighlight}
+                      data-label={segment.entity.label}
+                    >
+                      {segment.text}
+                    </mark>
+                  ) : <span key={`plain-${index}`}>{segment.text}</span>)}
               </div>
               <div className={styles.labelBar}>
                 {labels.map((label) => <button type="button" key={label} disabled={!selection} onClick={() => addEntity(label)}>{label}</button>)}

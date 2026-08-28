@@ -9,7 +9,7 @@ import {
 } from "@jangoing/contracts";
 import { z } from "zod";
 
-export const annotationAssistantPromptVersion = "annotation-ai-v1";
+export const annotationAssistantPromptVersion = "annotation-ai-v2";
 
 export interface InferenceProposalContext {
   inference_id: string;
@@ -33,6 +33,8 @@ export interface StoredProposalRecord extends AnnotationAssistantProposal {}
 const LlmEntityDraftSchema = z.object({
   label: EntityLabelSchema,
   text: z.string().trim().min(1).max(200).optional(),
+  start: z.number().int().nonnegative().optional(),
+  end: z.number().int().positive().optional(),
   normalized_value: z.union([z.string(), z.number()]).optional(),
 });
 
@@ -85,7 +87,21 @@ function materializeAction(
     if (!entity.text) {
       return [];
     }
-    const match = uniqueEntityTextRanges(rawUtterance, entity.text).find((candidate) =>
+
+    const suppliedRange = entity.start !== undefined && entity.end !== undefined
+      && entity.start < entity.end
+      && rawUtterance.slice(entity.start, entity.end) === entity.text
+      ? {
+          start: entity.start,
+          end: entity.end,
+          text: entity.text,
+        }
+      : null;
+
+    const match = [
+      ...(suppliedRange ? [suppliedRange] : []),
+      ...uniqueEntityTextRanges(rawUtterance, entity.text),
+    ].find((candidate) =>
       usedRanges.every((range) => candidate.end <= range.start || candidate.start >= range.end),
     );
 
@@ -141,7 +157,10 @@ function systemPrompt(): string {
     "Each action must contain:",
     "- intent",
     "- optional phrase_family",
-    "- entities with label, exact text from the utterance, and normalized_value when clear",
+    "- entities with label, exact text from the utterance, start, end, and normalized_value when clear",
+    "Entity start is the zero-based inclusive character offset and end is the zero-based exclusive offset.",
+    "The utterance slice from start to end must exactly equal entity text, including case and punctuation.",
+    "Label every useful span, including ITEM, ITEM_CONDITION, QUANTITY, UNIT, LOCATION, EXPIRY_DATE, and CATEGORY when present.",
     "Use ITEM_CONDITION for modifiers like ripe, frozen, fresh, expired, spoiled, or moldy when they describe the item's state, and use ITEM for the item noun itself.",
     "Do not invent text that does not appear in the utterance.",
     "If unsure, omit the entity instead of hallucinating it.",
@@ -154,6 +173,20 @@ function userPrompt(context: InferenceProposalContext): string {
     raw_utterance: context.raw_utterance,
     parser_prediction: context.predicted_interpretation,
     allowed_intents: IntentSchema.options,
+    output_shape: {
+      note: "string or null",
+      actions: [{
+        intent: "one allowed intent",
+        phrase_family: "string or null",
+        entities: [{
+          label: "entity label",
+          text: "exact substring",
+          start: "inclusive integer offset",
+          end: "exclusive integer offset",
+          normalized_value: "canonical string or number when clear",
+        }],
+      }],
+    },
   });
 }
 

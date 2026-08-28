@@ -255,8 +255,14 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Documented that the browser only calls the project Worker, not OpenAI
   directly.
 - Logged the exact proposal lifecycle: Worker lookup from `inference_logs`,
-  optional OpenAI request, span reconstruction, `annotation_proposals` insert,
-  `Apply AI draft`, and final `accepted_as_is` / `accepted_with_edits` update.
+  optional OpenAI request, offset validation/span reconstruction,
+  `annotation_proposals` insert, immediate draft application, and final
+  `accepted_as_is` / `accepted_with_edits` update.
+- Removed the separate `Apply AI draft` step. `Draft with AI` now immediately
+  applies actions, phrase families, entity spans, and normalized values so the
+  annotator only reviews and edits.
+- Added entity highlights in the source utterance and a readable assistant label
+  summary for each proposed action.
 - Documented parser fallback behavior and the conservative exact-substring span
   reconstruction rule.
 

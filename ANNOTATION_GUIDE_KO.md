@@ -101,8 +101,9 @@ https://jangoing-web.vercel.app/annotate
 7. ITEM, ITEM_CONDITION, CATEGORY, UNIT에서 관련 값이 없으면 입력칸에 새 값을 적고 옆의 `Save ...`
    버튼을 눌러 목록에 추가한다. 이 버튼은 공백 표현을 lower_snake_case로 정리해 준다.
    예: `oat milk` → `oat_milk`
-8. 필요하면 `Draft with AI`를 눌러 action/entity 초안을 받아온다. 초안은 정답이
-   아니라 시작점이며, `Apply AI draft` 후에도 반드시 사람이 수정 여부를 확인한다.
+8. 필요하면 `Draft with AI`를 누른다. action, phrase family, entity span,
+   normalized value 초안이 즉시 편집 상태에 적용된다. 원문 하이라이트와 assistant
+   요약을 보고 반드시 사람이 수정 여부를 확인한다.
 9. 각 action에서 intent별 phrase family를 선택한다.
 10. Training candidate 또는 Evaluation candidate를 고른다.
 11. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
@@ -116,9 +117,8 @@ https://jangoing-web.vercel.app/annotate
 
 - `Draft with AI`
   현재 샘플의 raw utterance와 parser prediction을 바탕으로 annotation action 초안을
-  요청한다.
-- `Apply AI draft`
-  제안된 action, entity span, normalized value를 현재 편집 상태에 복사한다.
+  요청하고 제안된 action, entity span, normalized value를 즉시 현재 편집 상태에
+  복사한다. 별도의 Apply 단계는 없다.
 - 사람이 손으로 수정한 뒤 저장하면, 시스템은 그 annotation이 AI draft를 그대로
   채택했는지(`accepted_as_is`) 아니면 수정 후 저장했는지(`accepted_with_edits`)
   함께 기록한다.
@@ -158,16 +158,18 @@ https://jangoing-web.vercel.app/annotate
    - decoding:
      `temperature: 0.2`, `response_format: json_object`
 6. OpenAI가 action/entity draft JSON을 반환하면 Worker가 Zod schema로 구조를 검증한다.
-7. entity는 model이 문자 offset을 직접 주는 방식이 아니라, model이 돌려준 `text`를
-   원문에서 다시 찾아 `start/end` span으로 복원한다.
-8. 복원 과정에서 원문과 일치하지 않는 entity text는 버린다. intent에 맞지 않는
+7. model은 entity의 exact `text`와 함께 zero-based `start`/`end` offset을 반환한다.
+   Worker는 `raw_utterance.slice(start, end) === text`인지 검증하고, 틀리면 exact
+   substring 검색으로 span 복원을 다시 시도한다.
+8. 두 복원 방식 모두 원문과 일치하지 않는 entity text는 버린다. intent에 맞지 않는
    phrase family도 저장하지 않고 `null`로 떨어뜨린다.
 9. 정리된 proposal은 `annotation_proposals` 테이블에 저장된다.
    저장 항목:
    `provider`, `model`, `prompt_version`, `proposal`, `note`, `status`,
    `created_at`
 10. Worker는 정리된 proposal을 브라우저에 돌려준다.
-11. annotator가 `Apply AI draft`를 누르면 그 proposal이 현재 편집 상태에 복사된다.
+11. 응답을 받은 web app이 proposal을 즉시 현재 편집 상태에 복사하고 entity span을
+    원문에 label과 함께 하이라이트한다.
 12. 최종 저장 시 web app은 필요하면 `assistant_proposal_id`와
    `assistant_resolution`을 함께 `POST /annotations`로 보낸다.
 13. Worker는 annotation 저장 후 해당 proposal row를 `applied` 상태로 바꾸고,

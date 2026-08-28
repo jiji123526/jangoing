@@ -53,8 +53,16 @@
 .assistantHeader span, .assistantBody p, .assistantEmpty { margin: 0; color: #68716b; font-size: .74rem; line-height: 1.5; }
 .assistantBody { display: grid; gap: 7px; }
 .assistantBody b { color: #17201b; }
+.assistantLabels { display: grid; gap: 7px; }
+.assistantLabels section { padding: 8px 10px; border: 1px solid #d9ded7; border-radius: 6px; background: white; }
+.assistantLabels section > b { display: block; font-size: .72rem; }
+.assistantLabels ul { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 6px 0 0; padding: 0; list-style: none; }
+.assistantLabels li, .assistantLabels span { color: #68716b; font-size: .68rem; }
+.assistantLabels code { color: #1f6b45; font-weight: 800; }
 .annotationText { padding: 24px; border: 1px solid #b9c3bb; border-radius: 7px; background: #fffdf5; font-size: 1.2rem; font-weight: 650; line-height: 1.8; cursor: text; touch-action: auto; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .annotationText::selection, .annotationText *::selection { background: #f4c95d; }
+.entityHighlight { position: relative; margin: 0 2px; padding: 2px 3px; border-radius: 4px; color: #174d34; background: #cdebd7; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.entityHighlight::after { content: attr(data-label); margin-left: 4px; color: #1f6b45; font-size: .52em; font-weight: 850; vertical-align: super; letter-spacing: .03em; }
 .labelBar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .labelBar button { padding: 7px 10px; border: 1px solid #a9b9ad; border-radius: 5px; color: #1f6b45; background: #edf5ed; font-size: .68rem; font-weight: 800; }
 .selection { margin: 10px 0 0; color: #8a6411; font-size: .78rem; }
