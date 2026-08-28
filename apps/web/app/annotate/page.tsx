@@ -12,6 +12,7 @@ import type {
   EntityLabel,
   Intent,
   LoggedInterpretation,
+  Relevance,
 } from "@jangoing/contracts";
 import {
   AnnotationNormalizedValues,
@@ -41,6 +42,32 @@ const intents: Intent[] = [
   "query_inventory",
   "needs_clarification",
   "unknown",
+];
+const relevanceOptions: Array<{
+  value: Relevance;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "actionable",
+    label: "Actionable",
+    description: "Contains an action, query, state update, or request that needs clarification.",
+  },
+  {
+    value: "contextual_preference",
+    label: "Context or preference",
+    description: "Useful preference, goal, or context with no immediate inventory action.",
+  },
+  {
+    value: "domain_non_actionable",
+    label: "Domain non-actionable",
+    description: "Mentions groceries or cooking but does not request or report an action.",
+  },
+  {
+    value: "unrelated",
+    label: "Unrelated",
+    description: "Outside the kitchen, grocery, preference, and household context.",
+  },
 ];
 const labels: EntityLabel[] = [
   "ITEM",
@@ -482,6 +509,7 @@ export default function AnnotatePage() {
   const initialGeneratedQueueLoadedRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [sample, setSample] = useState<LoggedInterpretation | null>(null);
+  const [relevance, setRelevance] = useState<Relevance>("actionable");
   const [actions, setActions] = useState<AnnotationAction[]>([]);
   const [activeActionIndex, setActiveActionIndex] = useState(0);
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null);
@@ -526,6 +554,7 @@ export default function AnnotatePage() {
   function resetEditorState() {
     setDraft("");
     setSample(null);
+    setRelevance("actionable");
     setActions([]);
     setActiveActionIndex(0);
     setSelection(null);
@@ -562,6 +591,7 @@ export default function AnnotatePage() {
     try {
       const result = await interpretCommand(draft.trim());
       setSample(result);
+      setRelevance("actionable");
       setActions([{ intent: result.intent, entities: [], phrase_family: null }]);
       setActiveActionIndex(0);
       setSelection(null);
@@ -581,6 +611,7 @@ export default function AnnotatePage() {
       parser_version: item.parser_version,
       latency_ms: 0,
     });
+    setRelevance("actionable");
     setActions([{
       intent: item.reviewed_interpretation?.intent ?? item.predicted_interpretation.intent,
       entities: [],
@@ -593,6 +624,23 @@ export default function AnnotatePage() {
     setDraft(item.text);
     setQueueItem(item);
     setAssistantProposal(null);
+  }
+
+  function selectRelevance(nextRelevance: Relevance) {
+    setRelevance(nextRelevance);
+    setSelection(null);
+    setError(null);
+    window.getSelection()?.removeAllRanges();
+
+    if (nextRelevance !== "actionable") {
+      setAssistantProposal(null);
+      setActiveActionIndex(0);
+      return;
+    }
+
+    if (actions.length === 0 && sample) {
+      setActions([{ intent: sample.intent, entities: [], phrase_family: null }]);
+    }
   }
 
   async function loadQueue(type: AnnotationQueueType) {
@@ -740,12 +788,13 @@ export default function AnnotatePage() {
   async function saveAnnotation() {
     if (!sample) return;
     const nextQueueType: AnnotationQueueType = queueItem?.queue_type ?? "generated_review";
-    const validationError = missingNormalizedValueError(actions);
+    const submittedActions = relevance === "actionable" ? actions : [];
+    const validationError = missingNormalizedValueError(submittedActions);
     if (validationError) {
       setError(validationError);
       return;
     }
-    const formatError = normalizedValueFormatError(actions);
+    const formatError = normalizedValueFormatError(submittedActions);
     if (formatError) {
       setError(formatError);
       return;
@@ -755,7 +804,8 @@ export default function AnnotatePage() {
     try {
       await createAnnotation({
         inference_id: sample.inference_id,
-        actions,
+        relevance,
+        actions: submittedActions,
         dataset_purpose: purpose,
         notes: notes.trim() || null,
         annotator: "production-web",
@@ -766,7 +816,7 @@ export default function AnnotatePage() {
             }
           : {}),
       });
-      setNormalizedOptions((current) => mergeNormalizedValueOptions(current, actions));
+      setNormalizedOptions((current) => mergeNormalizedValueOptions(current, submittedActions));
       setStats((current) => ({
         ...current,
         annotated: current.annotated + 1,
@@ -879,6 +929,36 @@ export default function AnnotatePage() {
 
         {sample ? (
           <>
+            <section className={styles.card}>
+              <div className={styles.step}>
+                <span>2</span>
+                <div>
+                  <b>Classify relevance</b>
+                  <small>Decide whether this utterance contains an immediate action before labeling its structure.</small>
+                </div>
+              </div>
+              <div className={styles.relevanceGrid}>
+                {relevanceOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={relevance === option.value}
+                    className={relevance === option.value ? styles.activeRelevance : ""}
+                    onClick={() => selectRelevance(option.value)}
+                  >
+                    <b>{option.label}</b>
+                    <span>{option.description}</span>
+                  </button>
+                ))}
+              </div>
+              <p className={styles.prediction}>
+                Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
+                {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
+              </p>
+            </section>
+
+            {relevance === "actionable" ? (
+              <>
             <section className={`${styles.card} ${styles.assistantPanel}`}>
               <div className={styles.assistantHeader}>
                 <div>
@@ -933,7 +1013,7 @@ export default function AnnotatePage() {
             </section>
 
             <section className={styles.card}>
-              <div className={styles.step}><span>2</span><div><b>Define the actions</b><small>Add one action for each request, then select the action you want to label.</small></div></div>
+              <div className={styles.step}><span>3</span><div><b>Define the actions</b><small>Add one action for each request, then select the action you want to label.</small></div></div>
               <div className={styles.actionList}>
                 {actions.map((action, actionIndex) => (
                   <div key={actionIndex} className={activeActionIndex === actionIndex ? styles.activeAction : ""}>
@@ -966,14 +1046,10 @@ export default function AnnotatePage() {
                 setActiveActionIndex(actions.length);
                 setSelection(null);
               }}><Plus size={16} /> Add action</button>
-              <p className={styles.prediction}>
-                Parser prediction: <b>{readable(sample.intent)}</b> · {Math.round(sample.confidence * 100)}%
-                {queueItem ? <span className={styles.queueSource}>{readable(queueItem.queue_type)} queue</span> : null}
-              </p>
             </section>
 
             <section className={styles.card}>
-              <div className={styles.step}><span>3</span><div><b>Label entity spans for Action {activeActionIndex + 1}</b><small>Select an action above, select exact words below, then choose a label.</small></div></div>
+              <div className={styles.step}><span>4</span><div><b>Label entity spans for Action {activeActionIndex + 1}</b><small>Select an action above, select exact words below, then choose a label.</small></div></div>
               <div
                 ref={textRef}
                 onMouseUp={captureSelection}
@@ -1026,9 +1102,11 @@ export default function AnnotatePage() {
                 ))}
               </div>
             </section>
+              </>
+            ) : null}
 
             <section className={styles.card}>
-              <div className={styles.step}><span>4</span><div><b>Dataset metadata</b><small>Evaluation candidates should be natural, independent examples—not rewritten training templates.</small></div></div>
+              <div className={styles.step}><span>{relevance === "actionable" ? "5" : "3"}</span><div><b>Dataset metadata</b><small>Evaluation candidates should be natural, independent examples—not rewritten training templates.</small></div></div>
               <div className={styles.metaGrid}>
                 <label><span>Purpose</span><select value={purpose} onChange={(event) => setPurpose(event.target.value as DatasetPurpose)}>
                   <option value="train_candidate">Training candidate</option><option value="evaluation_candidate">Evaluation candidate</option>

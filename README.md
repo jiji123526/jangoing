@@ -75,7 +75,8 @@ Local development uses Node's SQLite API and stores data in `apps/api/.local/`. 
 Every valid interpretation now receives an inference ID and logs its prediction,
 versions, latency, and eventual confirmed, corrected, or cancelled outcome.
 
-The production `/annotate` page stores `annotation-v2` action groups. Its header
+The production `/annotate` page stores `annotation-v3` relevance labels and
+action groups for actionable utterances. Its header
 tracks progress toward 100–200 human training candidates and 100+ independent
 evaluation candidates. These are collection targets, not model-quality claims.
 It can also request an assistant draft for the current utterance and record

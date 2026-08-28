@@ -4,7 +4,7 @@
 
 이 문서는 `/annotate`에서 영어 대화 데이터를 라벨링할 때 사용하는 **정답 결정
 규칙**이다. 화면 조작법은 `ANNOTATION_GUIDE_KO.md`를 참고한다. 같은 문장을 누가
-라벨링하더라도 intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
+라벨링하더라도 relevance, intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
 것이 이 문서의 목표다.
 
 - convention version: `annotation-v4`
@@ -20,13 +20,17 @@
 항상 다음 순서로 판단한다.
 
 1. 원문을 수정하거나 문법을 교정하지 않고 그대로 입력한다.
-2. 화자가 원하는 독립 행동마다 action을 하나 만든다.
-3. 각 action의 intent를 선택한다.
-4. 해당 action에 필요한 원문 표현만 entity로 연결한다.
-5. 각 entity를 canonical value로 정규화한다.
-6. action별 문장 구조를 나타내는 phrase family를 지정한다.
-7. 발화 전체가 독립 평가용인지 학습용인지 선택한다.
-8. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
+2. 발화 전체의 relevance를 선택한다.
+3. `actionable`이면 화자가 원하는 독립 행동마다 action을 하나 만든다.
+4. 각 action의 intent를 선택한다.
+5. 해당 action에 필요한 원문 표현만 entity로 연결한다.
+6. 각 entity를 canonical value로 정규화한다.
+7. action별 문장 구조를 나타내는 phrase family를 지정한다.
+8. 발화 전체가 독립 평가용인지 학습용인지 선택한다.
+9. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
+
+`contextual_preference`, `domain_non_actionable`, `unrelated`를 선택한 경우에는
+action, intent, entity, phrase family를 만들지 않고 dataset metadata 단계로 이동한다.
 
 ## Assistant draft 사용 규칙
 
@@ -47,9 +51,31 @@
 - 완전히 같은 문장을 다시 입력하지 않는다. 단, 의미 있는 철자 오류나 표현 차이는
   별도 문장으로 허용한다.
 
+## Relevance convention
+
+Relevance는 개별 action보다 먼저, **발화 전체가 현재 시스템에 어떤 종류의 신호인지**
+판단한다.
+
+| Relevance | 선택 기준 | 예시 |
+|---|---|---|
+| `actionable` | 실행·조회·상태 갱신·명확화가 필요한 요청 또는 보고 | `We're out of milk.`, `Find the cheapest milk.` |
+| `contextual_preference` | 즉시 action은 없지만 향후 추천에 유용한 선호·목표·생활 맥락 | `I love oat milk.`, `I'm trying to eat less sugar.` |
+| `domain_non_actionable` | 음식·장보기·요리를 언급하지만 action이나 지속적 선호 정보가 아님 | `Milk is expensive these days.`, `We had pasta yesterday.` |
+| `unrelated` | 주방·식품·가정 맥락과 무관함 | `I'm exhausted today.`, `What's the weather?` |
+
+- `needs_clarification`과 `unknown`도 화자가 시스템에 무엇인가를 요구한다면
+  relevance는 `actionable`이다.
+- 지원하지 않는 명확한 요청도 `actionable`이다.
+  예: `Find the cheapest milk brand.` -> `actionable` + `unknown > unsupported_request`
+- 단순히 음식 단어가 있다는 이유로 `actionable`을 선택하지 않는다.
+- non-actionable relevance에는 빈 action list를 저장한다. 신규 annotation에서는
+  legacy `preference_statement`, `unrelated_statement`, `unrelated_question` action을
+  만들지 않는다.
+
 ## Intent convention
 
-Intent는 키워드가 아니라 **화자의 목표**로 결정한다. 한 문장에 여러 독립 행동이
+Intent는 relevance가 `actionable`일 때만 선택하며, 키워드가 아니라 **화자의 목표**로
+결정한다. 한 문장에 여러 독립 행동이
 명시된 경우 action을 추가하고 각 action에 intent와 entity를 연결한다. 여러 절이 있어도
 실제로는 하나의 목표라면 action을 불필요하게 나누지 않는다.
 
@@ -69,7 +95,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 | `add_to_buy` | 쇼핑 목록에 추가하라는 명시적 요청 | `Put yogurt on the shopping list.` |
 | `query_inventory` | 보유 여부·수량·위치·유통기한을 묻는 요청 | `Do we have milk?` |
 | `needs_clarification` | 도메인 관련성이 있지만 안전한 행동이나 대상이 불명확함 | `Put that on the list.` |
-| `unknown` | 재고·쇼핑 행동과 무관하거나 지원하지 않는 목표 | `I like coffee.` |
+| `unknown` | 행동 의미는 분명하지만 현재 지원하지 않는 목표 | `Find the cheapest milk brand.` |
 
 ### 부족함을 말하는 표현
 
@@ -90,17 +116,20 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 
 ### `unknown`과 `needs_clarification`
 
-- 관련 없는 문장: `unknown`
-- 관련은 있지만 무엇을 해야 할지 또는 무엇을 가리키는지 모름:
+- 무엇을 해야 할지 또는 무엇을 가리키는지 모르는 actionable 발화:
   `needs_clarification`
+- 의미는 분명하지만 현재 capability 밖인 actionable 요청: `unknown`
+- preference, domain non-actionable, unrelated 발화는 intent가 아니라 relevance로
+  끝내며 action을 만들지 않는다.
 - annotator가 개인적으로 합리적인 행동을 예상할 수 있다는 이유만으로 intent를
   추론하지 않는다.
 
 ## Entity convention
 
 문장에 등장한 모든 명사를 표시하는 작업이 아니다. **현재 선택된 action**을 실행하거나
-평가할 때 필요한 정보만 그 action에 표시한다. entity가 없는 `unknown`이나
-`needs_clarification` action도 정상적인 annotation이다.
+평가할 때 필요한 정보만 그 action에 표시한다. non-actionable relevance에는 entity를
+만들지 않는다. entity가 없는 `unknown`이나 `needs_clarification` action도 정상적인
+annotation이다.
 
 | Label | 선택 기준 | 원문 예 | normalized value 예 |
 |---|---|---|---|

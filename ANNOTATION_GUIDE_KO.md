@@ -92,28 +92,33 @@ https://jangoing-web.vercel.app/annotate
    샘플 하나를 불러온다. 페이지에 처음 들어오면 가능할 때 `generated_review`
    샘플을 기본으로 한 번 자동 로드한다. 직접 입력 후에는 `Enter` 또는 `Create`를 누른다.
    줄바꿈이 필요하면 `Shift + Enter`를 사용한다.
-2. 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
-3. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
-4. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
-5. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
+2. 발화 전체의 relevance를 먼저 선택한다.
+3. `actionable`이면 규칙 기반 parser의 예측을 참고해 첫 action의 intent를 선택한다.
+4. 문장에 별도 요청이 더 있으면 `Add action`으로 action을 추가하고 intent를 고른다.
+5. 라벨링할 action을 활성화한 뒤 원문에서 entity 단어를 드래그한다.
+6. ITEM, CATEGORY, QUANTITY, UNIT, LOCATION, EXPIRY_DATE 중 label을 선택한다.
    ITEM_CONDITION은 기존 데이터 호환용이며 신규 기본 라벨링에서는 사용하지 않는다.
-6. label별 실제 dropdown에서 canonical/normalized 값을 선택한다. ITEM, CATEGORY,
+7. label별 실제 dropdown에서 canonical/normalized 값을 선택한다. ITEM, CATEGORY,
    UNIT은 모바일에서도 전체 existing canonical value를 펼쳐 볼 수 있다.
-7. ITEM, CATEGORY, UNIT에서 관련 값이 없으면
+8. ITEM, CATEGORY, UNIT에서 관련 값이 없으면
    `Enter a new canonical value`를 선택하고 입력칸에 새 값을 적은 뒤 `Save ...`
    버튼을 눌러 목록에 추가한다. 이 버튼은 공백 표현을 lower_snake_case로 정리해 준다.
    예: `oat milk` → `oat_milk`
-8. 필요하면 `Draft with AI`를 누른다. action, phrase family, entity span,
+9. 필요하면 `Draft with AI`를 누른다. action, phrase family, entity span,
    normalized value 초안이 즉시 편집 상태에 적용된다. 원문 하이라이트와 assistant
    요약을 보고 반드시 사람이 수정 여부를 확인한다.
-9. 각 action에서 intent별 phrase family를 선택한다.
-10. Training candidate 또는 Evaluation candidate를 고른다.
-11. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
-12. `Save annotation`을 누른다.
-13. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열리고,
+10. 각 action에서 intent별 phrase family를 선택한다.
+11. Training candidate 또는 Evaluation candidate를 고른다.
+12. 모호성이나 라벨 판단 근거가 있으면 notes에 기록한다.
+13. `Save annotation`을 누른다.
+14. queue에서 시작한 샘플이면 저장 직후 같은 queue의 다음 샘플이 자동으로 열리고,
     화면 스크롤도 다시 맨 위로 돌아간다.
     직접 입력한 수동 샘플이었다면 기본적으로 `generated_review` queue의 다음 샘플을
     자동으로 시도한다.
+
+`contextual_preference`, `domain_non_actionable`, `unrelated`를 선택하면 AI draft,
+action, entity 단계가 숨겨지고 빈 action list로 저장된다. 이 세 relevance에
+`unknown` action을 억지로 추가하지 않는다.
 
 ### Assistant draft 동작
 
@@ -413,7 +418,8 @@ queue seed와 synthetic data는 annotation을 시작하고 UI workflow를 검증
 
 ## 여러 intent/action 라벨링
 
-annotation-v2는 한 발화 안의 요청을 action group으로 저장한다.
+annotation-v3는 발화 전체의 relevance를 먼저 저장하고, `actionable` 발화에만
+action group을 저장한다.
 
 ```text
 Add milk to the list and throw away the spinach.
@@ -436,17 +442,19 @@ Add milk to the list and throw away the spinach.
 마이그레이션 `0004_create_annotations.sql`이 `annotations` 테이블을 만들고,
 `0005_add_annotation_actions.sql`이 action-group 저장 필드를 추가한다.
 `0006_create_annotation_proposals.sql`은 AI draft proposal 기록 테이블을 추가한다.
+`0008_add_annotation_relevance.sql`은 발화 전체 relevance를 추가한다.
 
 저장 값:
 
 - 연결된 inference ID
+- relevance
 - action별 최종 intent와 phrase family
 - action별 entity label, 문자 start/end, 원문 text, normalized value
 - action별 normalized object
 - train/evaluation 후보 구분
 - phrase family
 - notes와 annotator
-- annotation schema version(`annotation-v2`)과 생성 시간
+- annotation schema version(`annotation-v3`)과 생성 시간
 - 필요하면 연결된 assistant proposal ID와 acceptance 결과
 
 동일 inference는 한 번만 annotation할 수 있다. API는 entity span이 실제 원문과

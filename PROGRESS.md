@@ -12,6 +12,29 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Annotation-v3 storage now includes first-class relevance values:
   `actionable`, `contextual_preference`, `domain_non_actionable`, and
   `unrelated`.
+- `/annotate` now asks for relevance before action structure and hides action,
+  AI-draft, and entity controls for non-actionable utterances.
+
+## 2026-08-28 - Relevance-first annotation UI added
+
+### Completed
+
+- Added a four-way relevance selector immediately after sample creation.
+- Kept parser intent as supporting information rather than using it to infer
+  relevance automatically.
+- Limited AI draft, action, phrase-family, and entity controls to actionable
+  utterances.
+- Saved contextual/preference, domain non-actionable, and unrelated examples
+  with empty action lists.
+- Updated the annotation guide and convention so new non-actionable records no
+  longer require legacy `unknown` actions.
+
+### Decision
+
+- Relevance is an utterance-level judgment; intent remains an action-level
+  judgment.
+- Unsupported but clear requests remain actionable and use
+  `unknown > unsupported_request`.
 
 ## 2026-08-28 - Relevance schema and persistence added
 

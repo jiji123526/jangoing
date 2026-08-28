@@ -89,9 +89,9 @@ These limitations are acceptable only while every state-changing action requires
 
 ### Current Data Gaps
 
-- Annotation storage now separates `actionable`, `contextual_preference`,
-  `domain_non_actionable`, and `unrelated`, but the production annotation UI
-  and task-specific export still need to expose that distinction.
+- Annotation storage and the production annotation UI now separate `actionable`,
+  `contextual_preference`, `domain_non_actionable`, and `unrelated`; a
+  task-specific relevance export is still needed.
 - Synthetic generation already includes entity spans and normalized values, so
   entity-label support itself is not the blocker.
 - Runtime parsing now normalizes explicit natural-language expiry phrases, but

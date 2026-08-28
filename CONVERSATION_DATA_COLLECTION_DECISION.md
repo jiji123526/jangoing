@@ -245,6 +245,10 @@ This establishes the data boundary first. The annotation UI, relevance-specific
 dataset export, and collection queues are separate follow-up steps so each layer
 can be tested independently.
 
+The production annotation UI now applies that boundary as a relevance-first
+workflow. Action and entity controls are shown only for `actionable` utterances;
+the other three classes are saved with an empty action list.
+
 ---
 
 ## Dataset Priorities
