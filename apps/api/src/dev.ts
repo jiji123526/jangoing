@@ -63,6 +63,10 @@ const annotationProposalsMigrationPath = resolve(
   apiDirectory,
   "migrations/0006_create_annotation_proposals.sql",
 );
+const annotationAiUsageMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0007_log_annotation_ai_usage.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS ??
@@ -98,6 +102,10 @@ const proposalTable = database.prepare(
 ).get() as { name?: string } | undefined;
 if (!proposalTable?.name) {
   database.exec(readFileSync(annotationProposalsMigrationPath, "utf8"));
+}
+const proposalColumns = database.prepare("PRAGMA table_info(annotation_proposals)").all() as Array<{ name: string }>;
+if (!proposalColumns.some((column) => column.name === "input_tokens")) {
+  database.exec(readFileSync(annotationAiUsageMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v1";
 const normalizerVersion = "normalizers-v1";
@@ -338,23 +346,37 @@ async function route(
       return;
     }
 
+    const monthlyBudget = Number(process.env.OPENAI_MONTHLY_BUDGET_USD ?? "5");
+    if (process.env.OPENAI_API_KEY && Number.isFinite(monthlyBudget) && monthlyBudget > 0) {
+      const usage = database.prepare(
+        `SELECT COALESCE(SUM(estimated_cost_usd), 0) AS total
+         FROM annotation_proposals
+         WHERE created_at >= datetime('now', 'start of month')`,
+      ).get() as { total: number };
+      if (usage.total >= monthlyBudget) {
+        sendJson(response, origin, { error: "Monthly annotation AI budget reached" }, 429);
+        return;
+      }
+    }
+
     const generated = await buildAnnotationAssistantProposal(process.env, {
       inference_id: parsed.data.inference_id,
       raw_utterance: inference.raw_utterance,
       predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
     });
+    const { usage, ...proposalDraft } = generated;
     const createdAt = new Date().toISOString();
     const proposal = AnnotationAssistantProposalSchema.parse({
       proposal_id: crypto.randomUUID(),
       inference_id: parsed.data.inference_id,
-      ...generated,
+      ...proposalDraft,
       created_at: createdAt,
     });
     database.prepare(
       `INSERT INTO annotation_proposals (
         id, inference_id, provider, model, prompt_version, proposal,
-        note, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
+        note, input_tokens, output_tokens, estimated_cost_usd, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
     ).run(
       proposal.proposal_id,
       proposal.inference_id,
@@ -363,6 +385,9 @@ async function route(
       proposal.prompt_version,
       JSON.stringify(proposal.actions),
       proposal.note ?? null,
+      usage?.input_tokens ?? null,
+      usage?.output_tokens ?? null,
+      usage?.estimated_cost_usd ?? null,
       proposal.created_at,
     );
     sendJson(response, origin, proposal, 201);

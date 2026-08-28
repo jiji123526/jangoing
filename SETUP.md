@@ -304,9 +304,19 @@ npx wrangler secret put OPENAI_MODEL
 ```
 
 - Default model is `gpt-4.1-mini` when `OPENAI_MODEL` is unset.
+- Each annotation draft is capped at 500 completion tokens.
+- The Worker enforces a `$5` monthly annotation-AI budget by default. Override it
+  with the `OPENAI_MONTHLY_BUDGET_USD` Worker variable if needed. Once recorded
+  monthly proposal cost reaches the limit, new AI drafts return HTTP 429.
+- Migration `0007_log_annotation_ai_usage.sql` stores the input tokens, output
+  tokens, and estimated USD cost for every OpenAI-backed proposal. Parser
+  fallback proposals keep these fields null.
+- The estimate uses the current configured `gpt-4.1-mini` rates. If
+  `OPENAI_MODEL` changes, update the cost calculation with that model's rates.
 - If `OPENAI_API_KEY` is missing, the proposal endpoint returns a parser fallback
   draft instead of failing.
-- After changing secrets, redeploy the Worker.
+- Apply remote migrations before deploying the Worker. Wrangler secrets take
+  effect on the Worker without exposing their values in browser code.
 
 ## Vercel Setup
 

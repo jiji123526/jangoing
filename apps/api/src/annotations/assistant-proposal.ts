@@ -22,6 +22,12 @@ export interface ProposalEnv {
   OPENAI_MODEL?: string;
 }
 
+export interface AnnotationAssistantUsage {
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+}
+
 export interface StoredProposalRecord extends AnnotationAssistantProposal {}
 
 const LlmEntityDraftSchema = z.object({
@@ -155,7 +161,7 @@ function parseOpenAiJson(text: string): LlmProposalDraft {
 async function requestOpenAiDraft(
   env: ProposalEnv,
   context: InferenceProposalContext,
-): Promise<{ provider: string; model: string; note: string | null; actions: AnnotationAction[] }> {
+): Promise<{ provider: string; model: string; note: string | null; actions: AnnotationAction[]; usage: AnnotationAssistantUsage | null }> {
   const apiKey = env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     return {
@@ -163,6 +169,7 @@ async function requestOpenAiDraft(
       model: "rules-v1",
       note: "OPENAI_API_KEY is not configured, so this draft uses the deterministic parser as a fallback.",
       actions: parserFallbackActions(context),
+      usage: null,
     };
   }
 
@@ -176,6 +183,7 @@ async function requestOpenAiDraft(
     body: JSON.stringify({
       model,
       temperature: 0.2,
+      max_completion_tokens: 500,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt() },
@@ -191,6 +199,7 @@ async function requestOpenAiDraft(
 
   const payload = await response.json() as {
     choices?: Array<{ message?: { content?: string | null } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const content = payload.choices?.[0]?.message?.content;
 
@@ -199,18 +208,25 @@ async function requestOpenAiDraft(
   }
 
   const draft = parseOpenAiJson(content);
+  const inputTokens = payload.usage?.prompt_tokens ?? 0;
+  const outputTokens = payload.usage?.completion_tokens ?? 0;
   return {
     provider: "openai",
     model,
     note: draft.note ?? null,
     actions: materializeProposalDraft(context.raw_utterance, draft),
+    usage: {
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      estimated_cost_usd: (inputTokens * 0.4 + outputTokens * 1.6) / 1_000_000,
+    },
   };
 }
 
 export async function buildAnnotationAssistantProposal(
   env: ProposalEnv,
   context: InferenceProposalContext,
-): Promise<Omit<StoredProposalRecord, "proposal_id" | "created_at" | "inference_id">> {
+): Promise<Omit<StoredProposalRecord, "proposal_id" | "created_at" | "inference_id"> & { usage: AnnotationAssistantUsage | null }> {
   const generated = await requestOpenAiDraft(env, context);
   return {
     provider: generated.provider,
@@ -218,6 +234,7 @@ export async function buildAnnotationAssistantProposal(
     prompt_version: annotationAssistantPromptVersion,
     note: generated.note,
     actions: generated.actions,
+    usage: generated.usage,
   };
 }
 

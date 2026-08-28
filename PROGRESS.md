@@ -238,6 +238,16 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ## 2026-08-27 - Assistant API flow documented
 
+### Cost guardrails added
+
+- Capped annotation assistant output at 500 completion tokens.
+- Added migration `0007_log_annotation_ai_usage.sql` to record actual input and
+  output tokens plus estimated USD cost per OpenAI proposal.
+- Kept parser fallback usage fields null and retained the existing UI busy-state
+  guard against repeated clicks while a draft request is in flight.
+- Enforced a $5 default monthly annotation-AI budget in the Worker using stored
+  proposal cost; `OPENAI_MONTHLY_BUDGET_USD` can override it.
+
 ### Completed
 
 - Added a Korean explanation of the assistant-draft API path to

@@ -53,7 +53,7 @@
 .assistantHeader span, .assistantBody p, .assistantEmpty { margin: 0; color: #68716b; font-size: .74rem; line-height: 1.5; }
 .assistantBody { display: grid; gap: 7px; }
 .assistantBody b { color: #17201b; }
-.annotationText { padding: 24px; border: 1px solid #b9c3bb; border-radius: 7px; background: #fffdf5; font-size: 1.2rem; font-weight: 650; line-height: 1.8; user-select: text; }
+.annotationText { padding: 24px; border: 1px solid #b9c3bb; border-radius: 7px; background: #fffdf5; font-size: 1.2rem; font-weight: 650; line-height: 1.8; cursor: text; touch-action: auto; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .annotationText::selection, .annotationText *::selection { background: #f4c95d; }
 .labelBar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .labelBar button { padding: 7px 10px; border: 1px solid #a9b9ad; border-radius: 5px; color: #1f6b45; background: #edf5ed; font-size: .68rem; font-weight: 800; }

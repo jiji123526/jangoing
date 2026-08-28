@@ -32,6 +32,7 @@ interface Env {
   ALLOWED_ORIGINS?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  OPENAI_MONTHLY_BUDGET_USD?: string;
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
@@ -262,25 +263,41 @@ async function handleAnnotationAssistantProposal(
     return json(request, env, { error: "Inference not found" }, 404);
   }
 
+  const monthlyBudget = Number(env.OPENAI_MONTHLY_BUDGET_USD ?? "5");
+  if (env.OPENAI_API_KEY && Number.isFinite(monthlyBudget) && monthlyBudget > 0) {
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const usage = await env.DB.prepare(
+      `SELECT COALESCE(SUM(estimated_cost_usd), 0) AS total
+       FROM annotation_proposals
+       WHERE created_at >= ?`,
+    ).bind(monthStart.toISOString()).first<{ total: number }>();
+    if ((usage?.total ?? 0) >= monthlyBudget) {
+      return json(request, env, { error: "Monthly annotation AI budget reached" }, 429);
+    }
+  }
+
   const generated = await buildAnnotationAssistantProposal(env, {
     inference_id: parsed.data.inference_id,
     raw_utterance: inference.raw_utterance,
     predicted_interpretation: parseStoredInterpretation(inference.predicted_interpretation),
   });
+  const { usage, ...proposalDraft } = generated;
 
   const createdAt = new Date().toISOString();
   const proposal = AnnotationAssistantProposalSchema.parse({
     proposal_id: crypto.randomUUID(),
     inference_id: parsed.data.inference_id,
-    ...generated,
+    ...proposalDraft,
     created_at: createdAt,
   });
 
   await env.DB.prepare(
     `INSERT INTO annotation_proposals (
       id, inference_id, provider, model, prompt_version, proposal,
-      note, status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
+      note, input_tokens, output_tokens, estimated_cost_usd, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?)`,
   ).bind(
     proposal.proposal_id,
     proposal.inference_id,
@@ -289,6 +306,9 @@ async function handleAnnotationAssistantProposal(
     proposal.prompt_version,
     JSON.stringify(proposal.actions),
     proposal.note ?? null,
+    usage?.input_tokens ?? null,
+    usage?.output_tokens ?? null,
+    usage?.estimated_cost_usd ?? null,
     proposal.created_at,
   ).run();
 

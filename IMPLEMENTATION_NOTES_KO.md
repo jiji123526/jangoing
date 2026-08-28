@@ -541,3 +541,28 @@ fixture에서 나온 점수는 기능 smoke test일 뿐 모델 성능을 의미�
 
 모델 이름보다 먼저 지켜야 할 원칙은 데이터의 정답성, 분할의 공정성,
 실험의 재현성, 그리고 확인되지 않은 상태 변경을 막는 것이다.
+
+## 11. Annotation AI 비용 통제와 사용량 기록
+
+OpenAI 기반 draft는 기본적으로 `gpt-4.1-mini`를 사용한다. 한 번의
+`Draft with AI` 요청은 한 번의 모델 호출이며, 출력은 최대 500토큰으로
+제한한다. UI는 요청 처리 중 버튼을 비활성화해 반복 클릭을 막는다.
+
+마이그레이션 `0007_log_annotation_ai_usage.sql`은 각 proposal에 다음 값을
+저장한다.
+
+- `input_tokens`: 실제 입력 토큰 수
+- `output_tokens`: 실제 출력 토큰 수
+- `estimated_cost_usd`: 당시 코드에 설정된 단가로 계산한 예상 비용
+
+현재 계산식은 `gpt-4.1-mini`의 입력 $0.40/100만 토큰, 출력
+$1.60/100만 토큰을 기준으로 한다. `OPENAI_MODEL`을 다른 모델로 변경하면
+단가 계산도 함께 바꿔야 한다. API가 없는 parser fallback은 세 값 모두
+`null`로 저장한다.
+
+초기 운영 한도는 월 $5이다. 현재 계정 화면에서 프로젝트별 달러 hard limit을
+직접 설정할 수 없어서 Worker가 이번 달 `estimated_cost_usd` 합계를 확인하고
+$5 이상이면 새 draft 요청을 HTTP 429로 차단한다. 환경 변수
+`OPENAI_MONTHLY_BUDGET_USD`로 값을 바꿀 수 있다. 이 한도는 annotation draft
+경로에 대한 애플리케이션 안전장치이며, 같은 OpenAI 프로젝트의 다른 API key나
+다른 애플리케이션 사용량까지 막는 조직 전체 결제 한도는 아니다.

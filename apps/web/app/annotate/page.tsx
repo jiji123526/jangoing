@@ -615,6 +615,21 @@ export default function AnnotatePage() {
     setSelection({ start, end, text: trimmedText });
   }
 
+  useEffect(() => {
+    let frame: number | null = null;
+
+    function captureChangedSelection() {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(captureSelection);
+    }
+
+    document.addEventListener("selectionchange", captureChangedSelection);
+    return () => {
+      document.removeEventListener("selectionchange", captureChangedSelection);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
   function addEntity(label: EntityLabel) {
     if (!selection) return;
     const activeEntities = actions[activeActionIndex]?.entities ?? [];
@@ -912,7 +927,14 @@ export default function AnnotatePage() {
 
             <section className={styles.card}>
               <div className={styles.step}><span>3</span><div><b>Label entity spans for Action {activeActionIndex + 1}</b><small>Select an action above, select exact words below, then choose a label.</small></div></div>
-              <div ref={textRef} onMouseUp={captureSelection} className={styles.annotationText}>{sample.raw_utterance}</div>
+              <div
+                ref={textRef}
+                onMouseUp={captureSelection}
+                onTouchEnd={() => window.setTimeout(captureSelection, 50)}
+                className={styles.annotationText}
+              >
+                {sample.raw_utterance}
+              </div>
               <div className={styles.labelBar}>
                 {labels.map((label) => <button type="button" key={label} disabled={!selection} onClick={() => addEntity(label)}>{label}</button>)}
               </div>
