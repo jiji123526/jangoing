@@ -15,11 +15,9 @@ import {
   Refrigerator,
   Send,
   ShoppingBasket,
-  Tags,
   X,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
   createEvent,
   getDashboardData,
@@ -273,16 +271,13 @@ export default function Home() {
       (edited.itemName.trim() && eventTypeByIntent[edited.intent]));
 
   return (
-    <main>
+    <main id="home">
       <header className="topbar">
         <div>
           <span className="brand">jangoing</span>
           <span className="phase">Text MVP</span>
         </div>
         <div className="top-actions">
-          <Link className="annotation-link" href="/annotate">
-            <Tags size={16} /> Annotate
-          </Link>
           <button
             className="icon-button"
             type="button"
@@ -296,7 +291,11 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="command-band" aria-labelledby="command-heading">
+      <section
+        className="command-band"
+        id="search"
+        aria-labelledby="command-heading"
+      >
         <div className="section-heading">
           <p className="eyebrow">Kitchen command</p>
           <h1 id="command-heading">What changed?</h1>
@@ -513,7 +512,7 @@ export default function Home() {
       </section>
 
       <div className="dashboard-grid">
-        <section className="data-section inventory-section">
+        <section className="data-section inventory-section" id="inventory">
           <div className="data-heading">
             <div>
               <Refrigerator size={19} />
@@ -557,7 +556,7 @@ export default function Home() {
           )}
         </section>
 
-        <section className="data-section shopping-section">
+        <section className="data-section shopping-section" id="shopping">
           <div className="data-heading">
             <div>
               <ShoppingBasket size={19} />

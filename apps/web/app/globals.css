@@ -26,11 +26,17 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
   background:
     linear-gradient(rgba(31, 107, 69, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(31, 107, 69, 0.045) 1px, transparent 1px),
     var(--canvas);
   background-size: 28px 28px;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 78px;
 }
 
 button,
@@ -591,6 +597,80 @@ h1 {
 
 .spin {
   animation: spin 0.8s linear infinite;
+}
+
+.bottom-navigation {
+  position: fixed;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(249, 249, 249, 0.88);
+  border-top: 0.5px solid rgba(60, 60, 67, 0.22);
+  backdrop-filter: saturate(180%) blur(22px);
+  pointer-events: none;
+}
+
+.bottom-navigation-inner {
+  width: min(1180px, 100%);
+  min-height: 58px;
+  margin: 0 auto;
+  padding: 4px 6px 3px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  pointer-events: auto;
+}
+
+.bottom-navigation-tab {
+  min-width: 0;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  color: #7c7c80;
+  text-decoration: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: color 120ms ease;
+}
+
+.bottom-navigation-tab:hover {
+  color: #fa2d48;
+}
+
+.bottom-navigation-tab.is-active {
+  color: #fa2d48;
+}
+
+.annotation-tab {
+  height: 50px;
+}
+
+.annotation-tab-icon {
+  width: auto;
+  height: auto;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.annotation-tab:hover {
+  transform: none;
+}
+
+.annotation-tab.is-active .annotation-tab-icon {
+  background: transparent;
 }
 
 @keyframes spin {

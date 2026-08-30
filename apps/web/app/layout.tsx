@@ -2,6 +2,7 @@ import "@fontsource-variable/manrope";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import BottomNavigation from "./BottomNavigation";
 
 export const metadata: Metadata = {
   title: "jangoing",
@@ -17,7 +18,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <BottomNavigation />
+      </body>
     </html>
   );
 }

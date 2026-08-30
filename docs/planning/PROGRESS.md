@@ -2,6 +2,36 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Persistent bottom navigation added
+
+### Completed
+
+- Added an Apple Music-style bottom navigation shared by the main product and
+  annotation workspace, using a flat translucent material, top hairline,
+  compact system typography, gray inactive states, and pink/red active states.
+- Kept the four product destinations `Home`, `Inventory`, `Shopping`, and
+  `Search`, with a visually elevated `Annotate` action in the center.
+- Connected Inventory, Shopping, and Search to their current main-page
+  sections, while Annotate navigates to the dedicated `/annotate` workspace.
+- Added safe-area spacing, compact mobile labels, active states, smooth anchor
+  navigation, and enough page padding to prevent the tab bar covering content.
+- Removed the duplicate top-bar annotation shortcut from the main page.
+
+### Decisions
+
+- Keep annotation globally reachable during the data-collection phase even
+  though it is not a normal consumer-product destination.
+- Use section anchors for the four product destinations until Inventory,
+  Shopping, and Search become independent screens.
+- Preserve the five-tab order: Home, Inventory, Annotate, Shopping, Search.
+
+### Validation
+
+- Web TypeScript check passed.
+- Web production build passed.
+- Verified the 390 x 844 mobile layout and navigation into `/annotate` in the
+  local app.
+
 ## 2026-08-28 - Open Food Facts and brand normalization decision documented
 
 ### Completed
