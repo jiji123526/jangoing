@@ -6,9 +6,15 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Completed
 
-- Added an Apple Music-style bottom navigation shared by the main product and
-  annotation workspace, using a flat translucent material, top hairline,
-  compact system typography, gray inactive states, and pink/red active states.
+- Rebuilt the bottom navigation from the exact Figma light-mode tab-bar node
+  (`1:125932`) rather than visual approximation: 390x83 reference frame, 49px
+  tab row, 34px home-area inset, 0.5px `#C6C6C8` divider, `#FAFAFA` background,
+  15px CSS backdrop blur, `#FF2D55` active color, and `#979798` inactive color.
+- Replaced Lucide navigation glyphs with the five actual 30px SF Symbol renders
+  exported from the referenced Figma file and committed locally as durable
+  assets.
+- Matched the Figma caption style with SF Pro Text Medium, 10px font size, 12px
+  line height, and 0.07px letter spacing.
 - Kept the four product destinations `Home`, `Inventory`, `Shopping`, and
   `Search`, with a visually elevated `Annotate` action in the center.
 - Connected Inventory, Shopping, and Search to their current main-page

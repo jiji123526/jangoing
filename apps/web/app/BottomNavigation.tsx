@@ -1,23 +1,21 @@
 "use client";
 
-import {
-  House,
-  PackageSearch,
-  Search,
-  ShoppingBasket,
-  Tags,
-} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 const mainTabs = [
-  { label: "Home", href: "/#home", hash: "#home", icon: House },
+  {
+    label: "Home",
+    href: "/#home",
+    hash: "#home",
+    icon: "/apple-music-tabbar/home.png",
+  },
   {
     label: "Inventory",
     href: "/#inventory",
     hash: "#inventory",
-    icon: PackageSearch,
+    icon: "/apple-music-tabbar/inventory.png",
   },
 ] as const;
 
@@ -26,10 +24,24 @@ const trailingTabs = [
     label: "Shopping",
     href: "/#shopping",
     hash: "#shopping",
-    icon: ShoppingBasket,
+    icon: "/apple-music-tabbar/shopping.png",
   },
-  { label: "Search", href: "/#search", hash: "#search", icon: Search },
+  {
+    label: "Search",
+    href: "/#search",
+    hash: "#search",
+    icon: "/apple-music-tabbar/search.png",
+  },
 ] as const;
+
+function TabIcon({ src }: { src: string }) {
+  const maskStyle: CSSProperties = {
+    WebkitMaskImage: `url(${src})`,
+    maskImage: `url(${src})`,
+  };
+
+  return <span className="bottom-navigation-icon" style={maskStyle} />;
+}
 
 export default function BottomNavigation() {
   const pathname = usePathname();
@@ -49,7 +61,6 @@ export default function BottomNavigation() {
   const renderTab = (
     tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
   ) => {
-    const Icon = tab.icon;
     const active = isActive(tab.hash);
 
     return (
@@ -60,7 +71,7 @@ export default function BottomNavigation() {
         aria-current={active ? "page" : undefined}
         onClick={() => setHash(tab.hash)}
       >
-        <Icon size={21} strokeWidth={active ? 2.4 : 1.8} />
+        <TabIcon src={tab.icon} />
         <span>{tab.label}</span>
       </Link>
     );
@@ -78,9 +89,7 @@ export default function BottomNavigation() {
           href="/annotate"
           aria-current={pathname === "/annotate" ? "page" : undefined}
         >
-          <span className="annotation-tab-icon">
-            <Tags size={23} strokeWidth={2.2} />
-          </span>
+          <TabIcon src="/apple-music-tabbar/annotate.png" />
           <span>Annotate</span>
         </Link>
 

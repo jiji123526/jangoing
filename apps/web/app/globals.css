@@ -26,7 +26,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: 83px;
   background:
     linear-gradient(rgba(31, 107, 69, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(31, 107, 69, 0.045) 1px, transparent 1px),
@@ -605,72 +605,61 @@ h1 {
   right: 0;
   bottom: 0;
   left: 0;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(249, 249, 249, 0.88);
-  border-top: 0.5px solid rgba(60, 60, 67, 0.22);
-  backdrop-filter: saturate(180%) blur(22px);
+  height: 83px;
+  padding-bottom: 34px;
+  background: #fafafa;
+  border-top: 0.5px solid #c6c6c8;
+  backdrop-filter: blur(15px);
   pointer-events: none;
 }
 
 .bottom-navigation-inner {
   width: min(1180px, 100%);
-  min-height: 58px;
+  height: 49px;
   margin: 0 auto;
-  padding: 4px 6px 3px;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: center;
+  align-items: start;
   pointer-events: auto;
 }
 
 .bottom-navigation-tab {
   min-width: 0;
-  height: 50px;
+  height: 49px;
+  padding: 4px 0 2px;
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-direction: column;
-  gap: 2px;
-  color: #7c7c80;
+  gap: 1px;
+  color: #979798;
   text-decoration: none;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-  font-size: 0.62rem;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: -0.01em;
+  line-height: 12px;
+  letter-spacing: 0.07px;
   transition: color 120ms ease;
 }
 
 .bottom-navigation-tab:hover {
-  color: #fa2d48;
+  color: #ff2d55;
 }
 
 .bottom-navigation-tab.is-active {
-  color: #fa2d48;
+  color: #ff2d55;
 }
 
-.annotation-tab {
-  height: 50px;
-}
-
-.annotation-tab-icon {
-  width: auto;
-  height: auto;
-  margin: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 0;
-  color: inherit;
-  background: transparent;
-  box-shadow: none;
-}
-
-.annotation-tab:hover {
-  transform: none;
-}
-
-.annotation-tab.is-active .annotation-tab-icon {
-  background: transparent;
+.bottom-navigation-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 @keyframes spin {
