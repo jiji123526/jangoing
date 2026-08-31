@@ -378,6 +378,11 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
   context as an inventory batch
 - `POST /shopping-list/:item/restore`: restore the item and remove only its
   purchase-created inventory batch
+
+Purchase and restore responses include the stored event and the resulting
+inventory and shopping projections. The web applies this response directly so
+the visible state does not depend on a separate read immediately after a D1
+write.
 - `GET /events`: return recent event history
 - `GET /health`: health check
 - `POST /inferences/outcome`: record reviewed non-event outcomes

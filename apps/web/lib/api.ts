@@ -189,12 +189,20 @@ const EventsResponseSchema = z.object({
 const ShoppingListResponseSchema = z.object({
   items: z.array(ShoppingListItemSchema),
 });
+const ShoppingMutationResponseSchema = z.object({
+  event: EventRecordSchema,
+  inventory: z.array(InventoryItemSchema),
+  items: z.array(ShoppingListItemSchema),
+});
 
 export interface DashboardData {
   inventory: InventoryItem[];
   events: EventRecord[];
   shoppingList: ShoppingListItem[];
 }
+export type ShoppingMutationResult = z.infer<
+  typeof ShoppingMutationResponseSchema
+>;
 
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
@@ -232,12 +240,12 @@ export async function getShoppingListData(): Promise<ShoppingListItem[]> {
 
 export async function markShoppingItemPurchased(
   itemName: string,
-): Promise<EventRecord> {
+): Promise<ShoppingMutationResult> {
   const body = await apiRequest(
     `/shopping-list/${encodeURIComponent(itemName)}/purchase`,
     { method: "POST" },
   );
-  return EventRecordSchema.parse(body);
+  return ShoppingMutationResponseSchema.parse(body);
 }
 
 export async function addShoppingItem(
@@ -258,12 +266,12 @@ export async function addShoppingItem(
 
 export async function restoreShoppingItem(
   itemName: string,
-): Promise<EventRecord> {
+): Promise<ShoppingMutationResult> {
   const body = await apiRequest(
     `/shopping-list/${encodeURIComponent(itemName)}/restore`,
     { method: "POST" },
   );
-  return EventRecordSchema.parse(body);
+  return ShoppingMutationResponseSchema.parse(body);
 }
 
 export async function getDashboardData(): Promise<DashboardData> {

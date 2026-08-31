@@ -364,6 +364,41 @@ describe("projectInventory", () => {
       }),
     ]);
   });
+
+  it("restores an out-of-stock item after undoing its purchase", () => {
+    const events = [
+      event({
+        event_type: "item_marked_out",
+        item_name: "milk",
+      }),
+      event({
+        event_type: "item_added_to_buy",
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+      }),
+      event({
+        event_type: "shopping_item_purchased",
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+      }),
+      event({
+        event_type: "shopping_item_restored",
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+      }),
+    ];
+
+    expect(projectInventory(events)).toEqual([
+      expect.objectContaining({
+        item_name: "milk",
+        quantity: 0,
+        status: "out",
+      }),
+    ]);
+  });
 });
 
 describe("projectShoppingList", () => {

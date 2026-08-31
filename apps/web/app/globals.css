@@ -1192,7 +1192,7 @@ h1 {
 }
 
 .shopping-queue {
-  padding-top: 16px;
+  padding-top: 8px;
 }
 
 .shopping-section-heading {
@@ -1606,7 +1606,8 @@ h1 {
     padding: 24px 18px 30px;
   }
 
-  .inventory-section {
+  .inventory-section,
+  .shopping-section {
     padding: 0 0 30px;
     border-right: 0;
   }

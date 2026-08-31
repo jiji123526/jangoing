@@ -2,6 +2,56 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Shopping and Inventory page alignment fixed
+
+### Problem
+
+- Shopping was shifted 18px farther right and 24px farther down than Inventory
+  on mobile even though both inner components used a 16px inset.
+
+### Cause
+
+- The mobile `.data-section` rule reapplied outer padding to both pages, but
+  only `.inventory-section` overrode it.
+- Shopping therefore combined 18px outer padding with its own 16px component
+  inset.
+
+### Resolution
+
+- Applied the same zero-horizontal-padding mobile override to Shopping.
+- Matched Shopping's first-section top spacing to Inventory's 8px spacing.
+- Kept the compact Shopping row height while aligning page titles, section
+  headings, artwork, trailing actions, and counts to the same page grid.
+
+## 2026-08-31 - Shopping Undo now returns authoritative inventory
+
+### Problem
+
+- Undo moved a Purchased row back to To Buy but the inventory UI could continue
+  showing the post-purchase projection.
+
+### Resolution
+
+- Changed purchase and restore mutations to return the event plus inventory and
+  shopping projections calculated from the same ordered event sequence.
+- Updated the web app to apply those authoritative projections directly instead
+  of issuing separate follow-up GET requests after the D1 write.
+- Added regression coverage for restoring an item that was Out before purchase.
+
+### Decisions
+
+- Keep the event replay behavior as the source of truth while returning its
+  immediate result from the mutation request.
+- Avoid relying on cross-request read-after-write timing for user-visible
+  purchase and Undo state.
+
+### Validation
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api` (111 tests)
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+
 ## 2026-08-31 - Shopping purchases now update inventory
 
 ### Completed

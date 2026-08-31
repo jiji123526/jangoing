@@ -703,6 +703,20 @@ async function handleShoppingMutation(
     event.created_at,
   ).run();
 
+  if (action !== "add") {
+    const nextEvents = [...existingEvents, event];
+    return json(
+      request,
+      env,
+      {
+        event,
+        inventory: projectInventory(nextEvents),
+        items: projectShoppingList(nextEvents),
+      },
+      201,
+    );
+  }
+
   return json(request, env, event, 201);
 }
 

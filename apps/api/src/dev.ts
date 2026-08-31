@@ -711,10 +711,11 @@ async function route(
       );
       return;
     }
+    const existingEvents = action === "add" ? [] : events();
     const currentItem = action === "add"
       ? null
       : projectShoppingList(
-          events(),
+          existingEvents,
           new Date(),
           Number.POSITIVE_INFINITY,
         ).find((item) => item.item_name === itemName) ?? null;
@@ -786,6 +787,20 @@ async function route(
       event.source,
       event.created_at,
     );
+    if (action !== "add") {
+      const nextEvents = [...existingEvents, event];
+      sendJson(
+        response,
+        origin,
+        {
+          event,
+          inventory: projectInventory(nextEvents),
+          items: projectShoppingList(nextEvents),
+        },
+        201,
+      );
+      return;
+    }
     sendJson(response, origin, event, 201);
     return;
   }

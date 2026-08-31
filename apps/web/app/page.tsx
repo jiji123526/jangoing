@@ -808,16 +808,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setRevealedShoppingItem(null);
     setError(null);
     try {
-      if (status === "active") {
-        await markShoppingItemPurchased(itemName);
-      } else {
-        await restoreShoppingItem(itemName);
-      }
-      const [inventory, shoppingList] = await Promise.all([
-        getInventoryData(),
-        getShoppingListData(),
-      ]);
-      setDashboard((current) => ({ ...current, inventory, shoppingList }));
+      const result = status === "active"
+        ? await markShoppingItemPurchased(itemName)
+        : await restoreShoppingItem(itemName);
+      setDashboard((current) => ({
+        ...current,
+        inventory: result.inventory,
+        shoppingList: result.items,
+      }));
     } catch (caught) {
       setError(
         caught instanceof Error
