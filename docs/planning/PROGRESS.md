@@ -21,6 +21,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Restored the inventory artwork beside the expanded editor and moved compact
   `Cancel / Save` actions onto the item-name row so editing remains visually
   anchored to the original inventory list item.
+- Moved `Cancel / Save` into the editor footer and replaced the former header
+  Save position with an accessible trash icon for inventory removal.
 - Kept Needs Attention visible in normal mode and hid its duplicate rows while
   editing the category list.
 

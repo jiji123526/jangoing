@@ -14,6 +14,7 @@ import {
   LoaderCircle,
   Send,
   ShoppingBasket,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -288,23 +289,19 @@ function InventoryItemRow({
         >
           <div className="inventory-edit-header">
             <strong>{titleCase(item.item_name)}</strong>
-            <div className="inventory-edit-actions">
-              <button
-                className="inventory-edit-cancel"
-                type="button"
-                disabled={busy}
-                onClick={onCancel}
-              >
-                Cancel
-              </button>
-              <button
-                className="inventory-save-button"
-                type="submit"
-                disabled={busy}
-              >
-                {busy ? "Saving…" : "Save"}
-              </button>
-            </div>
+            <button
+              className="inventory-edit-remove"
+              type="button"
+              aria-label={`Remove ${titleCase(item.item_name)} from inventory`}
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
+                  void onRemove?.();
+                }
+              }}
+            >
+              <Trash2 aria-hidden="true" size={18} />
+            </button>
           </div>
 
           <div className="inventory-edit-fields">
@@ -405,18 +402,23 @@ function InventoryItemRow({
             </p>
           )}
 
-          <button
-            className="inventory-remove-button"
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
-                void onRemove?.();
-              }
-            }}
-          >
-            Remove from Inventory
-          </button>
+          <div className="inventory-edit-actions">
+            <button
+              className="inventory-edit-cancel"
+              type="button"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button
+              className="inventory-save-button"
+              type="submit"
+              disabled={busy}
+            >
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </div>
         </form>
       </article>
     );
