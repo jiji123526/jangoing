@@ -77,12 +77,34 @@ const annotationRelevanceMigrationPath = resolve(
   "migrations/0008_add_annotation_relevance.sql",
 );
 const port = Number(process.env.PORT ?? 8787);
+
+function defaultAllowedOrigins(): string[] {
+  const defaults = ["http://localhost:3000", "http://127.0.0.1:3000"];
+  const devspaceId = process.env.DEVSPACE_ID?.trim();
+
+  if (!devspaceId) {
+    return defaults;
+  }
+
+  try {
+    const proxyBaseDomain = readFileSync(
+      "/etc/devspace/http-proxy-base-domain",
+      "utf8",
+    ).trim();
+
+    if (!proxyBaseDomain) {
+      return defaults;
+    }
+
+    return [...defaults, `https://${devspaceId}--3000.${proxyBaseDomain}`];
+  } catch {
+    return defaults;
+  }
+}
+
 const allowedOrigins = (
-  process.env.ALLOWED_ORIGINS ??
-  "http://localhost:3000,http://127.0.0.1:3000"
-)
-  .split(",")
-  .map((origin) => origin.trim());
+  process.env.ALLOWED_ORIGINS?.split(",") ?? defaultAllowedOrigins()
+).map((origin) => origin.trim());
 
 mkdirSync(dirname(databasePath), { recursive: true });
 const database = new DatabaseSync(databasePath);

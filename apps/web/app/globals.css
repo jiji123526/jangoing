@@ -509,28 +509,6 @@ h1 {
   letter-spacing: 0.374px;
 }
 
-.inventory-edit-toggle {
-  position: absolute;
-  top: 11px;
-  right: 16px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: #ff2d55;
-  background: transparent;
-  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 22px;
-  letter-spacing: -0.408px;
-}
-
-.inventory-edit-toggle:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: 3px;
-}
-
 .inventory-message {
   margin: 0 16px 16px;
 }
@@ -619,6 +597,7 @@ h1 {
 }
 
 .inventory-item-row {
+  position: relative;
   min-width: 0;
   min-height: 116px;
   padding: 7px 16px;
@@ -627,6 +606,30 @@ h1 {
   gap: 16px;
   color: #000;
   background: #fff;
+}
+
+.inventory-item-row-button {
+  cursor: pointer;
+}
+
+.inventory-item-row-button:hover {
+  background: #f8f8fa;
+}
+
+.inventory-row-hit-area {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.inventory-row-hit-area:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -2px;
 }
 
 .inventory-artwork {
@@ -753,6 +756,97 @@ h1 {
 
 .inventory-save-button {
   color: #ff2d55;
+}
+
+.inventory-editor-backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.inventory-editor-sheet {
+  width: min(540px, 100%);
+  max-height: min(720px, 92dvh);
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  overflow-y: auto;
+  border-radius: 10px 10px 0 0;
+  color: #000;
+  background: #fff;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.16);
+  overscroll-behavior: contain;
+}
+
+.inventory-editor-handle {
+  width: 36px;
+  height: 5px;
+  margin: 8px auto 4px;
+  border-radius: 999px;
+  background: rgba(60, 60, 67, 0.33);
+}
+
+.inventory-editor-navbar {
+  min-height: 44px;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  align-items: center;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.2);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.inventory-editor-navbar strong {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-editor-navbar button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  color: #ff2d55;
+  background: transparent;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.inventory-editor-navbar button:disabled {
+  color: rgba(60, 60, 67, 0.33);
+}
+
+.inventory-editor-navbar button:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+.inventory-editor-sheet .inventory-item-row {
+  padding-top: 16px;
+  padding-bottom: 20px;
+}
+
+.inventory-editor-sheet .inventory-edit-form {
+  border-bottom: 0;
+}
+
+.inventory-editor-sheet .inventory-edit-actions {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.2);
 }
 
 .inventory-item-copy p {
@@ -952,6 +1046,23 @@ h1 {
   .inventory-section {
     padding: 0 0 30px;
     border-right: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .inventory-editor-sheet .inventory-item-row {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .inventory-editor-sheet .inventory-artwork {
+    width: 72px;
+    height: 72px;
+    padding: 8px;
+  }
+
+  .inventory-editor-sheet .inventory-edit-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

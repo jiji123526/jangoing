@@ -25,9 +25,33 @@ import {
 } from "@jangoing/contracts";
 import { z } from "zod";
 
-const apiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787"
-).replace(/\/$/, "");
+function inferBrowserApiBaseUrl(): string {
+  const { protocol, hostname, port } = window.location;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://localhost:8787";
+  }
+
+  if (protocol === "https:" && port === "" && hostname.includes("--3000.")) {
+    return `https://${hostname.replace("--3000.", "--8787.")}`;
+  }
+
+  return "http://localhost:8787";
+}
+
+function apiBaseUrl(): string {
+  const configuredBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window !== "undefined") {
+    return inferBrowserApiBaseUrl();
+  }
+
+  return "http://localhost:8787";
+}
 
 function localReferenceDate(): string {
   const now = new Date();
@@ -42,7 +66,7 @@ function localTimezone(): string {
 }
 
 async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",

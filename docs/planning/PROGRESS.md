@@ -2,6 +2,57 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Inventory item editing moved into a focused bottom sheet
+
+### Completed
+
+- Kept the Apple Music-style `390x116` inventory rows stable while editing.
+- Removed the navbar-level `Edit`/`Done` mode and made each inventory row open
+  its own editing sheet directly.
+- Applied the same click behavior to both Needs Attention and category rows.
+- Reused the existing quantity, unit, location, expiry, save, and remove
+  controls inside a single-item bottom sheet.
+- Added backdrop dismissal, Escape-key dismissal, body scroll locking, safe
+  area padding, and accessible dialog labeling.
+- Kept the sheet open when an update or removal fails and close it only after a
+  successful API operation.
+
+### Decisions
+
+- Treat inventory-field editing as a focused task, following the detail/modal
+  guidance in `APPLE_MUSIC_UI_KIT_GUIDE_KO.md`.
+- Use direct item selection instead of a separate global editing state.
+- Keep the current API and event semantics unchanged; this update only changes
+  selection and presentation behavior.
+
+### Validation
+
+- `npm run typecheck`
+- `npm run build --workspace @jangoing/web`
+- `git diff --check`
+
+## 2026-08-31 - Local dashboard sample data seed added
+
+### Completed
+
+- Added a local-only sample event seed script for non-annotation UI work.
+- Seed data now covers recent actions, inventory attention states, category
+  groups, and shopping-list entries.
+- Added a root command so the local dashboard can be repopulated quickly after
+  clearing the SQLite database.
+
+### Decisions
+
+- Keep sample data explicit and opt-in instead of auto-seeding on every local
+  dev startup.
+- Replace only deterministic `local-ui-sample-*` events so existing local user
+  data is preserved.
+
+### Next
+
+- Use `npm run seed:local-sample` whenever the local UI needs realistic sample
+  content without relying on production data.
+
 ## 2026-08-30 - Global headers removed and inventory editing added
 
 ### Completed

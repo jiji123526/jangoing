@@ -25,6 +25,17 @@ npm run dev:web
 
 Open `http://localhost:3000`. The local API defaults to `http://localhost:8787`.
 
+If you want the dashboard views to have local demo content immediately, seed the
+local SQLite database:
+
+```bash
+npm run seed:local-sample
+```
+
+This adds deterministic local-only sample events for `home`, `inventory`, and
+`shopping` without touching production D1. Re-running it replaces only the
+`local-ui-sample-*` records.
+
 To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.example`.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
