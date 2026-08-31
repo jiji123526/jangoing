@@ -2,6 +2,29 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Apple Music UI kit design system extracted
+
+### Completed
+
+- Inspected all 19,917 nodes across the Figma kit's Light and Dark mode screens.
+- Confirmed the community file does not expose formal local components, styles,
+  or variable collections, and derived reusable specifications from recurring
+  source frames instead.
+- Added a detailed Korean design guide covering color, typography, spacing,
+  effects, icons, navigation, list/card variants, tables, player controls,
+  modals, accessibility, responsive behavior, and parity validation.
+- Recorded representative Figma node IDs, observed instance counts, exact
+  geometry, and Jangoing-specific inventory mappings.
+
+### Decisions
+
+- Do not substitute arbitrary fonts, icon families, spacing, radii, or effects
+  when a Figma reference is provided.
+- Treat source artwork and trademark assets separately from layout and visual
+  specifications; verify reuse rights before product distribution.
+- Use the 390x116 Apple Music album row as the initial Inventory Item Row, with
+  specific item name, quantity/location, and one-line attention metadata.
+
 ## 2026-08-30 - Persistent bottom navigation added
 
 ### Completed

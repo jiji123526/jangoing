@@ -34,5 +34,9 @@ operational guides, decisions, and learning references live in this directory.
 
 - [Local and production setup](./operations/SETUP.md)
 
+## Design
+
+- [Apple Music UI kit 기반 Jangoing 디자인 가이드](./design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md)
+
 Package-specific training commands remain in
 [the ML quick start](../ml/README.md).
