@@ -20,6 +20,7 @@ import {
   type InventoryItem,
   type ShoppingListItem,
   type ActivationMode,
+  type AdjustInventoryItemRequest,
   type SpeakerRole,
 } from "@jangoing/contracts";
 import { z } from "zod";
@@ -173,6 +174,25 @@ export interface DashboardData {
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
   return InventoryResponseSchema.parse(body).inventory;
+}
+
+export async function updateInventoryItem(
+  itemName: string,
+  update: AdjustInventoryItemRequest,
+): Promise<EventRecord> {
+  const body = await apiRequest(
+    `/inventory/${encodeURIComponent(itemName)}/edit`,
+    { method: "POST", body: JSON.stringify(update) },
+  );
+  return EventRecordSchema.parse(body);
+}
+
+export async function removeInventoryItem(itemName: string): Promise<EventRecord> {
+  const body = await apiRequest(
+    `/inventory/${encodeURIComponent(itemName)}/remove`,
+    { method: "POST" },
+  );
+  return EventRecordSchema.parse(body);
 }
 
 export async function getEventsData(): Promise<EventRecord[]> {

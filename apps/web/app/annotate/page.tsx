@@ -20,8 +20,7 @@ import {
   AnnotationQueueTypeSchema,
   DatasetPurposeSchema,
 } from "@jangoing/contracts";
-import { ArrowLeft, Check, ChevronDown, LoaderCircle, Plus, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Check, ChevronDown, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   createAnnotation,
@@ -920,14 +919,6 @@ export default function AnnotatePage() {
 
   return (
     <main className={styles.shell}>
-      <header className={styles.header}>
-        <div>
-          <Link href="/" className={styles.back}><ArrowLeft size={17} /> Kitchen</Link>
-          <strong>Annotation workspace</strong>
-        </div>
-        <span><b>{stats.annotated}</b> saved</span>
-      </header>
-
       <section className={styles.intro}>
         <p>DATA COLLECTION</p>
         <h1>Label one real sentence at a time.</h1>

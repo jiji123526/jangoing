@@ -2,6 +2,7 @@ import {
   AnnotationAssistantProposalRequestSchema,
   AnnotationAssistantProposalSchema,
   AnnotationNormalizedValuesResponseSchema,
+  AdjustInventoryItemRequestSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
@@ -594,7 +595,9 @@ async function route(
       slots: submission.original_interpretation.slots,
     };
     const corrected = {
-      intent: intentByEventType[event.event_type],
+      intent: Object.entries(intentByEventType).find(
+        ([eventType]) => eventType === event.event_type,
+      )?.[1],
       slots: {
         item_name: event.item_name,
         ...(event.quantity !== null ? { quantity: event.quantity } : {}),
@@ -635,6 +638,70 @@ async function route(
 
   if (request.method === "GET" && path === "/events") {
     sendJson(response, origin, { events: events(50) });
+    return;
+  }
+
+  const inventoryMutation = path.match(/^\/inventory\/([^/]+)\/(edit|remove)$/);
+  if (request.method === "POST" && inventoryMutation) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(inventoryMutation[1]).trim();
+    } catch {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+    if (!itemName) {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+
+    const action = inventoryMutation[2] as "edit" | "remove";
+    const adjustment = action === "edit"
+      ? AdjustInventoryItemRequestSchema.safeParse(await readBody(request))
+      : null;
+    if (adjustment && !adjustment.success) {
+      sendJson(
+        response,
+        origin,
+        { error: "Invalid inventory adjustment", details: adjustment.error.flatten() },
+        400,
+      );
+      return;
+    }
+
+    const values = adjustment?.success ? adjustment.data : null;
+    const event: EventRecord = {
+      id: crypto.randomUUID(),
+      event_type: action === "edit" ? "item_adjusted" : "item_removed",
+      item_name: itemName,
+      quantity: values?.quantity ?? null,
+      unit: values?.unit ?? null,
+      location: values?.location ?? null,
+      expiration_date: values?.expiration_date ?? null,
+      raw_utterance: `Inventory editor ${action === "edit" ? "adjusted" : "removed"} ${itemName}`,
+      confidence: 1,
+      source: "web",
+      created_at: new Date().toISOString(),
+    };
+    database.prepare(
+      `INSERT INTO events (
+        id, event_type, item_name, quantity, unit, location,
+        expiration_date, raw_utterance, confidence, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      event.id,
+      event.event_type,
+      event.item_name,
+      event.quantity ?? null,
+      event.unit ?? null,
+      event.location ?? null,
+      event.expiration_date ?? null,
+      event.raw_utterance,
+      event.confidence,
+      event.source,
+      event.created_at,
+    );
+    sendJson(response, origin, event, 201);
     return;
   }
 

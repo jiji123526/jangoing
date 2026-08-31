@@ -2,6 +2,38 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Global headers removed and inventory editing added
+
+### Completed
+
+- Removed the duplicated product header from Home, Inventory, Shopping, Search,
+  and the dedicated Annotation workspace.
+- Matched the Inventory `Edit` action to Figma Light Navbar nodes `1:133493`
+  and `1:133495`: 16px right inset, 11px top inset, SF Pro Text Regular 17/22,
+  `-0.408px` tracking, and `#FF2D55`.
+- Added Edit/Done mode with quantity, unit, location, expiry-date, save, and
+  confirmed remove controls for every existing inventory item.
+- Added direct inventory mutation endpoints for production Worker and local API.
+- Added explicit `item_adjusted` and `item_removed` event types so manual list
+  maintenance remains distinguishable from conversational consumption,
+  disposal, and model-correction data.
+- Added projection tests proving an adjustment replaces the current projected
+  batch and removal omits the item from the active inventory list.
+
+### Deployment order
+
+1. Deploy the API Worker with the new mutation endpoints and event types.
+2. Deploy the web app with Edit mode enabled.
+
+No D1 schema migration is required because the existing `events.event_type`
+column stores text values and the event record shape did not gain a new column.
+
+### Validation
+
+- All workspace TypeScript checks passed.
+- All 95 API tests passed.
+- Web production build passed for all six routes.
+
 ## 2026-08-30 - Bottom tabs split into independent routes
 
 ### Completed

@@ -12,7 +12,6 @@ import {
   Check,
   History,
   LoaderCircle,
-  RefreshCw,
   Send,
   ShoppingBasket,
   X,
@@ -24,6 +23,8 @@ import {
   getInventoryData,
   getShoppingListData,
   interpretCommand,
+  removeInventoryItem,
+  updateInventoryItem,
   updateInferenceOutcome,
   type DashboardData,
 } from "../lib/api";
@@ -187,14 +188,119 @@ function InventoryArtwork({ category }: { category: ItemCategory }) {
   );
 }
 
-function InventoryItemRow({ item }: { item: InventoryItem }) {
+function InventoryItemRow({
+  item,
+  editing = false,
+  busy = false,
+  onSave,
+  onRemove,
+}: {
+  item: InventoryItem;
+  editing?: boolean;
+  busy?: boolean;
+  onSave?: (update: {
+    quantity: number;
+    unit: string | null;
+    location: InventoryItem["location"];
+    expiration_date: string | null;
+  }) => Promise<void>;
+  onRemove?: () => Promise<void>;
+}) {
   const category = inventoryCategory(item.item_name);
   const attention = attentionLabel(item);
+  const [quantity, setQuantity] = useState(String(item.quantity || 1));
+  const [unit, setUnit] = useState(item.unit ?? "");
+  const [location, setLocation] = useState(item.location ?? "");
+  const [expirationDate, setExpirationDate] = useState(
+    item.nearest_expiration_date ?? "",
+  );
   const metadata = [
     quantityLabel(item),
     item.location ? titleCase(item.location) : null,
     attention ? null : expiryLabel(item),
   ].filter((value): value is string => Boolean(value));
+
+  if (editing) {
+    return (
+      <article className="inventory-item-row is-editing">
+        <InventoryArtwork category={category} />
+        <form
+          className="inventory-edit-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const parsedQuantity = Number(quantity);
+            if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) return;
+            void onSave?.({
+              quantity: parsedQuantity,
+              unit: unit.trim() || null,
+              location: location as InventoryItem["location"],
+              expiration_date: expirationDate || null,
+            });
+          }}
+        >
+          <strong>{titleCase(item.item_name)}</strong>
+          <div className="inventory-edit-fields">
+            <label>
+              <span>Quantity</span>
+              <input
+                type="number"
+                min="0.01"
+                step="any"
+                required
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Unit</span>
+              <input
+                maxLength={40}
+                value={unit}
+                onChange={(event) => setUnit(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Location</span>
+              <select
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+              >
+                <option value="">Not specified</option>
+                <option value="fridge">Fridge</option>
+                <option value="freezer">Freezer</option>
+                <option value="pantry">Pantry</option>
+              </select>
+            </label>
+            <label>
+              <span>Expiry</span>
+              <input
+                type="date"
+                value={expirationDate}
+                onChange={(event) => setExpirationDate(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="inventory-edit-actions">
+            <button
+              className="inventory-remove-button"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
+                  void onRemove?.();
+                }
+              }}
+            >
+              Remove
+            </button>
+            <button className="inventory-save-button" type="submit" disabled={busy}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      </article>
+    );
+  }
 
   return (
     <article className="inventory-item-row">
@@ -227,6 +333,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
+  const [editingInventory, setEditingInventory] = useState(false);
+  const [inventorySaving, setInventorySaving] = useState<string | null>(null);
 
   const attentionItems = useMemo(
     () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
@@ -271,6 +379,37 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   useEffect(() => {
     void loadDashboard();
   }, [view]);
+
+  async function handleSaveInventoryItem(
+    itemName: string,
+    update: Parameters<typeof updateInventoryItem>[1],
+  ) {
+    setInventorySaving(itemName);
+    setError(null);
+    try {
+      await updateInventoryItem(itemName, update);
+      setNotice(`${titleCase(itemName)} updated.`);
+      await loadDashboard();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update item.");
+    } finally {
+      setInventorySaving(null);
+    }
+  }
+
+  async function handleRemoveInventoryItem(itemName: string) {
+    setInventorySaving(itemName);
+    setError(null);
+    try {
+      await removeInventoryItem(itemName);
+      setNotice(`${titleCase(itemName)} removed from inventory.`);
+      await loadDashboard();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not remove item.");
+    } finally {
+      setInventorySaving(null);
+    }
+  }
 
   async function handleInterpret(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -422,25 +561,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
   return (
     <main id={view}>
-      <header className="topbar">
-        <div>
-          <span className="brand">jangoing</span>
-          <span className="phase">Text MVP</span>
-        </div>
-        <div className="top-actions">
-          <button
-            className="icon-button"
-            type="button"
-            onClick={() => void loadDashboard()}
-            disabled={loading}
-            title="Refresh kitchen data"
-            aria-label="Refresh kitchen data"
-          >
-            <RefreshCw size={18} className={loading ? "spin" : undefined} />
-          </button>
-        </div>
-      </header>
-
       {(view === "home" || view === "search") && (
       <section
         className="command-band"
@@ -669,13 +789,19 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         <section className="data-section inventory-section" id="inventory">
           <div className="inventory-titlebar">
             <div>
-              <p>Kitchen library</p>
               <h2>Inventory</h2>
             </div>
-            <span aria-label={`${dashboard.inventory.length} inventory items`}>
-              {dashboard.inventory.length}
-            </span>
+            <button
+              className="inventory-edit-toggle"
+              type="button"
+              onClick={() => setEditingInventory((current) => !current)}
+            >
+              {editingInventory ? "Done" : "Edit"}
+            </button>
           </div>
+
+          {error && <p className="message error inventory-message">{error}</p>}
+          {notice && <p className="message notice inventory-message">{notice}</p>}
 
           {loading ? (
             <p className="empty-state inventory-empty">Loading inventory...</p>
@@ -683,7 +809,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <p className="empty-state inventory-empty">No inventory actions yet.</p>
           ) : (
             <div className="inventory-library">
-              {attentionItems.length > 0 && (
+              {attentionItems.length > 0 && !editingInventory && (
                 <section className="inventory-attention-section" aria-labelledby="attention-heading">
                   <div className="inventory-section-heading">
                     <h3 id="attention-heading">Needs Attention</h3>
@@ -728,7 +854,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     </div>
                     <div className="inventory-list">
                       {items.map((item) => (
-                        <InventoryItemRow item={item} key={item.item_name} />
+                        <InventoryItemRow
+                          item={item}
+                          key={item.item_name}
+                          editing={editingInventory}
+                          busy={inventorySaving === item.item_name}
+                          onSave={(update) => handleSaveInventoryItem(item.item_name, update)}
+                          onRemove={() => handleRemoveInventoryItem(item.item_name)}
+                        />
                       ))}
                     </div>
                   </section>

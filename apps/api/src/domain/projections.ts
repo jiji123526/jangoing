@@ -77,10 +77,25 @@ export function projectInventory(
       continue;
     }
 
+    if (event.event_type === "item_removed") {
+      states.delete(event.item_name);
+      continue;
+    }
+
     const state = states.get(event.item_name) ?? {
       batches: [],
       forcedStatus: null,
     };
+
+    if (event.event_type === "item_adjusted") {
+      state.batches = [{
+        quantity: event.quantity ?? 1,
+        unit: event.unit ?? null,
+        location: event.location ?? null,
+        expirationDate: event.expiration_date ?? null,
+      }];
+      state.forcedStatus = null;
+    }
 
     if (event.event_type === "item_added") {
       state.batches.push({

@@ -490,22 +490,14 @@ h1 {
 }
 
 .inventory-titlebar {
-  min-height: 110px;
-  padding: 26px 16px 12px;
+  position: relative;
+  min-height: 95px;
+  padding: 47px 16px 7px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.inventory-titlebar p {
-  margin: 0 0 2px;
-  color: rgba(60, 60, 67, 0.6);
-  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px;
-  line-height: 16px;
-  letter-spacing: -0.078px;
 }
 
 .inventory-titlebar h2 {
@@ -517,20 +509,30 @@ h1 {
   letter-spacing: 0.374px;
 }
 
-.inventory-titlebar > span {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
+.inventory-edit-toggle {
+  position: absolute;
+  top: 11px;
+  right: 16px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: #ff2d55;
-  background: rgba(118, 118, 128, 0.12);
+  background: transparent;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 16px;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.inventory-edit-toggle:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 3px;
+}
+
+.inventory-message {
+  margin: 0 16px 16px;
 }
 
 .inventory-library {
@@ -667,6 +669,90 @@ h1 {
   letter-spacing: -0.408px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.inventory-item-row.is-editing {
+  align-items: start;
+}
+
+.inventory-edit-form {
+  min-width: 0;
+  padding: 0 0 12px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
+}
+
+.inventory-edit-form > strong {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.inventory-edit-fields label {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.inventory-edit-fields label > span {
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+  letter-spacing: 0.07px;
+}
+
+.inventory-edit-fields input,
+.inventory-edit-fields select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 0.5px solid rgba(60, 60, 67, 0.38);
+  border-radius: 6px;
+  color: #000;
+  background: #fff;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.inventory-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inventory-edit-actions button {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.inventory-remove-button {
+  color: #a63d40;
+}
+
+.inventory-save-button {
+  color: #ff2d55;
 }
 
 .inventory-item-copy p {

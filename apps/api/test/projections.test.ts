@@ -85,6 +85,42 @@ describe("projectInventory", () => {
       status: "out",
     });
   });
+
+  it("replaces the projected item state after an inventory edit", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 2,
+          unit: "carton",
+          location: "fridge",
+        }),
+        event({
+          event_type: "item_adjusted",
+          item_name: "milk",
+          quantity: 1,
+          unit: "bottle",
+          location: "pantry",
+          expiration_date: "2026-09-04",
+        }),
+      ], new Date("2026-08-30T12:00:00Z"))[0],
+    ).toMatchObject({
+      quantity: 1,
+      unit: "bottle",
+      location: "pantry",
+      nearest_expiration_date: "2026-09-04",
+    });
+  });
+
+  it("removes an item from the projected list without treating it as consumed", () => {
+    expect(
+      projectInventory([
+        event({ event_type: "item_added", item_name: "milk", quantity: 1 }),
+        event({ event_type: "item_removed", item_name: "milk" }),
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("projectShoppingList", () => {

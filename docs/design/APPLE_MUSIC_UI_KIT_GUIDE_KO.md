@@ -164,6 +164,11 @@ Default 구조는 48px icon/image, thumb 영역 52px, label 영역 266px/40px, p
 
 large-title 프레임은 `390×51`이며 대제목은 34/41 Bold다. 뒤로가기와 텍스트 action은 17/22, accent color를 사용한다. 웹에서는 실제 OS status bar를 그리지 않고 header 높이와 safe-area만 보존한다.
 
+Inventory의 `Edit` action은 Light Navbar `1:133493` 안의 text node
+`1:133495`를 기준으로 한다. 오른쪽 inset 16px, 상단 11px, SF Pro Text
+Regular 17/22, 자간 `-0.408px`, `#FF2D55`이며 편집 중에는 같은 위치에서
+`Done`으로 바뀐다. 공통 제품 header를 이 navbar 위에 중복으로 배치하지 않는다.
+
 ### 6.5 App Footer / Tab bar
 
 - Light 대표 node `1:125932`; 전체 `390×83`, 12개. modal형 `390×78`, 4개.

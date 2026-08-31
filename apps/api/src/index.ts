@@ -2,6 +2,7 @@ import {
   AnnotationAssistantProposalRequestSchema,
   AnnotationAssistantProposalSchema,
   AnnotationNormalizedValuesResponseSchema,
+  AdjustInventoryItemRequestSchema,
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
@@ -552,6 +553,61 @@ async function handleCreateEvent(
   return json(request, env, event, 201);
 }
 
+async function handleInventoryMutation(
+  request: Request,
+  env: Env,
+  itemName: string,
+  action: "edit" | "remove",
+): Promise<Response> {
+  const adjustment = action === "edit"
+    ? AdjustInventoryItemRequestSchema.safeParse(await request.json())
+    : null;
+  if (adjustment && !adjustment.success) {
+    return json(
+      request,
+      env,
+      { error: "Invalid inventory adjustment", details: adjustment.error.flatten() },
+      400,
+    );
+  }
+
+  const values = adjustment?.success ? adjustment.data : null;
+  const event: EventRecord = {
+    id: crypto.randomUUID(),
+    event_type: action === "edit" ? "item_adjusted" : "item_removed",
+    item_name: itemName,
+    quantity: values?.quantity ?? null,
+    unit: values?.unit ?? null,
+    location: values?.location ?? null,
+    expiration_date: values?.expiration_date ?? null,
+    raw_utterance: `Inventory editor ${action === "edit" ? "adjusted" : "removed"} ${itemName}`,
+    confidence: 1,
+    source: "web",
+    created_at: new Date().toISOString(),
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO events (
+      id, event_type, item_name, quantity, unit, location,
+      expiration_date, raw_utterance, confidence, source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    event.id,
+    event.event_type,
+    event.item_name,
+    event.quantity,
+    event.unit,
+    event.location,
+    event.expiration_date,
+    event.raw_utterance,
+    event.confidence,
+    event.source,
+    event.created_at,
+  ).run();
+
+  return json(request, env, event, 201);
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
   if (isDisallowedOrigin(request, env)) {
     return json(request, env, { error: "Origin not allowed" }, 403);
@@ -562,6 +618,25 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  const inventoryMutation = url.pathname.match(
+    /^\/inventory\/([^/]+)\/(edit|remove)$/,
+  );
+
+  if (request.method === "POST" && inventoryMutation) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(inventoryMutation[1]).trim();
+    } catch {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+    if (!itemName) return json(request, env, { error: "Invalid item name" }, 400);
+    return handleInventoryMutation(
+      request,
+      env,
+      itemName,
+      inventoryMutation[2] as "edit" | "remove",
+    );
+  }
 
   if (request.method === "GET" && url.pathname === "/health") {
     return json(request, env, { status: "ok" });

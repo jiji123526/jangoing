@@ -469,7 +469,18 @@ export const EventTypeSchema = z.enum([
   "item_marked_out",
   "item_thrown_away",
   "item_added_to_buy",
+  "item_adjusted",
+  "item_removed",
 ]);
+
+export const AdjustInventoryItemRequestSchema = z
+  .object({
+    quantity: z.number().positive(),
+    unit: z.string().trim().min(1).max(40).nullable(),
+    location: LocationSchema.nullable(),
+    expiration_date: IsoDateSchema.nullable(),
+  })
+  .strict();
 
 export const CreateEventRequestSchema = z
   .object({
@@ -561,6 +572,9 @@ export type UpdateInferenceOutcomeRequest = z.infer<
   typeof UpdateInferenceOutcomeRequestSchema
 >;
 export type EventType = z.infer<typeof EventTypeSchema>;
+export type AdjustInventoryItemRequest = z.infer<
+  typeof AdjustInventoryItemRequestSchema
+>;
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
 export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;
 export type EventRecord = z.infer<typeof EventRecordSchema>;
