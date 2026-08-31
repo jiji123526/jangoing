@@ -305,13 +305,15 @@ function InventoryItemRow({
   }
 
   return (
-    <article className="inventory-item-row inventory-item-row-button">
-      <button
-        className="inventory-row-hit-area"
-        type="button"
-        onClick={onOpen}
-        aria-label={`Edit ${titleCase(item.item_name)}`}
-      />
+    <article className={`inventory-item-row${onOpen ? " inventory-item-row-button" : ""}`}>
+      {onOpen && (
+        <button
+          className="inventory-row-hit-area"
+          type="button"
+          onClick={onOpen}
+          aria-label={`Edit ${titleCase(item.item_name)}`}
+        />
+      )}
       <InventoryArtwork category={category} />
       <div className="inventory-item-copy">
         <strong>{titleCase(item.item_name)}</strong>
@@ -341,6 +343,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
+  const [editingInventory, setEditingInventory] = useState(false);
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
     useState<string | null>(null);
   const [inventorySaving, setInventorySaving] = useState<string | null>(null);
@@ -362,12 +365,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       .map((category) => ({ category, items: groups.get(category) ?? [] }))
       .filter((group) => group.items.length > 0);
   }, [dashboard.inventory, inventoryFilter]);
-  const selectedInventoryItem = selectedInventoryItemName
-    ? dashboard.inventory.find(
-        (item) => item.item_name === selectedInventoryItemName,
-      ) ?? null
-    : null;
-
   async function loadDashboard() {
     setLoading(true);
     setError(null);
@@ -393,25 +390,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   useEffect(() => {
     void loadDashboard();
   }, [view]);
-
-  useEffect(() => {
-    if (!selectedInventoryItemName) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSelectedInventoryItemName(null);
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedInventoryItemName]);
 
   async function handleSaveInventoryItem(
     itemName: string,
@@ -826,6 +804,18 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <div>
               <h2>Inventory</h2>
             </div>
+            <button
+              className="inventory-edit-toggle"
+              type="button"
+              aria-pressed={editingInventory}
+              disabled={inventorySaving !== null}
+              onClick={() => {
+                setEditingInventory((current) => !current);
+                setSelectedInventoryItemName(null);
+              }}
+            >
+              {editingInventory ? "Done" : "Edit"}
+            </button>
           </div>
 
           {error && <p className="message error inventory-message">{error}</p>}
@@ -837,7 +827,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <p className="empty-state inventory-empty">No inventory actions yet.</p>
           ) : (
             <div className="inventory-library">
-              {attentionItems.length > 0 && (
+              {attentionItems.length > 0 && !editingInventory && (
                 <section className="inventory-attention-section" aria-labelledby="attention-heading">
                   <div className="inventory-section-heading">
                     <h3 id="attention-heading">Needs Attention</h3>
@@ -848,7 +838,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <InventoryItemRow
                         item={item}
                         key={`attention-${item.item_name}`}
-                        onOpen={() => setSelectedInventoryItemName(item.item_name)}
                       />
                     ))}
                   </div>
@@ -862,7 +851,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     key={category}
                     type="button"
                     aria-pressed={inventoryFilter === category}
-                    onClick={() => setInventoryFilter(category)}
+                    onClick={() => {
+                      setInventoryFilter(category);
+                      setSelectedInventoryItemName(null);
+                    }}
                   >
                     {category}
                   </button>
@@ -889,7 +881,20 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                         <InventoryItemRow
                           item={item}
                           key={item.item_name}
-                          onOpen={() => setSelectedInventoryItemName(item.item_name)}
+                          editing={
+                            editingInventory &&
+                            selectedInventoryItemName === item.item_name
+                          }
+                          busy={inventorySaving === item.item_name}
+                          onOpen={
+                            editingInventory
+                              ? () => setSelectedInventoryItemName(item.item_name)
+                              : undefined
+                          }
+                          onSave={(update) =>
+                            handleSaveInventoryItem(item.item_name, update)
+                          }
+                          onRemove={() => handleRemoveInventoryItem(item.item_name)}
                         />
                       ))}
                     </div>
@@ -959,50 +964,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       </div>
       )}
 
-      {view === "inventory" && selectedInventoryItem && (
-        <div
-          className="inventory-editor-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setSelectedInventoryItemName(null);
-            }
-          }}
-        >
-          <section
-            className="inventory-editor-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="inventory-editor-title"
-          >
-            <div className="inventory-editor-handle" aria-hidden="true" />
-            <header className="inventory-editor-navbar">
-              <button
-                type="button"
-                autoFocus
-                disabled={inventorySaving === selectedInventoryItem.item_name}
-                onClick={() => setSelectedInventoryItemName(null)}
-              >
-                Cancel
-              </button>
-              <strong id="inventory-editor-title">
-                {titleCase(selectedInventoryItem.item_name)}
-              </strong>
-              <span aria-hidden="true" />
-            </header>
-            <InventoryItemRow
-              item={selectedInventoryItem}
-              editing
-              busy={inventorySaving === selectedInventoryItem.item_name}
-              onSave={(update) =>
-                handleSaveInventoryItem(selectedInventoryItem.item_name, update)
-              }
-              onRemove={() =>
-                handleRemoveInventoryItem(selectedInventoryItem.item_name)
-              }
-            />
-          </section>
-        </div>
-      )}
     </main>
   );
 }

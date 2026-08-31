@@ -2,26 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
-## 2026-08-31 - Inventory item editing moved into a focused bottom sheet
+## 2026-08-31 - Inventory editing changed to single-row expansion
 
 ### Completed
 
-- Kept the Apple Music-style `390x116` inventory rows stable while editing.
-- Removed the navbar-level `Edit`/`Done` mode and made each inventory row open
-  its own editing sheet directly.
-- Applied the same click behavior to both Needs Attention and category rows.
-- Reused the existing quantity, unit, location, expiry, save, and remove
-  controls inside a single-item bottom sheet.
-- Added backdrop dismissal, Escape-key dismissal, body scroll locking, safe
-  area padding, and accessible dialog labeling.
-- Kept the sheet open when an update or removal fails and close it only after a
-  successful API operation.
+- Restored the navbar-level `Edit`/`Done` mode.
+- Made category rows clickable only while Edit mode is active.
+- Expanded the selected item in place with quantity, unit, location, expiry,
+  save, and remove controls.
+- Limited editing to one expanded item at a time.
+- Closed the expanded editor after a successful save or removal.
+- Kept Needs Attention visible in normal mode and hid its duplicate rows while
+  editing the category list.
 
 ### Decisions
 
-- Treat inventory-field editing as a focused task, following the detail/modal
-  guidance in `APPLE_MUSIC_UI_KIT_GUIDE_KO.md`.
-- Use direct item selection instead of a separate global editing state.
+- Keep editing in the list context instead of opening a separate dialog.
+- Require the explicit navbar Edit mode before an item can be changed.
 - Keep the current API and event semantics unchanged; this update only changes
   selection and presentation behavior.
 
