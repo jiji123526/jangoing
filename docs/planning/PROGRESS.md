@@ -2,6 +2,49 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Center navigation changed from Annotation to Analytics
+
+### Completed
+
+- Replaced the center Annotate destination with `/analytics` and relabeled the
+  existing center waveform icon as Analytics.
+- Removed the Annotation workspace from consumer navigation while preserving
+  `/annotate` for direct-URL data operations.
+- Added a first Weekly Summary using the existing event endpoint: last-seven-day
+  update, add, purchase, and discard counts plus the five most active items.
+- Added optional `GET /events?since=<ISO timestamp>` support so weekly analytics
+  is not silently truncated by the default recent-50 event response.
+- Added an explicit caveat that analytics summarizes recorded events rather
+  than unobserved physical inventory changes.
+
+### Deployment
+
+- Deploy the Worker before the Web app because Analytics uses the new `since`
+  query.
+- No D1 migration is required.
+
+## 2026-08-31 - Home gains actionable daily kitchen sections
+
+### Completed
+
+- Added Today with at most three priority rows derived from expiry, stock, and
+  active shopping projections.
+- Added Suggested Actions for adding low/out items to Shopping and setting a
+  missing low threshold through the existing confirmation flow.
+- Left suggested threshold quantities unset rather than guessing a household
+  policy; the user enters the value before interpretation and confirmation.
+- Added a four-metric Inventory Snapshot linked to Inventory.
+- Added Waste Prevention ordered by nearest recorded expiry date.
+- Added loading and visible Home error states for projection and suggested-action
+  requests.
+- Kept every state change explicit: suggestions require Add or Quick Update
+  confirmation, while waste rows only navigate to review.
+- Reserved Weekly Summary for a separate future analytics tab.
+
+### Deployment
+
+- This change is Web-only. No Worker deployment or D1 migration is required.
+
 ## 2026-08-31 - Quick Update moved into the Home mini player
 
 ### Completed

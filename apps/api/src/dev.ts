@@ -193,13 +193,17 @@ function readBody(request: IncomingMessage): Promise<unknown> {
   });
 }
 
-function events(limit?: number): EventRecord[] {
-  const query = limit
-    ? "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?"
-    : "SELECT * FROM events ORDER BY created_at ASC, id ASC";
-  const rows = limit
-    ? database.prepare(query).all(limit)
-    : database.prepare(query).all();
+function events(limit?: number, since?: string): EventRecord[] {
+  const query = since
+    ? "SELECT * FROM events WHERE created_at >= ? ORDER BY created_at DESC, id DESC"
+    : limit
+      ? "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?"
+      : "SELECT * FROM events ORDER BY created_at ASC, id ASC";
+  const rows = since
+    ? database.prepare(query).all(since)
+    : limit
+      ? database.prepare(query).all(limit)
+      : database.prepare(query).all();
 
   return rows.map((row) => EventRecordSchema.parse(row));
 }
@@ -675,7 +679,17 @@ async function route(
   }
 
   if (request.method === "GET" && path === "/events") {
-    sendJson(response, origin, { events: events(50) });
+    const since = url.searchParams.get("since");
+    if (since && Number.isNaN(Date.parse(since))) {
+      sendJson(response, origin, { error: "Invalid since timestamp." }, 400);
+      return;
+    }
+    sendJson(response, origin, {
+      events: events(
+        since ? undefined : 50,
+        since ? new Date(since).toISOString() : undefined,
+      ),
+    });
     return;
   }
 

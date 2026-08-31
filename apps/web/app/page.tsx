@@ -13,9 +13,12 @@ import {
   CalendarDays,
   Check,
   ChevronUp,
+  ChevronRight,
   CircleUserRound,
+  Lightbulb,
   LoaderCircle,
   Mic,
+  PackageOpen,
   Send,
   Trash2,
   X,
@@ -873,6 +876,98 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       },
     ];
   }, [dashboard.inventory, dashboard.shoppingList]);
+  const homeToday = useMemo(() => {
+    const items = dashboard.inventory
+      .flatMap((item) => {
+        if (
+          item.expiry_state === "expired" ||
+          item.expiry_state === "expiring_soon"
+        ) {
+          return [{
+            id: `expiry-${item.item_name}`,
+            title: titleCase(item.item_name),
+            detail: expiryLabel(item) ?? "Expiry needs attention",
+            tone: item.expiry_state === "expired" ? "urgent" : "warning",
+            priority: item.expiry_state === "expired" ? 0 : 1,
+            href: "/inventory",
+          }];
+        }
+        if (item.status === "out" || item.status === "low") {
+          return [{
+            id: `stock-${item.item_name}`,
+            title: titleCase(item.item_name),
+            detail: item.status === "out"
+              ? "Out of stock"
+              : `Low · ${quantityLabel(item)} left`,
+            tone: item.status,
+            priority: item.status === "out" ? 2 : 3,
+            href: "/inventory",
+          }];
+        }
+        return [];
+      })
+      .sort((left, right) => left.priority - right.priority);
+
+    if (activeShoppingItems.length > 0) {
+      items.push({
+        id: "shopping",
+        title: "Shopping List",
+        detail: `${activeShoppingItems.length} item${
+          activeShoppingItems.length === 1 ? "" : "s"
+        } to buy`,
+        tone: "shopping",
+        priority: 4,
+        href: "/shopping",
+      });
+    }
+    return items.slice(0, 3);
+  }, [activeShoppingItems.length, dashboard.inventory]);
+  const homeRestockSuggestions = useMemo(
+    () =>
+      dashboard.inventory
+        .filter(
+          (item) =>
+            (item.status === "low" || item.status === "out") &&
+            !shoppingItemNames.has(item.item_name),
+        )
+        .slice(0, 2),
+    [dashboard.inventory, dashboard.shoppingList],
+  );
+  const homeThresholdSuggestion = useMemo(
+    () =>
+      dashboard.inventory.find(
+        (item) => item.low_threshold === null && item.quantity > 0,
+      ) ?? null,
+    [dashboard.inventory],
+  );
+  const homeWasteItems = useMemo(
+    () =>
+      dashboard.inventory
+        .filter(
+          (item) =>
+            item.nearest_expiration_date !== null && item.quantity > 0,
+        )
+        .sort((left, right) =>
+          (left.nearest_expiration_date ?? "").localeCompare(
+            right.nearest_expiration_date ?? "",
+          ),
+        )
+        .slice(0, 3),
+    [dashboard.inventory],
+  );
+  const homeSnapshot = useMemo(
+    () => ({
+      total: dashboard.inventory.length,
+      low: dashboard.inventory.filter((item) => item.status === "low").length,
+      out: dashboard.inventory.filter((item) => item.status === "out").length,
+      expiring: dashboard.inventory.filter(
+        (item) =>
+          item.expiry_state === "expired" ||
+          item.expiry_state === "expiring_soon",
+      ).length,
+    }),
+    [dashboard.inventory],
+  );
   const recentlyUpdated = useMemo(() => {
     const latestByItem = new Map<string, EventRecord>();
     for (const event of dashboard.events) {
@@ -916,7 +1011,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     if (view !== "home" || !homeQuickUpdateOpen) return;
 
     const focusFrame = window.requestAnimationFrame(() => {
-      commandInputRef.current?.focus();
+      const input = commandInputRef.current;
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
     });
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1266,6 +1363,37 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             </span>
           </header>
 
+          {error && !homeQuickUpdateOpen && (
+            <p className="message error home-message">{error}</p>
+          )}
+
+          <section className="home-section" aria-labelledby="today-heading">
+            <div className="home-section-heading">
+              <h2 id="today-heading">Today</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Checking today’s priorities…</p>
+            ) : homeToday.length === 0 ? (
+              <p className="home-empty">Nothing needs immediate attention.</p>
+            ) : (
+              <div className="home-priority-list">
+                {homeToday.map((item) => (
+                  <a href={item.href} key={item.id}>
+                    <span
+                      className={`home-priority-indicator tone-${item.tone}`}
+                      aria-hidden="true"
+                    />
+                    <span className="home-row-copy">
+                      <strong>{item.title}</strong>
+                      <small>{item.detail}</small>
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="home-section" aria-labelledby="briefing-heading">
             <div className="home-section-heading">
               <h2 id="briefing-heading">Kitchen Briefing</h2>
@@ -1283,6 +1411,128 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     <span>{briefing.eyebrow}</span>
                     <strong>{briefing.title}</strong>
                     <p>{briefing.detail}</p>
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="suggested-heading">
+            <div className="home-section-heading">
+              <h2 id="suggested-heading">Suggested Actions</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Preparing suggestions…</p>
+            ) : homeRestockSuggestions.length === 0 &&
+              homeThresholdSuggestion === null ? (
+              <p className="home-empty">No actions to suggest right now.</p>
+            ) : (
+              <div className="home-suggestion-list">
+                {homeRestockSuggestions.map((item) => (
+                  <article key={`restock-${item.item_name}`}>
+                    <span className="home-suggestion-icon" aria-hidden="true">
+                      <PackageOpen size={20} />
+                    </span>
+                    <span className="home-row-copy">
+                      <strong>Add {titleCase(item.item_name)} to Shopping</strong>
+                      <small>{shoppingInventoryStatusLabel(item)}</small>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={shoppingSaving === item.item_name}
+                      onClick={() => void handleAddRecommendation(item)}
+                    >
+                      {shoppingSaving === item.item_name ? "Adding…" : "Add"}
+                    </button>
+                  </article>
+                ))}
+                {homeThresholdSuggestion && (
+                  <article>
+                    <span className="home-suggestion-icon" aria-hidden="true">
+                      <Lightbulb size={20} />
+                    </span>
+                    <span className="home-row-copy">
+                      <strong>
+                        Set a low level for{" "}
+                        {titleCase(homeThresholdSuggestion.item_name)}
+                      </strong>
+                      <small>Get a restock suggestion before it runs out.</small>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCommand(
+                          `Set low threshold for ${titleCase(
+                            homeThresholdSuggestion.item_name,
+                          )} to `,
+                        );
+                        setExpiryDate("");
+                        setInterpretation(null);
+                        setEdited(null);
+                        setNotice(
+                          "Enter the quantity at the end, then review the interpretation.",
+                        );
+                        setHomeQuickUpdateOpen(true);
+                      }}
+                    >
+                      Choose
+                    </button>
+                  </article>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="snapshot-heading">
+            <div className="home-section-heading">
+              <h2 id="snapshot-heading">Inventory Snapshot</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Counting inventory status…</p>
+            ) : (
+              <a className="home-snapshot" href="/inventory">
+                <span>
+                  <strong>{homeSnapshot.total}</strong>
+                  <small>Tracked</small>
+                </span>
+                <span>
+                  <strong>{homeSnapshot.low}</strong>
+                  <small>Low</small>
+                </span>
+                <span>
+                  <strong>{homeSnapshot.out}</strong>
+                  <small>Out</small>
+                </span>
+                <span>
+                  <strong>{homeSnapshot.expiring}</strong>
+                  <small>Expiring</small>
+                </span>
+              </a>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="waste-heading">
+            <div className="home-section-heading">
+              <h2 id="waste-heading">Waste Prevention</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Checking dated inventory…</p>
+            ) : homeWasteItems.length === 0 ? (
+              <p className="home-empty">
+                Add expiry dates to see what should be used first.
+              </p>
+            ) : (
+              <div className="home-waste-list">
+                {homeWasteItems.map((item) => (
+                  <a href="/inventory" key={item.item_name}>
+                    <HomeArtwork itemName={item.item_name} />
+                    <span className="home-row-copy">
+                      <strong>{titleCase(item.item_name)}</strong>
+                      <small>
+                        {expiryLabel(item)} · {quantityLabel(item)}
+                      </small>
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" />
                   </a>
                 ))}
               </div>

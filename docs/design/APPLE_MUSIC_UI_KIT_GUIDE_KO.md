@@ -112,7 +112,10 @@ blur를 쓸 때 반투명 surface fill을 반드시 함께 사용한다. 모든 
 - 원본은 SF Symbols를 사용한다. 동일 symbol, filled/outline 상태, optical size를 우선한다.
 - 일반 아이콘 컨테이너: `24×24`, tab icon: `30×30`, transport: `36×36`, full-player primary: `64×64`.
 - active tab은 filled symbol + accent, inactive tab은 원본 inactive color다.
-- Jangoing tab mapping: Home `play.circle.fill`, Inventory `square.grid.2x2.fill`, Annotate `dot.radiowaves.left.and.right`, Shopping `square.stack.fill`, Search `magnifyingglass`.
+- Jangoing tab mapping: Home `play.circle.fill`, Inventory
+  `square.grid.2x2.fill`, Analytics `dot.radiowaves.left.and.right`, Shopping
+  `square.stack.fill`, Search `magnifyingglass`. 중앙 waveform asset은 초기
+  Annotation 진입점에서 Analytics로 재사용한다.
 - 웹에서 SF Symbols를 직접 안정적으로 표시할 수 없으면 Figma에서 export한 원본 alpha mask asset을 사용한다. 비슷한 Lucide 아이콘으로 교체하지 않는다.
 - 아이콘만 있는 버튼은 최소 `44×44px` hit area와 접근성 이름을 갖는다.
 
@@ -249,6 +252,21 @@ Jangoing Home 구현은 다음 구조와 수치를 사용한다.
    microphone artwork와 secondary label을 listening/error 상태 표시에 쓴다.
 8. mini-player는 Home에서만 표시한다. Search 화면의 전체 command band는
    변경하지 않는다.
+9. `Today`는 expiry, out/low, shopping projection 중 우선순위가 높은 최대
+   3개를 `56px` table row로 표시한다. Home의 모든 상태를 반복하지 않고 오늘
+   확인할 항목만 제한한다.
+10. `Suggested Actions`는 최대 2개의 low/out shopping 제안과 1개의 missing
+    threshold 제안을 표시한다. shopping 추가는 명시적 `Add`를 요구하고,
+    threshold 제안은 숫자를 추측하지 않는다. incomplete command를 Quick
+    Update에 채우고 cursor를 끝에 둬 사용자가 수량을 입력한 후 confirmation을
+    거치게 한다.
+11. `Inventory Snapshot`은 tracked, low, out, expiring 네 집계를 하나의
+    grouped surface에 표시하고 Inventory로 연결한다.
+12. `Waste Prevention`은 expiry가 기록된 재고를 날짜 오름차순으로 최대 3개
+    표시한다. 자동 폐기나 소비 event는 만들지 않고 사용자가 Inventory에서
+    검토하도록 한다.
+13. Weekly Summary는 Home에 추가하지 않는다. event history 기반 기간 분석은
+    향후 별도 analytics tab에서 다룬다.
 
 ### 7.2 Library / Inventory
 
@@ -272,7 +290,24 @@ Compact/large navbar 아래 검색 control을 두고, 최근 검색 또는 categ
 
 Compact Navbar → 큰 artwork/cover → primary/secondary metadata → horizontal actions → grouped table rows. 편집 가능한 모든 필드를 첫 화면에 펼치지 않는다.
 
-### 7.5 Compact Media List / Shopping List
+### 7.5 Analytics
+
+Analytics는 `95px` large-title navbar 아래 최근 7일 event를 요약한다.
+
+1. 하단 중앙 tab은 기존 waveform asset과 `Analytics` caption을 사용해
+   `/analytics`로 연결한다.
+2. This Week는 update, added, purchased, discarded를 `2×2` metric grid로
+   표시한다. 각 surface는 radius `10px`, system fill, 숫자 `32/34px`,
+   label `15/20px`을 사용한다.
+3. Most Active Items는 주간 event count 기준 상위 5개를 `52px` table row로
+   표시한다.
+4. 집계는 `GET /events?since=<ISO timestamp>`로 전체 7일 window를 요청한다.
+   물리적 변화 전체가 아니라 사용자가 기록한 event의 요약임을 footnote로
+   명시한다.
+5. Annotation은 소비자 tab이나 화면에서 링크하지 않는다. `/annotate`는 학습
+   데이터 작업자가 직접 URL로 접근하는 internal workspace로 유지한다.
+
+### 7.6 Compact Media List / Shopping List
 
 Shopping은 `Playing Next`의 queue 의미를 유지하되, 실제 화면 구조는 compact
 navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구매 전, 구매

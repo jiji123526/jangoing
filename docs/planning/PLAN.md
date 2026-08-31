@@ -152,6 +152,15 @@ These limitations are acceptable only while every state-changing action requires
   Update command workflow as a modal
 - Home account/profile placeholder reserved for later authentication and
   account routing
+- Projection-derived Today priorities, confirmable Suggested Actions, Inventory
+  Snapshot, and expiry-ordered Waste Prevention on Home
+- Weekly Summary reserved for a separate analytics tab rather than expanding
+  Home with historical reporting
+- Consumer navigation exposes `/analytics` in the center tab; the internal
+  `/annotate` workspace remains direct-URL-only and has no product UI link
+- Weekly Analytics requests the complete event window through
+  `GET /events?since=<ISO timestamp>` instead of using the default recent-50
+  dashboard history
 - Inventory and shopping-list views
 - Optional expiry date when adding an item
 - Expiring-soon and expired status calculation

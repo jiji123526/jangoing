@@ -72,14 +72,14 @@ export default function BottomNavigation() {
         {mainTabs.map(renderTab)}
 
         <Link
-          className={`bottom-navigation-tab annotation-tab${
-            pathname === "/annotate" ? " is-active" : ""
+          className={`bottom-navigation-tab analytics-tab${
+            pathname === "/analytics" ? " is-active" : ""
           }`}
-          href="/annotate"
-          aria-current={pathname === "/annotate" ? "page" : undefined}
+          href="/analytics"
+          aria-current={pathname === "/analytics" ? "page" : undefined}
         >
           <TabIcon src="/apple-music-tabbar/annotate.png" />
-          <span>Annotate</span>
+          <span>Analytics</span>
         </Link>
 
         {trailingTabs.map(renderTab)}

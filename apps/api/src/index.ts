@@ -110,14 +110,22 @@ function parseStoredInterpretation(payload: string): Interpretation {
   return InterpretationSchema.parse(JSON.parse(payload));
 }
 
-async function readEvents(env: Env, limit?: number): Promise<EventRecord[]> {
-  const statement = limit
+async function readEvents(
+  env: Env,
+  limit?: number,
+  since?: string,
+): Promise<EventRecord[]> {
+  const statement = since
     ? env.DB.prepare(
-        "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?",
-      ).bind(limit)
-    : env.DB.prepare(
-        "SELECT * FROM events ORDER BY created_at ASC, id ASC",
-      );
+        "SELECT * FROM events WHERE created_at >= ? ORDER BY created_at DESC, id DESC",
+      ).bind(since)
+    : limit
+      ? env.DB.prepare(
+          "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?",
+        ).bind(limit)
+      : env.DB.prepare(
+          "SELECT * FROM events ORDER BY created_at ASC, id ASC",
+        );
   const result = await statement.all<Record<string, unknown>>();
 
   return result.results.map((row) => EventRecordSchema.parse(row));
@@ -846,7 +854,17 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "GET" && url.pathname === "/events") {
-    return json(request, env, { events: await readEvents(env, 50) });
+    const since = url.searchParams.get("since");
+    if (since && Number.isNaN(Date.parse(since))) {
+      return json(request, env, { error: "Invalid since timestamp." }, 400);
+    }
+    return json(request, env, {
+      events: await readEvents(
+        env,
+        since ? undefined : 50,
+        since ? new Date(since).toISOString() : undefined,
+      ),
+    });
   }
 
   if (request.method === "GET" && url.pathname === "/inventory") {

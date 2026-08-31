@@ -228,8 +228,9 @@ export async function removeInventoryItem(itemName: string): Promise<EventRecord
   return EventRecordSchema.parse(body);
 }
 
-export async function getEventsData(): Promise<EventRecord[]> {
-  const body = await apiRequest("/events");
+export async function getEventsData(since?: string): Promise<EventRecord[]> {
+  const query = since ? `?since=${encodeURIComponent(since)}` : "";
+  const body = await apiRequest(`/events${query}`);
   return EventsResponseSchema.parse(body).events;
 }
 
