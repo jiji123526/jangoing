@@ -12,6 +12,12 @@ Add new entries at the top of the log so the latest state is easy to find.
   save, and remove controls.
 - Limited editing to one expanded item at a time.
 - Closed the expanded editor after a successful save or removal.
+- Replaced the two-column boxed form with 52px iOS-style grouped rows.
+- Added a `Cancel / item / Save` compact action bar, quantity stepper, trailing
+  values and chevrons, native unit/location/date controls, and a 13px
+  validation footnote.
+- Moved removal into a separate red destructive row.
+- Removed inventory update and removal success banners.
 - Kept Needs Attention visible in normal mode and hid its duplicate rows while
   editing the category list.
 
@@ -19,6 +25,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 - Keep editing in the list context instead of opening a separate dialog.
 - Require the explicit navbar Edit mode before an item can be changed.
+- Preserve native select and date behavior through transparent full-row
+  controls while presenting one consistent visual row format.
 - Keep the current API and event semantics unchanged; this update only changes
   selection and presentation behavior.
 

@@ -107,6 +107,24 @@ const inventoryCategories = [
   "Other",
 ] as const;
 
+const inventoryUnitOptions = [
+  "piece",
+  "bottle",
+  "carton",
+  "bag",
+  "box",
+  "can",
+  "jar",
+  "pack",
+  "gram",
+  "kilogram",
+  "ounce",
+  "pound",
+  "milliliter",
+  "liter",
+  "cup",
+] as const;
+
 type InventoryCategory = (typeof inventoryCategories)[number];
 type ItemCategory = Exclude<InventoryCategory, "All">;
 
@@ -166,6 +184,16 @@ function expiryLabel(item: InventoryItem): string | null {
   return `Expires in ${days} days`;
 }
 
+function editorDateLabel(value: string): string {
+  if (!value) return "Not set";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
 function attentionLabel(item: InventoryItem): string | null {
   if (item.expiry_state === "expired" || item.expiry_state === "expiring_soon") {
     return expiryLabel(item);
@@ -193,6 +221,7 @@ function InventoryItemRow({
   editing = false,
   busy = false,
   onOpen,
+  onCancel,
   onSave,
   onRemove,
 }: {
@@ -200,6 +229,7 @@ function InventoryItemRow({
   editing?: boolean;
   busy?: boolean;
   onOpen?: () => void;
+  onCancel?: () => void;
   onSave?: (update: {
     quantity: number;
     unit: string | null;
@@ -216,6 +246,7 @@ function InventoryItemRow({
   const [expirationDate, setExpirationDate] = useState(
     item.nearest_expiration_date ?? "",
   );
+  const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
     quantityLabel(item),
     item.location ? titleCase(item.location) : null,
@@ -223,15 +254,29 @@ function InventoryItemRow({
   ].filter((value): value is string => Boolean(value));
 
   if (editing) {
+    const hasCustomUnit =
+      unit && !(inventoryUnitOptions as readonly string[]).includes(unit);
+
+    function adjustQuantity(delta: number) {
+      const current = Number(quantity);
+      const baseline = Number.isFinite(current) ? current : 1;
+      const next = Math.max(0.01, baseline + delta);
+      setQuantity(String(Number(next.toFixed(2))));
+      setValidationError(null);
+    }
+
     return (
       <article className="inventory-item-row is-editing">
-        <InventoryArtwork category={category} />
         <form
           className="inventory-edit-form"
           onSubmit={(event) => {
             event.preventDefault();
             const parsedQuantity = Number(quantity);
-            if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) return;
+            if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+              setValidationError("Quantity must be greater than zero.");
+              return;
+            }
+            setValidationError(null);
             void onSave?.({
               quantity: parsedQuantity,
               unit: unit.trim() || null,
@@ -240,30 +285,91 @@ function InventoryItemRow({
             });
           }}
         >
-          <strong>{titleCase(item.item_name)}</strong>
+          <div className="inventory-edit-navbar">
+            <button
+              className="inventory-edit-cancel"
+              type="button"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <strong>{titleCase(item.item_name)}</strong>
+            <button
+              className="inventory-save-button"
+              type="submit"
+              disabled={busy}
+            >
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </div>
+
           <div className="inventory-edit-fields">
-            <label>
+            <div className="inventory-edit-field-row">
               <span>Quantity</span>
-              <input
-                type="number"
-                min="0.01"
-                step="any"
-                required
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </label>
-            <label>
+              <div className="inventory-quantity-stepper">
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  onClick={() => adjustQuantity(-1)}
+                  disabled={busy}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  required
+                  aria-label="Quantity"
+                  value={quantity}
+                  onChange={(event) => {
+                    setQuantity(event.target.value);
+                    setValidationError(null);
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  onClick={() => adjustQuantity(1)}
+                  disabled={busy}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <label className="inventory-edit-field-row">
               <span>Unit</span>
-              <input
-                maxLength={40}
+              <span className="inventory-edit-row-value" aria-hidden="true">
+                {unit ? titleCase(unit) : "Not specified"}
+                <span className="inventory-edit-chevron">›</span>
+              </span>
+              <select
+                className="inventory-edit-native-control"
+                aria-label="Unit"
                 value={unit}
                 onChange={(event) => setUnit(event.target.value)}
-              />
+              >
+                <option value="">Not specified</option>
+                {hasCustomUnit && <option value={unit}>{titleCase(unit)}</option>}
+                {inventoryUnitOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {titleCase(option)}
+                  </option>
+                ))}
+              </select>
             </label>
-            <label>
+
+            <label className="inventory-edit-field-row">
               <span>Location</span>
+              <span className="inventory-edit-row-value" aria-hidden="true">
+                {location ? titleCase(location) : "Not specified"}
+                <span className="inventory-edit-chevron">›</span>
+              </span>
               <select
+                className="inventory-edit-native-control"
+                aria-label="Location"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
               >
@@ -273,32 +379,41 @@ function InventoryItemRow({
                 <option value="pantry">Pantry</option>
               </select>
             </label>
-            <label>
+
+            <label className="inventory-edit-field-row">
               <span>Expiry</span>
+              <span className="inventory-edit-row-value" aria-hidden="true">
+                {editorDateLabel(expirationDate)}
+                <span className="inventory-edit-chevron">›</span>
+              </span>
               <input
+                className="inventory-edit-native-control"
                 type="date"
+                aria-label="Expiry date"
                 value={expirationDate}
                 onChange={(event) => setExpirationDate(event.target.value)}
               />
             </label>
           </div>
-          <div className="inventory-edit-actions">
-            <button
-              className="inventory-remove-button"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
-                  void onRemove?.();
-                }
-              }}
-            >
-              Remove
-            </button>
-            <button className="inventory-save-button" type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
-            </button>
-          </div>
+
+          {validationError && (
+            <p className="inventory-edit-error" role="alert">
+              {validationError}
+            </p>
+          )}
+
+          <button
+            className="inventory-remove-button"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
+                void onRemove?.();
+              }
+            }}
+          >
+            Remove from Inventory
+          </button>
         </form>
       </article>
     );
@@ -399,7 +514,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setError(null);
     try {
       await updateInventoryItem(itemName, update);
-      setNotice(`${titleCase(itemName)} updated.`);
       await loadDashboard();
       setSelectedInventoryItemName(null);
     } catch (caught) {
@@ -414,7 +528,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setError(null);
     try {
       await removeInventoryItem(itemName);
-      setNotice(`${titleCase(itemName)} removed from inventory.`);
       await loadDashboard();
       setSelectedInventoryItemName(null);
     } catch (caught) {
@@ -819,7 +932,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           </div>
 
           {error && <p className="message error inventory-message">{error}</p>}
-          {notice && <p className="message notice inventory-message">{notice}</p>}
 
           {loading ? (
             <p className="empty-state inventory-empty">Loading inventory...</p>
@@ -891,6 +1003,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                               ? () => setSelectedInventoryItemName(item.item_name)
                               : undefined
                           }
+                          onCancel={() => setSelectedInventoryItemName(null)}
                           onSave={(update) =>
                             handleSaveInventoryItem(item.item_name, update)
                           }
