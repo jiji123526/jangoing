@@ -258,8 +258,10 @@ navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구�
    완료일을 표시한다.
 4. `Suggested from Inventory`는 현재 `low`이고 To Buy/Purchased에 없는 item만
    표시하며 trailing `28×28` pink `+`로 추가한다.
-5. `To Buy` item은 checkbox 대신 왼쪽 swipe로 오른쪽의 84px green `Done`
-   action을 노출한다. 마우스 pointer drag와 키보드 focus도 같은 action을 제공한다.
+5. `To Buy` item은 checkbox 대신 왼쪽 swipe로 오른쪽의 green `Done`과 red
+   `Delete` action을 각각 84px 폭으로 노출한다. Done은 purchase와 inventory
+   입고를 수행하고 Delete는 shopping queue에서만 제거한다. 마우스 pointer
+   drag와 키보드 focus도 같은 action을 제공한다.
 6. `Purchased` item은 24시간 동안 표시하고 왼쪽 swipe로 pink `Undo`를 노출해
    To Buy에 복원한다.
 7. 24시간이 지나면 projection에서만 숨기고 원본 event history는 삭제하지 않는다.
@@ -268,8 +270,9 @@ navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구�
 9. item primary는 Inventory와 같은 `17/22px`, secondary metadata는 `15/20px`를
    사용해 두 화면의 정보 위계를 맞춘다.
 10. 모바일에서 Inventory와 Shopping section 모두 generic `.data-section`
-    padding을 제거한다. page title, section heading, artwork의 leading edge는
-    viewport 기준 16px로 일치하며 titlebar 상단 위치도 동일해야 한다.
+    padding을 제거한다. Shopping은 `.data-section.shopping-section` specificity로
+    generic mobile padding보다 우선한다. page title, section heading, artwork의
+    leading edge는 viewport 기준 16px로 일치하며 titlebar 상단 위치도 동일해야 한다.
 Shopping add control의 구현 값:
 
 - navbar `+ Add`: `75×28px`, radius `14px`,

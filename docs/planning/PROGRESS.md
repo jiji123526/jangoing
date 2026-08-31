@@ -2,6 +2,48 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - To Buy swipe now provides Done and Delete
+
+### Completed
+
+- Expanded active-item swipe distance from 84px to 168px.
+- Added a green Done action and red Delete action.
+- Added `shopping_item_deleted` and a matching Worker/local API endpoint.
+- Removed deleted items only from the shopping projection, leaving inventory
+  unchanged.
+- Kept Purchased rows on the existing single Undo action.
+- Increased Shopping section selector specificity so its mobile outer padding
+  cannot be reintroduced by the generic data-section rule.
+
+### Deployment
+
+- No D1 migration is required because the existing event type column stores
+  text.
+- Deploy Worker before Vercel because Delete uses a new API endpoint.
+
+## 2026-08-31 - Stale Safari shopping bundle diagnosed
+
+### Symptoms
+
+- Done succeeded on the Worker and appeared after a refresh, but the current
+  page showed the old EventRecord schema error instead of updating immediately.
+- The same page still showed Shopping's pre-fix mobile padding.
+
+### Diagnosis
+
+- The public Vercel HTML and JavaScript were inspected directly.
+- The served bundle contains `?include=projections`, the composite mutation
+  parser, and the current Shopping client.
+- The open Safari tab was therefore retaining a JavaScript bundle loaded before
+  the deployment while the Worker was already running the newer API.
+
+### Resolution
+
+- Close existing Jangoing tabs and open a cache-busted Shopping URL in a new
+  tab, or remove the site's Safari website data.
+- No database correction is needed for the failed-looking action because the
+  Worker had already stored the purchase event.
+
 ## 2026-08-31 - Shopping mutation rollout made backward compatible
 
 ### Problem

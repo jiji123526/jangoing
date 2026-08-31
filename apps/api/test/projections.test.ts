@@ -332,6 +332,27 @@ describe("projectInventory", () => {
     ).toEqual([]);
   });
 
+  it("does not change inventory when a shopping item is deleted", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 2,
+        }),
+        event({
+          event_type: "shopping_item_deleted",
+          item_name: "milk",
+        }),
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        item_name: "milk",
+        quantity: 2,
+      }),
+    ]);
+  });
+
   it("removes only the purchased batch when a shopping item is restored", () => {
     expect(
       projectInventory([
@@ -412,6 +433,15 @@ describe("projectShoppingList", () => {
     expect(list[0].item_name).toBe("yogurt");
     expect(list[0].status).toBe("active");
     expect(list[0].quantity).toBe(1);
+  });
+
+  it("removes a deleted item from the shopping queue", () => {
+    expect(
+      projectShoppingList([
+        event({ event_type: "item_added_to_buy", item_name: "milk" }),
+        event({ event_type: "shopping_item_deleted", item_name: "milk" }),
+      ]),
+    ).toEqual([]);
   });
 
   it("moves purchased items into a retained completed state", () => {

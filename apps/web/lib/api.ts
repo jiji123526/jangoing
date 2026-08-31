@@ -274,6 +274,16 @@ export async function restoreShoppingItem(
   return ShoppingMutationResponseSchema.parse(body);
 }
 
+export async function deleteShoppingItem(
+  itemName: string,
+): Promise<ShoppingMutationResult> {
+  const body = await apiRequest(
+    `/shopping-list/${encodeURIComponent(itemName)}/delete?include=projections`,
+    { method: "POST" },
+  );
+  return ShoppingMutationResponseSchema.parse(body);
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
   const [inventory, events, shoppingList] = await Promise.all([
     getInventoryData(),

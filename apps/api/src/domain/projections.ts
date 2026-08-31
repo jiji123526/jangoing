@@ -78,7 +78,10 @@ export function projectInventory(
   const states = new Map<string, ItemState>();
 
   for (const event of events) {
-    if (event.event_type === "item_added_to_buy") {
+    if (
+      event.event_type === "item_added_to_buy" ||
+      event.event_type === "shopping_item_deleted"
+    ) {
       continue;
     }
 
@@ -274,6 +277,10 @@ export function projectShoppingList(
     if (event.event_type === "shopping_item_restored") {
       item.status = "active";
       item.purchased_at = null;
+    }
+
+    if (event.event_type === "shopping_item_deleted") {
+      items.delete(event.item_name);
     }
   }
 

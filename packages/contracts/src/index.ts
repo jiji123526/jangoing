@@ -479,6 +479,7 @@ export const EventTypeSchema = z.enum([
   "item_added_to_buy",
   "shopping_item_purchased",
   "shopping_item_restored",
+  "shopping_item_deleted",
   "item_low_threshold_set",
   "item_adjusted",
   "item_removed",

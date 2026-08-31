@@ -291,6 +291,7 @@ MVP event types:
 - `item_added_to_buy`
 - `shopping_item_purchased`
 - `shopping_item_restored`
+- `shopping_item_deleted`
 - `item_low_threshold_set`
 - `item_adjusted`
 - `item_removed`
@@ -378,6 +379,8 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
   context as an inventory batch
 - `POST /shopping-list/:item/restore`: restore the item and remove only its
   purchase-created inventory batch
+- `POST /shopping-list/:item/delete`: remove an active item from the shopping
+  queue without changing inventory
 
 Purchase and restore responses include the stored event and the resulting
 inventory and shopping projections. The web applies this response directly so

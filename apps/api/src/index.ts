@@ -622,7 +622,7 @@ async function handleShoppingMutation(
   request: Request,
   env: Env,
   itemName: string,
-  action: "add" | "purchase" | "restore",
+  action: "add" | "purchase" | "restore" | "delete",
   requestedContext: ShoppingItemContextRequest,
 ): Promise<Response> {
   const existingEvents = action === "add" ? [] : await readEvents(env);
@@ -651,6 +651,12 @@ async function handleShoppingMutation(
       409,
     );
   }
+  if (
+    action === "delete" &&
+    (!currentItem || currentItem.status !== "active")
+  ) {
+    return json(request, env, { error: "Active shopping item not found" }, 409);
+  }
 
   const context = currentItem
     ? {
@@ -667,7 +673,9 @@ async function handleShoppingMutation(
         ? "item_added_to_buy"
         : action === "purchase"
         ? "shopping_item_purchased"
-        : "shopping_item_restored",
+        : action === "restore"
+        ? "shopping_item_restored"
+        : "shopping_item_deleted",
     item_name: itemName,
     quantity: context.quantity,
     unit: context.unit,
@@ -677,7 +685,13 @@ async function handleShoppingMutation(
     raw_utterance:
       action === "add"
         ? `Shopping list added ${itemName}`
-        : `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+        : `Shopping list ${
+            action === "purchase"
+              ? "purchased"
+              : action === "restore"
+              ? "restored"
+              : "deleted"
+          } ${itemName}`,
     confidence: 1,
     source: "web",
     created_at: new Date().toISOString(),
@@ -736,7 +750,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     /^\/inventory\/([^/]+)\/(edit|remove)$/,
   );
   const shoppingMutation = url.pathname.match(
-    /^\/shopping-list\/([^/]+)\/(add|purchase|restore)$/,
+    /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
 
   if (request.method === "POST" && shoppingMutation) {
@@ -771,7 +785,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       request,
       env,
       itemName,
-      shoppingMutation[2] as "add" | "purchase" | "restore",
+      shoppingMutation[2] as "add" | "purchase" | "restore" | "delete",
       parsedContext.data,
     );
   }

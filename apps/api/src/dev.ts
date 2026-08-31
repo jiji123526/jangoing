@@ -681,7 +681,7 @@ async function route(
 
   const inventoryMutation = path.match(/^\/inventory\/([^/]+)\/(edit|remove)$/);
   const shoppingMutation = path.match(
-    /^\/shopping-list\/([^/]+)\/(add|purchase|restore)$/,
+    /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
   if (request.method === "POST" && shoppingMutation) {
     let itemName: string;
@@ -696,7 +696,11 @@ async function route(
       return;
     }
 
-    const action = shoppingMutation[2] as "add" | "purchase" | "restore";
+    const action = shoppingMutation[2] as
+      | "add"
+      | "purchase"
+      | "restore"
+      | "delete";
     const parsedContext = ShoppingItemContextRequestSchema.safeParse(
       (await readBody(request)) ?? {},
     );
@@ -739,6 +743,13 @@ async function route(
       );
       return;
     }
+    if (
+      action === "delete" &&
+      (!currentItem || currentItem.status !== "active")
+    ) {
+      sendJson(response, origin, { error: "Active shopping item not found" }, 409);
+      return;
+    }
     const context = currentItem
       ? {
           quantity: currentItem.quantity,
@@ -754,7 +765,9 @@ async function route(
           ? "item_added_to_buy"
           : action === "purchase"
           ? "shopping_item_purchased"
-          : "shopping_item_restored",
+          : action === "restore"
+          ? "shopping_item_restored"
+          : "shopping_item_deleted",
       item_name: itemName,
       quantity: context.quantity,
       unit: context.unit,
@@ -764,7 +777,13 @@ async function route(
       raw_utterance:
         action === "add"
           ? `Shopping list added ${itemName}`
-          : `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+          : `Shopping list ${
+              action === "purchase"
+                ? "purchased"
+                : action === "restore"
+                ? "restored"
+                : "deleted"
+            } ${itemName}`,
       confidence: 1,
       source: "web",
       created_at: new Date().toISOString(),

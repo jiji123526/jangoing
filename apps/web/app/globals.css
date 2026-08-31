@@ -441,7 +441,7 @@ h1 {
   scroll-margin-top: 70px;
 }
 
-.shopping-section {
+.data-section.shopping-section {
   grid-area: shopping;
   padding: 0 0 34px;
   background: #fff;
@@ -1420,13 +1420,18 @@ h1 {
   background: #34c759;
 }
 
-.shopping-swipe-action {
+.shopping-swipe-actions {
   position: absolute;
   z-index: 0;
   top: 0;
   right: 0;
   bottom: 0;
+  display: flex;
+}
+
+.shopping-swipe-action {
   width: 84px;
+  flex: 0 0 84px;
   padding: 0;
   border: 0;
   color: #fff;
@@ -1445,6 +1450,10 @@ h1 {
 .shopping-swipe-row.is-purchased,
 .shopping-swipe-action.is-undo {
   background: #ff2d55;
+}
+
+.shopping-swipe-action.is-delete {
+  background: #ff3b30;
 }
 
 .shopping-swipe-content {
@@ -1611,7 +1620,7 @@ h1 {
   }
 
   .inventory-section,
-  .shopping-section {
+  .data-section.shopping-section {
     padding: 0 0 30px;
     border-right: 0;
   }

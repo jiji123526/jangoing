@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   addShoppingItem,
   createEvent,
+  deleteShoppingItem,
   getDashboardData,
   getInventoryData,
   getShoppingListData,
@@ -284,6 +285,7 @@ function ShoppingSwipeRow({
   open,
   onOpenChange,
   onAction,
+  onDelete,
 }: {
   itemName: string;
   secondaryText: string;
@@ -293,33 +295,51 @@ function ShoppingSwipeRow({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAction: () => void;
+  onDelete?: () => void;
 }) {
+  const swipeWidth = shoppingSwipeActionWidth * (onDelete ? 2 : 1);
   const pointerStart = useRef(0);
   const pointerBase = useRef(0);
   const pointerMoved = useRef(false);
   const pointerOffset = useRef(0);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
-  const offset = dragOffset ?? (open ? -shoppingSwipeActionWidth : 0);
+  const offset = dragOffset ?? (open ? -swipeWidth : 0);
 
   function finishSwipe() {
-    const shouldOpen = pointerOffset.current <= -(shoppingSwipeActionWidth / 2);
+    const shouldOpen = pointerOffset.current <= -(swipeWidth / 2);
     setDragOffset(null);
     onOpenChange(shouldOpen);
   }
 
   return (
     <li className={`shopping-swipe-row${purchased ? " is-purchased" : ""}`}>
-      <button
-        className={`shopping-swipe-action${
-          actionLabel === "Undo" ? " is-undo" : ""
-        }`}
-        type="button"
-        disabled={busy}
-        onFocus={() => onOpenChange(true)}
-        onClick={onAction}
+      <div
+        className="shopping-swipe-actions"
+        style={{ width: `${swipeWidth}px` }}
       >
-        {busy ? "Saving…" : actionLabel}
-      </button>
+        <button
+          className={`shopping-swipe-action${
+            actionLabel === "Undo" ? " is-undo" : ""
+          }`}
+          type="button"
+          disabled={busy}
+          onFocus={() => onOpenChange(true)}
+          onClick={onAction}
+        >
+          {busy ? "Saving…" : actionLabel}
+        </button>
+        {onDelete && (
+          <button
+            className="shopping-swipe-action is-delete"
+            type="button"
+            disabled={busy}
+            onFocus={() => onOpenChange(true)}
+            onClick={onDelete}
+          >
+            Delete
+          </button>
+        )}
+      </div>
       <div
         className="shopping-swipe-content"
         style={{ transform: `translate3d(${offset}px, 0, 0)` }}
@@ -330,7 +350,7 @@ function ShoppingSwipeRow({
           if (busy || event.button !== 0) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           pointerStart.current = event.clientX;
-          pointerBase.current = open ? -shoppingSwipeActionWidth : 0;
+          pointerBase.current = open ? -swipeWidth : 0;
           pointerOffset.current = pointerBase.current;
           pointerMoved.current = false;
           setDragOffset(pointerBase.current);
@@ -340,7 +360,7 @@ function ShoppingSwipeRow({
           const delta = event.clientX - pointerStart.current;
           if (Math.abs(delta) > 4) pointerMoved.current = true;
           pointerOffset.current = Math.max(
-            -shoppingSwipeActionWidth,
+            -swipeWidth,
             Math.min(0, pointerBase.current + delta),
           );
           setDragOffset(pointerOffset.current);
@@ -821,6 +841,28 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         caught instanceof Error
           ? caught.message
           : "Could not update the shopping list.",
+      );
+    } finally {
+      setShoppingSaving(null);
+    }
+  }
+
+  async function handleDeleteShoppingItem(itemName: string) {
+    setShoppingSaving(itemName);
+    setRevealedShoppingItem(null);
+    setError(null);
+    try {
+      const result = await deleteShoppingItem(itemName);
+      setDashboard((current) => ({
+        ...current,
+        inventory: result.inventory,
+        shoppingList: result.items,
+      }));
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not delete the shopping item.",
       );
     } finally {
       setShoppingSaving(null);
@@ -1583,7 +1625,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 <div className="shopping-section-heading">
                   <div>
                     <h3 id="shopping-active-heading">To Buy</h3>
-                    <small>Swipe left to mark purchased</small>
+                    <small>Swipe left for Done or Delete</small>
                   </div>
                   <span>{activeShoppingItems.length}</span>
                 </div>
@@ -1609,6 +1651,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                         }
                         onAction={() =>
                           void handleShoppingStatus(item.item_name, item.status)
+                        }
+                        onDelete={() =>
+                          void handleDeleteShoppingItem(item.item_name)
                         }
                       />
                     ))}
