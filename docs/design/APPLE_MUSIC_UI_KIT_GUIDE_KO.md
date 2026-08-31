@@ -240,27 +240,29 @@ Compact/large navbar 아래 검색 control을 두고, 최근 검색 또는 categ
 
 Compact Navbar → 큰 artwork/cover → primary/secondary metadata → horizontal actions → grouped table rows. 편집 가능한 모든 필드를 첫 화면에 펼치지 않는다.
 
-### 7.5 Playing Next / Shopping List
+### 7.5 Compact Media List / Shopping List
 
-Shopping은 Library grid가 아니라 `Playing Next` queue와 `Track List`를
-재사용한다. 아직 구매하지 않은 item은 앞으로 처리할 queue이고, 구매 완료 item은
-최근 처리 기록이기 때문이다.
+Shopping은 `Playing Next`의 queue 의미를 유지하되, 실제 화면 구조는 compact
+navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구매 전, 구매
+완료가 같은 media-list 언어를 사용하므로 상태가 달라도 item 식별 위치가 바뀌지
+않는다.
 
-1. Large Navbar의 제목은 `Shopping List`다.
-2. 첫 section은 `To Buy`이며 active item count를 trailing value로 표시한다.
-3. 각 item은 56px Track List row를 사용한다.
-4. leading control은 44px 이상 hit area를 가진 22px 원형 checkbox다.
-5. primary label은 item name, secondary label은 추가 날짜다.
-6. 체크하면 `Purchased` section으로 이동한다.
-7. Purchased row는 pink filled check와 취소선 primary label을 사용한다.
-8. Purchased check를 다시 누르면 `To Buy`로 복원한다.
-9. Purchased section은 24시간 동안만 표시하며 그 이후 projection에서 숨긴다.
-10. 원본 event는 audit/history를 위해 삭제하지 않는다.
-11. `Suggested from Inventory`는 현재 `low` 상태이고 To Buy/Purchased에 없는
-    item만 표시한다.
-12. suggestion row는 Track List typography와 divider를 유지하고 trailing pink
-    `Add` action으로 queue에 추가한다.
-
+1. 44px compact navbar에 `Shopping List` headline과 `75×28` `+ Add` pill을 둔다.
+2. 각 item은 높이 56px, 왼쪽 inset 16px, `48×48` category artwork를 사용한다.
+3. primary label은 item name이다. 원본의 artist-name 위치인 secondary label은
+   suggestion에서 `Low stock · quantity`, To Buy에서 현재 inventory projection
+   상태(`Out of stock`, `Low · 3 cartons left`, `In stock · 5 cartons`,
+   `Not tracked in inventory`), Purchased에서 `Purchased Aug 31, 2026` 형식의
+   실제 완료일을 표시한다.
+4. `Suggested from Inventory`는 현재 `low`이고 To Buy/Purchased에 없는 item만
+   표시하며 trailing `28×28` pink `+`로 추가한다.
+5. `To Buy` item은 checkbox 대신 왼쪽 swipe로 오른쪽의 84px green `Done`
+   action을 노출한다. 마우스 pointer drag와 키보드 focus도 같은 action을 제공한다.
+6. `Purchased` item은 24시간 동안 표시하고 왼쪽 swipe로 pink `Undo`를 노출해
+   To Buy에 복원한다.
+7. 24시간이 지나면 projection에서만 숨기고 원본 event history는 삭제하지 않는다.
+8. section 사이에는 여백을 사용하고 각 row는 label 영역 아래 0.5px inset
+   divider로 구분한다.
 Shopping add control의 구현 값:
 
 - navbar `+ Add`: `75×28px`, radius `14px`,

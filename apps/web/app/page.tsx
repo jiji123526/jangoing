@@ -213,52 +213,91 @@ function editorDateLabel(value: string): string {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function shoppingDateLabel(value: string, prefix: string): string {
-  return `${prefix} ${new Intl.DateTimeFormat("en", {
+function shoppingPurchaseDateLabel(value: string): string {
+  return `Purchased ${new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
+    year: "numeric",
   }).format(new Date(value))}`;
+}
+
+function shoppingInventoryStatusLabel(item: InventoryItem | undefined): string {
+  if (!item) return "Not tracked in inventory";
+  if (item.status === "out" || item.quantity <= 0) return "Out of stock";
+
+  const amount = quantityLabel(item);
+  if (item.status === "low") return `Low · ${amount} left`;
+  return `In stock · ${amount}`;
 }
 
 const shoppingSwipeActionWidth = 84;
 
+function ShoppingArtwork({ itemName }: { itemName: string }) {
+  const category = inventoryCategory(itemName);
+  const shortLabel = category === "Dairy & Eggs"
+    ? "D&E"
+    : category === "Meat & Seafood"
+      ? "M&S"
+      : category.slice(0, 3).toUpperCase();
+  const categoryClass = category
+    .toLowerCase()
+    .replaceAll(" & ", "-")
+    .replaceAll(" ", "-");
+
+  return (
+    <div
+      className={`shopping-artwork category-${categoryClass}`}
+      aria-hidden="true"
+    >
+      <span>{shortLabel}</span>
+    </div>
+  );
+}
+
 function ShoppingSwipeRow({
   itemName,
-  addedAt,
+  secondaryText,
+  actionLabel,
+  purchased = false,
   busy,
   open,
   onOpenChange,
-  onDone,
+  onAction,
 }: {
   itemName: string;
-  addedAt: string;
+  secondaryText: string;
+  actionLabel: "Done" | "Undo";
+  purchased?: boolean;
   busy: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDone: () => void;
+  onAction: () => void;
 }) {
   const pointerStart = useRef(0);
   const pointerBase = useRef(0);
   const pointerMoved = useRef(false);
+  const pointerOffset = useRef(0);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
   const offset = dragOffset ?? (open ? -shoppingSwipeActionWidth : 0);
 
   function finishSwipe() {
-    const shouldOpen = offset <= -(shoppingSwipeActionWidth / 2);
+    const shouldOpen = pointerOffset.current <= -(shoppingSwipeActionWidth / 2);
     setDragOffset(null);
     onOpenChange(shouldOpen);
   }
 
   return (
-    <li className="shopping-swipe-row">
+    <li className={`shopping-swipe-row${purchased ? " is-purchased" : ""}`}>
       <button
-        className="shopping-swipe-action"
+        className={`shopping-swipe-action${
+          actionLabel === "Undo" ? " is-undo" : ""
+        }`}
         type="button"
         disabled={busy}
         onFocus={() => onOpenChange(true)}
-        onClick={onDone}
+        onClick={onAction}
       >
-        {busy ? "Saving…" : "Done"}
+        {busy ? "Saving…" : actionLabel}
       </button>
       <div
         className="shopping-swipe-content"
@@ -271,6 +310,7 @@ function ShoppingSwipeRow({
           event.currentTarget.setPointerCapture(event.pointerId);
           pointerStart.current = event.clientX;
           pointerBase.current = open ? -shoppingSwipeActionWidth : 0;
+          pointerOffset.current = pointerBase.current;
           pointerMoved.current = false;
           setDragOffset(pointerBase.current);
         }}
@@ -278,12 +318,11 @@ function ShoppingSwipeRow({
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
           const delta = event.clientX - pointerStart.current;
           if (Math.abs(delta) > 4) pointerMoved.current = true;
-          setDragOffset(
-            Math.max(
-              -shoppingSwipeActionWidth,
-              Math.min(0, pointerBase.current + delta),
-            ),
+          pointerOffset.current = Math.max(
+            -shoppingSwipeActionWidth,
+            Math.min(0, pointerBase.current + delta),
           );
+          setDragOffset(pointerOffset.current);
         }}
         onPointerUp={(event) => {
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
@@ -292,9 +331,10 @@ function ShoppingSwipeRow({
         }}
         onPointerCancel={finishSwipe}
       >
+        <ShoppingArtwork itemName={itemName} />
         <div className="shopping-row-copy">
           <strong>{titleCase(itemName)}</strong>
-          <small>{shoppingDateLabel(addedAt, "Added")}</small>
+          <small>{secondaryText}</small>
         </div>
       </div>
     </li>
@@ -657,6 +697,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   );
   const recommendedShoppingItems = dashboard.inventory.filter(
     (item) => item.status === "low" && !shoppingItemNames.has(item.item_name),
+  );
+  const inventoryByItemName = new Map(
+    dashboard.inventory.map((item) => [item.item_name, item]),
   );
 
   async function loadDashboard() {
@@ -1373,6 +1416,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   <ul className="shopping-track-list shopping-suggestion-list">
                     {recommendedShoppingItems.map((item) => (
                       <li key={item.item_name}>
+                        <ShoppingArtwork itemName={item.item_name} />
                         <div className="shopping-suggestion-copy">
                           <strong>{titleCase(item.item_name)}</strong>
                           <small>Low stock · {quantityLabel(item)}</small>
@@ -1410,13 +1454,16 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <ShoppingSwipeRow
                         key={item.item_name}
                         itemName={item.item_name}
-                        addedAt={item.added_at}
+                        secondaryText={shoppingInventoryStatusLabel(
+                          inventoryByItemName.get(item.item_name),
+                        )}
+                        actionLabel="Done"
                         busy={shoppingSaving === item.item_name}
                         open={revealedShoppingItem === item.item_name}
                         onOpenChange={(open) =>
                           setRevealedShoppingItem(open ? item.item_name : null)
                         }
-                        onDone={() =>
+                        onAction={() =>
                           void handleShoppingStatus(item.item_name, item.status)
                         }
                       />
@@ -1439,27 +1486,23 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   </div>
                   <ul className="shopping-track-list">
                     {purchasedShoppingItems.map((item) => (
-                      <li className="is-purchased shopping-purchased-row" key={item.item_name}>
-                        <div className="shopping-row-copy">
-                          <strong>{titleCase(item.item_name)}</strong>
-                          <small>
-                            {shoppingDateLabel(
-                              item.purchased_at ?? item.added_at,
-                              "Purchased",
-                            )}
-                          </small>
-                        </div>
-                        <button
-                          className="shopping-undo-button"
-                          type="button"
-                          disabled={shoppingSaving === item.item_name}
-                          onClick={() =>
-                            void handleShoppingStatus(item.item_name, item.status)
-                          }
-                        >
-                          Undo
-                        </button>
-                      </li>
+                      <ShoppingSwipeRow
+                        key={item.item_name}
+                        itemName={item.item_name}
+                        secondaryText={shoppingPurchaseDateLabel(
+                          item.purchased_at ?? item.added_at,
+                        )}
+                        actionLabel="Undo"
+                        purchased
+                        busy={shoppingSaving === item.item_name}
+                        open={revealedShoppingItem === item.item_name}
+                        onOpenChange={(open) =>
+                          setRevealedShoppingItem(open ? item.item_name : null)
+                        }
+                        onAction={() =>
+                          void handleShoppingStatus(item.item_name, item.status)
+                        }
+                      />
                     ))}
                   </ul>
                 </section>

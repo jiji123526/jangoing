@@ -2,6 +2,32 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Compact media-list shopping UI adopted
+
+### Completed
+
+- Replaced the large Shopping title with a 44px compact navbar and retained the
+  Figma-derived 75x28 `+ Add` pill.
+- Standardized Suggested, To Buy, and Purchased items on 56px media rows with
+  48px category artwork.
+- Replaced To Buy checkboxes with a pointer and touch swipe-left interaction
+  that reveals an 84px semantic green `Done` action.
+- Applied the same swipe-left pattern to Purchased rows, revealing a pink
+  `Undo` action instead of keeping it permanently visible.
+- Mapped the reference row's artist-name line to shopping metadata: current
+  inventory status and quantity for active items, and the full purchase date
+  for completed items.
+- Reused the inventory snapshot already loaded with Shopping and indexed it by
+  canonical item name, avoiding additional per-row API requests.
+- Added keyboard focus handling so the swipe action is not pointer-only.
+
+### Decisions
+
+- Retain the Playing Next queue semantics while using the compact media-list
+  page as the primary visual template.
+- Use restrained category placeholders until product artwork is available.
+- Reserve pink for add and undo actions; use system green for completion.
+
 ## 2026-08-31 - Playing Next-style shopping queue implemented
 
 ### Completed

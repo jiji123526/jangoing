@@ -997,27 +997,27 @@ h1 {
 }
 
 .shopping-titlebar {
-  position: relative;
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 44px;
+  padding: 0 16px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.18);
 }
 
 .shopping-titlebar h2 {
   margin: 0;
   color: #000;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 41px;
-  letter-spacing: 0.374px;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.408px;
 }
 
 .shopping-add-trigger {
-  position: absolute;
-  top: 11px;
-  right: 16px;
+  flex: 0 0 auto;
   width: 75px;
   height: 28px;
   padding: 0;
@@ -1038,7 +1038,7 @@ h1 {
 }
 
 .shopping-manual-add {
-  margin: 0 16px 20px;
+  margin: 12px 16px 20px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -1090,7 +1090,7 @@ h1 {
 }
 
 .shopping-queue {
-  padding-top: 8px;
+  padding-top: 16px;
 }
 
 .shopping-section-heading {
@@ -1158,13 +1158,13 @@ h1 {
 .shopping-track-list li {
   min-height: 56px;
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: stretch;
-  padding-left: 4px;
+  padding-left: 16px;
 }
 
 .shopping-suggestion-list li {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 64px minmax(0, 1fr) 52px;
   padding-left: 16px;
 }
 
@@ -1227,48 +1227,6 @@ h1 {
   outline-offset: -4px;
 }
 
-.shopping-check-button {
-  width: 52px;
-  min-height: 56px;
-  padding: 0;
-  border: 0;
-  display: grid;
-  place-items: center;
-  background: transparent;
-}
-
-.shopping-check-button > span {
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid rgba(60, 60, 67, 0.38);
-  border-radius: 50%;
-  display: block;
-  background: #fff;
-}
-
-.shopping-check-button.is-checked > span {
-  position: relative;
-  border-color: #ff2d55;
-  background: #ff2d55;
-}
-
-.shopping-check-button.is-checked > span::after {
-  position: absolute;
-  top: 4px;
-  left: 7px;
-  width: 5px;
-  height: 9px;
-  border: solid #fff;
-  border-width: 0 1.5px 1.5px 0;
-  content: "";
-  transform: rotate(45deg);
-}
-
-.shopping-check-button:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: -4px;
-}
-
 .shopping-row-copy {
   min-width: 0;
   padding: 7px 16px 7px 0;
@@ -1304,6 +1262,107 @@ h1 {
   color: rgba(60, 60, 67, 0.6);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
+}
+
+.shopping-artwork {
+  align-self: center;
+  width: 48px;
+  height: 48px;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.62);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.12)),
+    #d8e8d4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.shopping-artwork.category-dairy-eggs {
+  background-color: #e8e4cf;
+}
+
+.shopping-artwork.category-meat-seafood {
+  background-color: #ead5d2;
+}
+
+.shopping-artwork.category-pantry {
+  background-color: #e8ddc7;
+}
+
+.shopping-artwork.category-frozen {
+  background-color: #d5e7ec;
+}
+
+.shopping-artwork.category-beverages {
+  background-color: #d9e3da;
+}
+
+.shopping-artwork.category-other {
+  background-color: #e2e2e7;
+}
+
+.shopping-swipe-row {
+  position: relative;
+  min-height: 56px;
+  display: block !important;
+  overflow: hidden;
+  padding-left: 0 !important;
+  background: #34c759;
+}
+
+.shopping-swipe-action {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 84px;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: #34c759;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.shopping-swipe-action:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -4px;
+}
+
+.shopping-swipe-row.is-purchased,
+.shopping-swipe-action.is-undo {
+  background: #ff2d55;
+}
+
+.shopping-swipe-content {
+  position: relative;
+  z-index: 1;
+  min-height: 56px;
+  padding-left: 16px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: stretch;
+  background: #fff;
+  touch-action: pan-y;
+  transition: transform 180ms ease-out;
+  will-change: transform;
+}
+
+.shopping-swipe-content:active {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shopping-swipe-content {
+    transition: none;
+  }
 }
 
 .event-list li {
