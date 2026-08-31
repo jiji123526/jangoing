@@ -413,6 +413,24 @@ h1 {
   background: var(--surface);
 }
 
+.dashboard-grid-home,
+.dashboard-grid-inventory,
+.dashboard-grid-shopping {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dashboard-grid-home {
+  grid-template-areas: "history";
+}
+
+.dashboard-grid-inventory {
+  grid-template-areas: "inventory";
+}
+
+.dashboard-grid-shopping {
+  grid-template-areas: "shopping";
+}
+
 .data-section {
   min-width: 0;
   padding: 28px 30px 34px;
@@ -422,7 +440,7 @@ h1 {
 .inventory-section {
   grid-area: inventory;
   padding: 0 0 34px;
-  border-right: 1px solid var(--line);
+  border-right: 0;
   background: #fff;
   scroll-margin-top: 70px;
 }

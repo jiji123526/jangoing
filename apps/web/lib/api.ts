@@ -170,16 +170,31 @@ export interface DashboardData {
   shoppingList: ShoppingListItem[];
 }
 
+export async function getInventoryData(): Promise<InventoryItem[]> {
+  const body = await apiRequest("/inventory");
+  return InventoryResponseSchema.parse(body).inventory;
+}
+
+export async function getEventsData(): Promise<EventRecord[]> {
+  const body = await apiRequest("/events");
+  return EventsResponseSchema.parse(body).events;
+}
+
+export async function getShoppingListData(): Promise<ShoppingListItem[]> {
+  const body = await apiRequest("/shopping-list");
+  return ShoppingListResponseSchema.parse(body).items;
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
-  const [inventoryBody, eventsBody, shoppingBody] = await Promise.all([
-    apiRequest("/inventory"),
-    apiRequest("/events"),
-    apiRequest("/shopping-list"),
+  const [inventory, events, shoppingList] = await Promise.all([
+    getInventoryData(),
+    getEventsData(),
+    getShoppingListData(),
   ]);
 
   return {
-    inventory: InventoryResponseSchema.parse(inventoryBody).inventory,
-    events: EventsResponseSchema.parse(eventsBody).events,
-    shoppingList: ShoppingListResponseSchema.parse(shoppingBody).items,
+    inventory,
+    events,
+    shoppingList,
   };
 }

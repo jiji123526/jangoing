@@ -2,6 +2,36 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Bottom tabs split into independent routes
+
+### Completed
+
+- Replaced in-page hash navigation with independent routes for Home,
+  Inventory, Shopping, and Search.
+- Kept Annotation on its existing dedicated route and kept the shared bottom
+  navigation in the root layout.
+- Updated active-tab state to follow the pathname instead of browser hash
+  state.
+- Limited each route to its own screen content so long inventory or shopping
+  lists no longer push another tab's content down the same document.
+- Split dashboard data fetching so Inventory, Shopping, and Search request only
+  the data required by their own screen.
+
+### Routes
+
+- Home: `/`
+- Inventory: `/inventory`
+- Annotation: `/annotate`
+- Shopping: `/shopping`
+- Search and command interpretation: `/search`
+
+### Behavior
+
+- Home keeps the quick command entry and recent confirmed actions.
+- Inventory renders only the Apple Music-style inventory library.
+- Shopping renders only the shopping list.
+- Search renders the command interpretation workflow without unrelated lists.
+
 ## 2026-08-30 - Apple Music-style inventory library implemented
 
 ### Completed

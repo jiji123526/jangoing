@@ -21,6 +21,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   createEvent,
   getDashboardData,
+  getInventoryData,
+  getShoppingListData,
   interpretCommand,
   updateInferenceOutcome,
   type DashboardData,
@@ -210,7 +212,9 @@ function InventoryItemRow({ item }: { item: InventoryItem }) {
   );
 }
 
-export default function Home() {
+export type DashboardViewName = "home" | "inventory" | "shopping" | "search";
+
+export function DashboardView({ view }: { view: DashboardViewName }) {
   const [command, setCommand] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [interpretation, setInterpretation] =
@@ -246,7 +250,15 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      setDashboard(await getDashboardData());
+      if (view === "inventory" || view === "search") {
+        const inventory = await getInventoryData();
+        setDashboard({ ...emptyDashboard, inventory });
+      } else if (view === "shopping") {
+        const shoppingList = await getShoppingListData();
+        setDashboard({ ...emptyDashboard, shoppingList });
+      } else {
+        setDashboard(await getDashboardData());
+      }
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not load kitchen data.",
@@ -258,7 +270,7 @@ export default function Home() {
 
   useEffect(() => {
     void loadDashboard();
-  }, []);
+  }, [view]);
 
   async function handleInterpret(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -409,7 +421,7 @@ export default function Home() {
       (edited.itemName.trim() && eventTypeByIntent[edited.intent]));
 
   return (
-    <main id="home">
+    <main id={view}>
       <header className="topbar">
         <div>
           <span className="brand">jangoing</span>
@@ -429,9 +441,10 @@ export default function Home() {
         </div>
       </header>
 
+      {(view === "home" || view === "search") && (
       <section
         className="command-band"
-        id="search"
+        id="command"
         aria-labelledby="command-heading"
       >
         <div className="section-heading">
@@ -648,8 +661,11 @@ export default function Home() {
           </div>
         )}
       </section>
+      )}
 
-      <div className="dashboard-grid">
+      {view !== "search" && (
+      <div className={`dashboard-grid dashboard-grid-${view}`}>
+        {view === "inventory" && (
         <section className="data-section inventory-section" id="inventory">
           <div className="inventory-titlebar">
             <div>
@@ -721,7 +737,9 @@ export default function Home() {
             </div>
           )}
         </section>
+        )}
 
+        {view === "shopping" && (
         <section className="data-section shopping-section" id="shopping">
           <div className="data-heading">
             <div>
@@ -744,7 +762,9 @@ export default function Home() {
             </ul>
           )}
         </section>
+        )}
 
+        {view === "home" && (
         <section className="data-section history-section">
           <div className="data-heading">
             <div>
@@ -773,7 +793,13 @@ export default function Home() {
             </ol>
           )}
         </section>
+        )}
       </div>
+      )}
     </main>
   );
+}
+
+export default function Home() {
+  return <DashboardView view="home" />;
 }

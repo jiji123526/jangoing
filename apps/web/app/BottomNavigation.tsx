@@ -2,19 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 const mainTabs = [
   {
     label: "Home",
-    href: "/#home",
-    hash: "#home",
+    href: "/",
+    pathname: "/",
     icon: "/apple-music-tabbar/home.png",
   },
   {
     label: "Inventory",
-    href: "/#inventory",
-    hash: "#inventory",
+    href: "/inventory",
+    pathname: "/inventory",
     icon: "/apple-music-tabbar/inventory.png",
   },
 ] as const;
@@ -22,14 +22,14 @@ const mainTabs = [
 const trailingTabs = [
   {
     label: "Shopping",
-    href: "/#shopping",
-    hash: "#shopping",
+    href: "/shopping",
+    pathname: "/shopping",
     icon: "/apple-music-tabbar/shopping.png",
   },
   {
     label: "Search",
-    href: "/#search",
-    hash: "#search",
+    href: "/search",
+    pathname: "/search",
     icon: "/apple-music-tabbar/search.png",
   },
 ] as const;
@@ -45,23 +45,13 @@ function TabIcon({ src }: { src: string }) {
 
 export default function BottomNavigation() {
   const pathname = usePathname();
-  const [hash, setHash] = useState("");
 
-  useEffect(() => {
-    const updateHash = () => setHash(window.location.hash);
-    updateHash();
-    window.addEventListener("hashchange", updateHash);
-    return () => window.removeEventListener("hashchange", updateHash);
-  }, []);
-
-  const isActive = (tabHash: string) =>
-    pathname === "/" &&
-    (hash === tabHash || (!hash && tabHash === "#home"));
+  const isActive = (tabPathname: string) => pathname === tabPathname;
 
   const renderTab = (
     tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
   ) => {
-    const active = isActive(tab.hash);
+    const active = isActive(tab.pathname);
 
     return (
       <Link
@@ -69,7 +59,6 @@ export default function BottomNavigation() {
         href={tab.href}
         key={tab.label}
         aria-current={active ? "page" : undefined}
-        onClick={() => setHash(tab.hash)}
       >
         <TabIcon src={tab.icon} />
         <span>{tab.label}</span>
