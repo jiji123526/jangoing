@@ -267,6 +267,7 @@ function InventoryItemRow({
 
     return (
       <article className="inventory-item-row is-editing">
+        <InventoryArtwork category={category} />
         <form
           className="inventory-edit-form"
           onSubmit={(event) => {
@@ -285,23 +286,25 @@ function InventoryItemRow({
             });
           }}
         >
-          <div className="inventory-edit-navbar">
-            <button
-              className="inventory-edit-cancel"
-              type="button"
-              disabled={busy}
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
+          <div className="inventory-edit-header">
             <strong>{titleCase(item.item_name)}</strong>
-            <button
-              className="inventory-save-button"
-              type="submit"
-              disabled={busy}
-            >
-              {busy ? "Saving…" : "Save"}
-            </button>
+            <div className="inventory-edit-actions">
+              <button
+                className="inventory-edit-cancel"
+                type="button"
+                disabled={busy}
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="inventory-save-button"
+                type="submit"
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
 
           <div className="inventory-edit-fields">

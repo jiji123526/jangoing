@@ -703,7 +703,7 @@ h1 {
 .inventory-item-row.is-editing {
   min-height: 0;
   padding: 0 16px 20px;
-  display: block;
+  align-items: start;
 }
 
 .inventory-edit-form {
@@ -711,31 +711,38 @@ h1 {
   min-width: 0;
   padding: 0;
   display: grid;
-  gap: 12px;
+  gap: 8px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
 }
 
-.inventory-edit-navbar {
-  min-height: 44px;
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 72px;
+.inventory-edit-header {
+  min-height: 32px;
+  display: flex;
   align-items: center;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.2);
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.inventory-edit-navbar strong {
+.inventory-edit-header strong {
+  min-width: 0;
   overflow: hidden;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 22px;
-  letter-spacing: 0;
-  text-align: center;
+  letter-spacing: -0.408px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.inventory-edit-navbar button {
-  min-width: 44px;
-  min-height: 44px;
+.inventory-edit-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inventory-edit-actions button {
+  min-height: 32px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -747,27 +754,24 @@ h1 {
 }
 
 .inventory-edit-cancel {
-  color: #ff2d55;
-  text-align: left;
+  color: rgba(60, 60, 67, 0.6);
 }
 
-.inventory-edit-navbar .inventory-save-button {
+.inventory-edit-actions .inventory-save-button {
   color: #ff2d55;
-  text-align: right;
 }
 
-.inventory-edit-navbar button:disabled {
+.inventory-edit-actions button:disabled {
   color: rgba(60, 60, 67, 0.33);
 }
 
-.inventory-edit-navbar button:focus-visible {
+.inventory-edit-actions button:focus-visible {
   border-radius: 4px;
   outline: 2px solid #007aff;
   outline-offset: 2px;
 }
 
 .inventory-edit-fields {
-  border-top: 0.5px solid rgba(60, 60, 67, 0.2);
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.2);
 }
 
@@ -776,9 +780,9 @@ h1 {
   min-height: 52px;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(96px, 1fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(82px, 1fr) minmax(0, 1.5fr);
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .inventory-edit-field-row + .inventory-edit-field-row::before {
@@ -908,19 +912,17 @@ h1 {
 
 .inventory-edit-form > .inventory-remove-button {
   width: 100%;
-  min-height: 52px;
-  padding: 0 16px;
+  min-height: 40px;
+  padding: 0;
   border: 0;
-  border-top: 0.5px solid rgba(60, 60, 67, 0.2);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.2);
   color: #ff3b30;
-  background: #fff;
+  background: transparent;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 17px;
   font-weight: 400;
   line-height: 22px;
   letter-spacing: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .inventory-edit-form > .inventory-remove-button:disabled {
