@@ -88,7 +88,12 @@ font-family: "SF Pro Text", "SF Pro Display", -apple-system,
 - 대형 cover row: padding `7px 16px`, cover `102px`, 전체 높이 `116px`.
 - 일반 table row: 높이 `56px`; compact variant `48px`; metadata variant `52px`; large variant `60/148px`.
 - header/footer: 콘텐츠 폭 `358px`, 높이 `28px`; 전체 폭 variant `48/70px`.
-- 웹에서 `max-width: 390px`로 고정하지 않는다. `min(390px, 100vw)`가 아니라 16px inset과 row 구조를 유지하며 넓어진 공간을 label 영역에 준다.
+- 소비자 route인 Home, Inventory, Analytics, Shopping, Search는
+  `--consumer-max-width: 430px` shell 안에서 중앙 정렬한다. 폭 430px
+  이하에서는 `width: 100%`로 줄어들며 16px inset과 row 구조를 유지한다.
+  `/annotate`는 desktop labeling workspace이므로 이 제한에서 제외한다.
+- Home mini-player와 bottom tab bar의 inner frame도 같은 430px shell을
+  사용해 모든 소비자 tab의 좌우 경계를 일치시킨다.
 
 ### 4.4 모서리, 테두리, 그림자, 재질
 
@@ -284,7 +289,26 @@ Large Navbar → attention section → category header/filter → `390×116` ite
 
 ### 7.3 Search
 
-Compact/large navbar 아래 검색 control을 두고, 최근 검색 또는 category suggestion을 table rows로 표시한다. 결과는 동일한 Item Row를 사용해 다른 화면과 정보 구조를 일치시킨다.
+Large navbar 아래 `36px` system search field와 `42px` secondary-control
+container를 둔다. 구현 동작은 Seb Vidal의
+[Apple Music Search Chips 분석](https://sebvidal.com/blog/recreating-apple-musics-search-chips-ui/)
+을 웹 interaction으로 변환한다.
+
+1. search field가 focus된 동안 secondary container는 `Kitchen / History`
+   segmented scope를 표시한다. 검색 전 또는 cancel 후에는 container 높이를
+   `0`으로 접는다.
+2. 검색 submit 후 input이 blur되면 scope는 위로 이동하며 fade out되고,
+   `Top Results`, `Inventory`, `Shopping`, `Activity` horizontal chips가
+   아래에서 이동하며 fade in된다. 전환 시간은 레퍼런스와 같은 `250ms`다.
+3. chip row는 좌우 `16px` inset, horizontal scrolling, hidden scrollbar를
+   사용한다. 선택 chip은 높이 `32px`, radius `16px`, accent fill과 white
+   label을 사용한다. 각 button에 별도 배경을 켜지 않고 하나의 shared pill이
+   선택 button의 offset과 width로 이동하도록 구현한다.
+4. 검색은 read-only다. Inventory, Shopping, 최근 50개 Activity를 local
+   projection에서 검색하고 source별 `60px` row로 그룹화한다. 상태 변경은
+   Home Quick Update에서만 수행한다.
+5. 검색 전에는 최근 검색을 최대 5개 localStorage에서 표시하며, 기록이 없으면
+   example query를 보여 준다.
 
 ### 7.4 Detail
 

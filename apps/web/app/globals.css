@@ -1,4 +1,5 @@
 :root {
+  --consumer-max-width: 430px;
   --canvas: #ffffff;
   --surface: #ffffff;
   --ink: #17201b;
@@ -56,6 +57,14 @@ main {
   margin: 0 auto;
   background: #fff;
   border-inline: 1px solid rgba(217, 222, 215, 0.72);
+}
+
+main#home,
+main#inventory,
+main#analytics,
+main#shopping,
+main#search {
+  width: min(var(--consumer-max-width), 100%);
 }
 
 .topbar {
@@ -651,7 +660,7 @@ main {
   z-index: 99;
   bottom: calc(49px + env(safe-area-inset-bottom, 0px));
   left: 50%;
-  width: min(1180px, 100%);
+  width: min(var(--consumer-max-width), 100%);
   height: 64px;
   padding: 0 8px;
   border-top: 0.5px solid #c6c6c8;
@@ -891,6 +900,365 @@ main {
 
 .analytics-footnote {
   margin: 8px 16px 24px;
+}
+
+.search-page {
+  min-height: 100vh;
+  color: #000;
+  background: #fff;
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+.search-titlebar {
+  min-height: 95px;
+  padding: 47px 16px 7px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.search-titlebar h1 {
+  margin: 0;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.374px;
+}
+
+.search-sticky-controls {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  padding: 4px 0 0;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(15px);
+}
+
+.search-bar-form {
+  min-height: 44px;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-bar-field {
+  height: 36px;
+  min-width: 0;
+  padding: 0 8px;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  border-radius: 10px;
+  color: rgba(60, 60, 67, 0.6);
+  background: rgba(118, 118, 128, 0.12);
+}
+
+.search-bar-field input {
+  width: 100%;
+  height: 36px;
+  padding: 0 4px;
+  border: 0;
+  outline: 0;
+  color: #000;
+  background: transparent;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  appearance: none;
+}
+
+.search-bar-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-bar-field button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(60, 60, 67, 0.6);
+}
+
+.search-cancel {
+  height: 36px;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 0;
+  color: #ff2d55;
+  background: transparent;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.search-secondary-control {
+  position: relative;
+  height: 42px;
+  overflow: hidden;
+  transition: height 250ms ease;
+}
+
+.search-secondary-control:not(.is-focused):not(.shows-tags) {
+  height: 0;
+}
+
+.search-scope-control,
+.search-tag-scroll {
+  position: absolute;
+  inset: 3px 0;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
+}
+
+.search-scope-control {
+  margin: 0 16px;
+  padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 8px;
+  background: rgba(118, 118, 128, 0.12);
+}
+
+.search-scope-control button {
+  border: 0;
+  border-radius: 6px;
+  color: #000;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.search-scope-control button.is-selected {
+  background: #fff;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.08);
+}
+
+.search-tag-scroll {
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  opacity: 0;
+  transform: translateY(100%);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-tag-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.search-tag-scroll button {
+  position: relative;
+  z-index: 1;
+  height: 32px;
+  padding: 0 12px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 16px;
+  color: #000;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+  transition:
+    color 250ms ease,
+    background-color 250ms ease;
+}
+
+.search-tag-scroll button.is-selected {
+  color: #fff;
+}
+
+.search-tag-pill {
+  position: absolute;
+  z-index: 0;
+  top: 2px;
+  left: 0;
+  height: 32px;
+  border-radius: 16px;
+  background: #ff2d55;
+  transition:
+    width 350ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.search-secondary-control.shows-tags .search-scope-control {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+
+.search-secondary-control.shows-tags .search-tag-scroll {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.search-message {
+  margin: 12px 16px;
+}
+
+.search-start-section,
+.search-results {
+  padding: 18px 16px 32px;
+}
+
+.search-start-section h2,
+.search-results h2 {
+  margin: 0 0 8px;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0.35px;
+}
+
+.search-suggestion-list {
+  display: grid;
+}
+
+.search-suggestion-list button {
+  position: relative;
+  min-height: 48px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  color: #000;
+  background: transparent;
+  text-align: left;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.search-suggestion-list button:not(:last-child)::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 36px;
+  height: 0.5px;
+  background: rgba(60, 60, 67, 0.38);
+  content: "";
+}
+
+.search-suggestion-list svg {
+  color: rgba(60, 60, 67, 0.6);
+}
+
+.search-clear-recents {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  color: #ff2d55;
+  background: transparent;
+  font-size: 15px;
+}
+
+.search-results {
+  display: grid;
+  gap: 24px;
+}
+
+.search-results section {
+  min-width: 0;
+}
+
+.search-results section > a,
+.search-results section > article {
+  position: relative;
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: #000;
+  text-decoration: none;
+}
+
+.search-results section > a:not(:last-child)::after,
+.search-results section > article:not(:last-child)::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 60px;
+  height: 0.5px;
+  background: rgba(60, 60, 67, 0.38);
+  content: "";
+}
+
+.search-result-artwork {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  background: linear-gradient(145deg, #5f8b74, #2f5944);
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.search-result-artwork.source-shopping {
+  background: linear-gradient(145deg, #607fa7, #344f70);
+}
+
+.search-result-artwork.source-activity {
+  background: linear-gradient(145deg, #d9875e, #9f4854);
+}
+
+.search-results section > a > span:last-child,
+.search-results section > article > span:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-results strong,
+.search-results small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-results strong {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.search-results small {
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+}
+
+.search-empty {
+  margin: 28px 16px;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
 }
 
 .section-heading {
@@ -2286,7 +2654,7 @@ h1 {
 }
 
 .bottom-navigation-inner {
-  width: min(1180px, 100%);
+  width: min(var(--consumer-max-width), 100%);
   height: 49px;
   margin: 0 auto;
   display: grid;

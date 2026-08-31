@@ -2,6 +2,49 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Search rebuilt with Apple Music search chips
+
+### Completed
+
+- Replaced the duplicate command-mutation Search screen with a dedicated
+  read-only universal search across Inventory, Shopping, and recent Activity.
+- Recreated the reference interaction: focused search shows a segmented scope;
+  submitted search fades/slides into horizontally scrolling result chips over
+  250ms.
+- Removed hidden scope controls from keyboard navigation and collapsed the
+  secondary-control region before search activation.
+- Added a shared moving selection pill and limited chips to result types valid
+  for the selected Kitchen or History scope.
+- Reset result chips when changing scope and removed collapsed controls from
+  the tab order.
+- Added source-grouped result rows, selected-chip filtering, empty/error/loading
+  states, example searches, and five local recent searches.
+- Kept all state mutation in Home Quick Update.
+
+### Reference
+
+- https://sebvidal.com/blog/recreating-apple-musics-search-chips-ui/
+
+### Deployment
+
+- This Search change is Web-only.
+
+## 2026-08-31 - Consumer tabs share a mobile-width shell
+
+### Completed
+
+- Added a shared `430px` maximum width for Home, Inventory, Analytics, Shopping,
+  and Search while preserving fluid width on smaller phones.
+- Matched the Home mini-player and bottom navigation inner frame to the same
+  shell.
+- Excluded the direct-URL Annotation workspace because its labeling controls
+  require the existing desktop width.
+
+### Deployment
+
+- This layout update is Web-only. The pending Analytics work still requires its
+  Worker deployment before the Web deployment.
+
 ## 2026-08-31 - Center navigation changed from Annotation to Analytics
 
 ### Completed

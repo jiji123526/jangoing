@@ -158,6 +158,10 @@ These limitations are acceptable only while every state-changing action requires
   Home with historical reporting
 - Consumer navigation exposes `/analytics` in the center tab; the internal
   `/annotate` workspace remains direct-URL-only and has no product UI link
+- All five consumer tabs, their bottom navigation, and the Home mini-player use
+  a fluid 430px maximum shell; the Annotation workspace keeps its desktop width
+- Search is a read-only universal lookup over Inventory, Shopping, and recent
+  Activity, using Apple Music's focus-scope to submitted-chip transition
 - Weekly Analytics requests the complete event window through
   `GET /events?since=<ISO timestamp>` instead of using the default recent-50
   dashboard history
