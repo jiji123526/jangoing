@@ -247,7 +247,8 @@ navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구�
 완료가 같은 media-list 언어를 사용하므로 상태가 달라도 item 식별 위치가 바뀌지
 않는다.
 
-1. 44px compact navbar에 `Shopping List` headline과 `75×28` `+ Add` pill을 둔다.
+1. Inventory와 같은 95px large-title 영역에 `Shopping List`를 `34/41px`로
+   표시하고 상단 오른쪽에 `75×28` `+ Add` pill을 둔다.
 2. 각 item은 높이 56px, 왼쪽 inset 16px, `48×48` category artwork를 사용한다.
 3. primary label은 item name이다. 원본의 artist-name 위치인 secondary label은
    suggestion에서 `Low stock · quantity`, To Buy에서 현재 inventory projection
@@ -263,6 +264,8 @@ navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구�
 7. 24시간이 지나면 projection에서만 숨기고 원본 event history는 삭제하지 않는다.
 8. section 사이에는 여백을 사용하고 각 row는 label 영역 아래 0.5px inset
    divider로 구분한다.
+9. item primary는 Inventory와 같은 `17/22px`, secondary metadata는 `15/20px`를
+   사용해 두 화면의 정보 위계를 맞춘다.
 Shopping add control의 구현 값:
 
 - navbar `+ Add`: `75×28px`, radius `14px`,

@@ -2,6 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Inventory-scale shopping typography adopted
+
+### Completed
+
+- Matched the Shopping page header to Inventory's 95px large-title structure
+  and 34/41px title typography.
+- Increased shopping item secondary metadata from 13/16px to Inventory's
+  15/20px metadata scale.
+- Preserved the compact 56px shopping rows and swipe actions while aligning
+  page-level hierarchy across the two tabs.
+
+### Decisions
+
+- Use the same page title and text hierarchy across Inventory and Shopping,
+  while retaining different row densities appropriate to browsing inventory
+  versus completing a shopping queue.
+
 ## 2026-08-31 - Compact media-list shopping UI adopted
 
 ### Completed
