@@ -4,6 +4,8 @@ import {
   AnnotationStatsSchema,
   AnnotationQueueResponseSchema,
   EventRecordSchema,
+  FridgeSetupResponseSchema,
+  FridgeSetupStatusSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   ShoppingListItemSchema,
@@ -15,6 +17,9 @@ import {
   type AnnotationStats,
   type CreateAnnotationRequest,
   type EventRecord,
+  type FridgeSetupRequest,
+  type FridgeSetupResponse,
+  type FridgeSetupStatus,
   type LoggedInterpretation,
   type UpdateInferenceOutcomeRequest,
   type InventoryItem,
@@ -207,6 +212,21 @@ export type ShoppingMutationResult = z.infer<
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
   return InventoryResponseSchema.parse(body).inventory;
+}
+
+export async function getFridgeSetupStatus(): Promise<FridgeSetupStatus> {
+  const body = await apiRequest("/fridge-setup/status");
+  return FridgeSetupStatusSchema.parse(body);
+}
+
+export async function completeFridgeSetup(
+  setup: FridgeSetupRequest,
+): Promise<FridgeSetupResponse> {
+  const body = await apiRequest("/fridge-setup", {
+    method: "POST",
+    body: JSON.stringify(setup),
+  });
+  return FridgeSetupResponseSchema.parse(body);
 }
 
 export async function updateInventoryItem(

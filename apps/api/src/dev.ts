@@ -6,6 +6,7 @@ import {
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
+  FridgeSetupRequestSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
   ShoppingItemContextRequestSchema,
@@ -36,6 +37,10 @@ import {
   parseAnnotationQueueQuery,
 } from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
+import {
+  buildFridgeSetupEvents,
+  fridgeSetupCompletedKey,
+} from "./domain/fridge-setup";
 import { parseCommand } from "./nlp/parse-command";
 import {
   resolveStoredTemporalGrounding,
@@ -80,6 +85,10 @@ const annotationRelevanceMigrationPath = resolve(
 const inventoryLowThresholdMigrationPath = resolve(
   apiDirectory,
   "migrations/0009_add_inventory_low_threshold.sql",
+);
+const appStateMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0010_create_app_state.sql",
 );
 const port = Number(process.env.PORT ?? 8787);
 
@@ -149,6 +158,12 @@ if (!proposalTable?.name) {
 const proposalColumns = database.prepare("PRAGMA table_info(annotation_proposals)").all() as Array<{ name: string }>;
 if (!proposalColumns.some((column) => column.name === "input_tokens")) {
   database.exec(readFileSync(annotationAiUsageMigrationPath, "utf8"));
+}
+const appStateTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_state'",
+).get() as { name?: string } | undefined;
+if (!appStateTable?.name) {
+  database.exec(readFileSync(appStateMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
@@ -675,6 +690,91 @@ async function route(
     );
 
     sendJson(response, origin, event, 201);
+    return;
+  }
+
+  if (request.method === "GET" && path === "/fridge-setup/status") {
+    const row = database.prepare(
+      "SELECT value FROM app_state WHERE key = ?",
+    ).get(fridgeSetupCompletedKey) as { value: string } | undefined;
+    sendJson(response, origin, {
+      completed: row !== undefined,
+      completed_at: row?.value ?? null,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && path === "/fridge-setup") {
+    const parsed = FridgeSetupRequestSchema.safeParse(await readBody(request));
+    if (!parsed.success) {
+      sendJson(
+        response,
+        origin,
+        { error: "Invalid fridge setup", details: parsed.error.flatten() },
+        400,
+      );
+      return;
+    }
+
+    const completed = database.prepare(
+      "SELECT value FROM app_state WHERE key = ?",
+    ).get(fridgeSetupCompletedKey);
+    if (completed) {
+      sendJson(response, origin, { error: "Fridge setup is already complete" }, 409);
+      return;
+    }
+
+    const existingEvents = events();
+    const completedAt = new Date().toISOString();
+    const setupEvents = buildFridgeSetupEvents(
+      parsed.data.items,
+      projectInventory(existingEvents),
+      completedAt,
+    );
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const insertEvent = database.prepare(
+        `INSERT INTO events (
+          id, event_type, item_name, quantity, unit, location,
+          expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      for (const event of setupEvents) {
+        insertEvent.run(
+          event.id,
+          event.event_type,
+          event.item_name,
+          event.quantity ?? null,
+          event.unit ?? null,
+          event.location ?? null,
+          event.expiration_date ?? null,
+          event.low_threshold ?? null,
+          event.raw_utterance,
+          event.confidence,
+          event.source,
+          event.created_at,
+        );
+      }
+      database.prepare(
+        "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
+      ).run(fridgeSetupCompletedKey, completedAt, completedAt);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    }
+
+    sendJson(
+      response,
+      origin,
+      {
+        completed: true,
+        completed_at: completedAt,
+        events: setupEvents,
+        inventory: projectInventory([...existingEvents, ...setupEvents]),
+      },
+      201,
+    );
     return;
   }
 

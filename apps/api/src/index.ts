@@ -6,6 +6,7 @@ import {
   ConfirmActionRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
+  FridgeSetupRequestSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
   ShoppingItemContextRequestSchema,
@@ -28,6 +29,10 @@ import {
   parseAnnotationQueueQuery,
 } from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
+import {
+  buildFridgeSetupEvents,
+  fridgeSetupCompletedKey,
+} from "./domain/fridge-setup";
 import { parseCommand } from "./nlp/parse-command";
 import {
   resolveStoredTemporalGrounding,
@@ -497,11 +502,11 @@ async function handleCreateEvent(
       event.id,
       event.event_type,
       event.item_name,
-      event.quantity,
-      event.unit,
-      event.location,
-      event.expiration_date,
-      event.low_threshold,
+      event.quantity ?? null,
+      event.unit ?? null,
+      event.location ?? null,
+      event.expiration_date ?? null,
+      event.low_threshold ?? null,
       event.raw_utterance,
       event.confidence,
       event.source,
@@ -624,6 +629,79 @@ async function handleInventoryMutation(
   ).run();
 
   return json(request, env, event, 201);
+}
+
+async function readFridgeSetupCompletedAt(env: Env): Promise<string | null> {
+  const row = await env.DB.prepare(
+    "SELECT value FROM app_state WHERE key = ?",
+  ).bind(fridgeSetupCompletedKey).first<{ value: string }>();
+  return row?.value ?? null;
+}
+
+async function handleFridgeSetup(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = FridgeSetupRequestSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return json(
+      request,
+      env,
+      { error: "Invalid fridge setup", details: parsed.error.flatten() },
+      400,
+    );
+  }
+
+  if (await readFridgeSetupCompletedAt(env)) {
+    return json(request, env, { error: "Fridge setup is already complete" }, 409);
+  }
+
+  const existingEvents = await readEvents(env);
+  const completedAt = new Date().toISOString();
+  const setupEvents = buildFridgeSetupEvents(
+    parsed.data.items,
+    projectInventory(existingEvents),
+    completedAt,
+  );
+  const statements = setupEvents.map((event) =>
+    env.DB.prepare(
+      `INSERT INTO events (
+        id, event_type, item_name, quantity, unit, location,
+        expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      event.id,
+      event.event_type,
+      event.item_name,
+      event.quantity ?? null,
+      event.unit ?? null,
+      event.location ?? null,
+      event.expiration_date ?? null,
+      event.low_threshold ?? null,
+      event.raw_utterance,
+      event.confidence,
+      event.source,
+      event.created_at,
+    ),
+  );
+  statements.push(
+    env.DB.prepare(
+      "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
+    ).bind(fridgeSetupCompletedKey, completedAt, completedAt),
+  );
+
+  await env.DB.batch(statements);
+  return json(
+    request,
+    env,
+    {
+      completed: true,
+      completed_at: completedAt,
+      events: setupEvents,
+      inventory: projectInventory([...existingEvents, ...setupEvents]),
+    },
+    201,
+  );
 }
 
 async function handleShoppingMutation(
@@ -827,6 +905,18 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "POST" && url.pathname === "/events") {
     return handleCreateEvent(request, env);
+  }
+
+  if (request.method === "GET" && url.pathname === "/fridge-setup/status") {
+    const completedAt = await readFridgeSetupCompletedAt(env);
+    return json(request, env, {
+      completed: completedAt !== null,
+      completed_at: completedAt,
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/fridge-setup") {
+    return handleFridgeSetup(request, env);
   }
 
   if (request.method === "POST" && url.pathname === "/inferences/outcome") {

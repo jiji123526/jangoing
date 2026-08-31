@@ -177,6 +177,10 @@ export function projectInventory(
         sourcePurchaseId: null,
         forcedStatusBeforePurchase: null,
       });
+      if (event.low_threshold !== null && event.low_threshold !== undefined) {
+        state.lowThreshold = event.low_threshold;
+        state.lowThresholdUnit = event.unit ?? null;
+      }
       state.forcedStatus = null;
     }
 

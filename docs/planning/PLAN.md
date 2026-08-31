@@ -78,6 +78,8 @@ The text MVP is implemented and deployable:
   cross-split text and phrase-family leakage checks
 - Optional conversation, turn, speaker, and activation metadata persisted in
   inference request context and reviewed exports
+- Guided first-run fridge setup with a locally recoverable draft, atomic bulk
+  event write, and explicit persisted completion state
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -154,12 +156,16 @@ These limitations are acceptable only while every state-changing action requires
   account routing
 - Projection-derived Today priorities, confirmable Suggested Actions, Inventory
   Snapshot, and expiry-ordered Waste Prevention on Home
+- First-run `Set Up My Fridge` onboarding for entering multiple current items,
+  reviewing quantity, unit, location, expiry, and low threshold, then saving
+  the snapshot atomically
 - Weekly Summary reserved for a separate analytics tab rather than expanding
   Home with historical reporting
 - Consumer navigation exposes `/analytics` in the center tab; the internal
   `/annotate` workspace remains direct-URL-only and has no product UI link
 - All five consumer tabs, their bottom navigation, and the Home mini-player use
-  a fluid 430px maximum shell; the Annotation workspace keeps its desktop width
+  a fluid 430px maximum shell, including the footer surface and divider; the
+  Annotation workspace keeps its desktop width
 - Search is a read-only lookup with a sliding Inventory / Shopping List scope
   and scope-specific status chips using Apple Music's focus-to-chip transition
 - Weekly Analytics requests the complete event window through
@@ -184,6 +190,20 @@ These limitations are acceptable only while every state-changing action requires
   both remain core post-MVP goals.
 
 ## Primary User Flow
+
+Initial household setup:
+
+1. Home checks the persisted `fridge_setup_completed_at` application state.
+2. An incomplete household sees `Set Up My Fridge` before the Today section.
+3. The user enters multiple current items and reviews each item's details.
+4. The API validates the full snapshot and writes all setup events plus the
+   completion state in one transaction.
+5. Existing tracked items are adjusted; new items are added. Existing items
+   omitted from the setup are left unchanged.
+6. Setup events use `source = fridge_setup` and bypass inference logging, so
+   form-entered bootstrap data does not become NLP training data.
+
+Ongoing natural-language update:
 
 1. The user enters `Add two cartons of milk`.
 2. The user optionally selects an expiry date.
@@ -627,6 +647,7 @@ Completion: `We are low on milk` is parsed, confirmed, persisted, and visible th
 
 - Command and optional expiry inputs
 - Interpretation preview and confirmation
+- Guided bulk initial-fridge setup with explicit completion state
 - Home briefing and horizontally swipeable recent-item cards
 - Inventory and shopping-list views
 - Loading, empty, and error states

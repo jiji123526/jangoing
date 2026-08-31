@@ -2,6 +2,55 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Guided Set Up My Fridge onboarding
+
+### Completed
+
+- Added a prominent first-run Home hero that opens a three-step fridge setup:
+  item entry, inventory details, and final review.
+- Persisted unfinished setup drafts in browser local storage.
+- Added `GET /fridge-setup/status` and atomic `POST /fridge-setup` endpoints to
+  both the Cloudflare Worker and local SQLite API.
+- Added migration `0010_create_app_state.sql` and persisted the explicit
+  `fridge_setup_completed_at` state independently from inventory size.
+- Added setup events with `source = fridge_setup`; these events do not create
+  inference logs and therefore do not enter NLP annotation queues.
+- New setup items use `item_added`, while already tracked items use
+  `item_adjusted`. Omitted existing items are not removed or set to zero.
+- Added setup request validation for canonical names, positive quantities,
+  optional details, a 100-item limit, and duplicate item rejection.
+- Updated inventory projection so a low threshold supplied on an initial
+  `item_added` event is retained.
+
+### Verification
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api`: 117 tests passed
+- `npm run build --workspace @jangoing/web`
+- Local SQLite end-to-end status, setup save, state persistence, and inventory
+  projection were exercised with a clean temporary database.
+
+### Deployment
+
+1. Run `npm run db:migrate:remote`.
+2. Run `npm run deploy:api`.
+3. Push/redeploy the Vercel web app.
+
+The migration and Worker must reach production before the new Home UI.
+
+## 2026-08-31 - Bottom navigation width matched to consumer pages
+
+### Completed
+
+- Constrained the entire bottom-navigation surface and top divider to the same
+  fluid 430px shell as the five consumer pages.
+- Centered the fixed footer and matched its inline border to the page shell.
+- Kept the internal five-tab row at 100% of the footer width.
+
+### Deployment
+
+- This change is Web-only.
+
 ## 2026-08-31 - Search scope now slides between Inventory and Shopping List
 
 ### Completed

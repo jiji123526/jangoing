@@ -8,6 +8,7 @@ import type {
   InventoryItem,
   LoggedInterpretation,
   ShoppingListItem,
+  FridgeSetupStatus,
 } from "@jangoing/contracts";
 import {
   CalendarDays,
@@ -29,6 +30,7 @@ import {
   createEvent,
   deleteShoppingItem,
   getDashboardData,
+  getFridgeSetupStatus,
   getInventoryData,
   getShoppingListData,
   interpretCommand,
@@ -39,6 +41,7 @@ import {
   updateInferenceOutcome,
   type DashboardData,
 } from "../lib/api";
+import { FridgeSetupDialog } from "./FridgeSetupDialog";
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
@@ -775,6 +778,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [homeQuickUpdateOpen, setHomeQuickUpdateOpen] = useState(false);
+  const [fridgeSetupOpen, setFridgeSetupOpen] = useState(false);
+  const [fridgeSetupStatus, setFridgeSetupStatus] =
+    useState<FridgeSetupStatus | null>(null);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
   const [editingInventory, setEditingInventory] = useState(false);
@@ -992,7 +998,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         ]);
         setDashboard({ ...emptyDashboard, inventory, shoppingList });
       } else {
-        setDashboard(await getDashboardData());
+        const [nextDashboard, setupStatus] = await Promise.all([
+          getDashboardData(),
+          getFridgeSetupStatus(),
+        ]);
+        setDashboard(nextDashboard);
+        setFridgeSetupStatus(setupStatus);
       }
     } catch (caught) {
       setError(
@@ -1366,6 +1377,39 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           {error && !homeQuickUpdateOpen && (
             <p className="message error home-message">{error}</p>
           )}
+
+          {!loading && fridgeSetupStatus?.completed === false && (
+            <section className="home-setup-hero" aria-labelledby="home-setup-title">
+              <span className="home-setup-icon" aria-hidden="true">
+                <PackageOpen size={28} strokeWidth={1.8} />
+              </span>
+              <div>
+                <small>START WITH A SNAPSHOT</small>
+                <h2 id="home-setup-title">Set Up My Fridge</h2>
+                <p>Add what you currently have in one guided setup.</p>
+              </div>
+              <button type="button" onClick={() => setFridgeSetupOpen(true)}>
+                Start
+              </button>
+            </section>
+          )}
+
+          <FridgeSetupDialog
+            open={fridgeSetupOpen}
+            inventory={dashboard.inventory}
+            onClose={() => setFridgeSetupOpen(false)}
+            onComplete={(result) => {
+              setFridgeSetupStatus({
+                completed: result.completed,
+                completed_at: result.completed_at,
+              });
+              setDashboard((current) => ({
+                ...current,
+                inventory: result.inventory,
+                events: [...result.events].reverse().concat(current.events),
+              }));
+            }}
+          />
 
           <section className="home-section" aria-labelledby="today-heading">
             <div className="home-section-heading">

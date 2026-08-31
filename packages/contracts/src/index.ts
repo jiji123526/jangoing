@@ -515,7 +515,7 @@ export const CreateEventRequestSchema = z
     low_threshold: z.number().positive().nullable().optional(),
     raw_utterance: z.string().trim().min(1).max(500),
     confidence: z.number().min(0).max(1),
-    source: z.enum(["web", "voice"]).default("web"),
+    source: z.enum(["web", "voice", "fridge_setup"]).default("web"),
   })
   .strict();
 
@@ -569,6 +569,54 @@ export const ShoppingListItemSchema = z.object({
   expiration_date: IsoDateSchema.nullable().default(null),
 });
 
+export const FridgeSetupItemSchema = z
+  .object({
+    item_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(
+        /^[a-z0-9]+(?:_[a-z0-9]+)*$/,
+        "Use a lowercase canonical name such as oat_milk",
+      ),
+    quantity: z.number().positive(),
+    unit: z.string().trim().min(1).max(40).nullable().default(null),
+    location: LocationSchema.nullable().default("fridge"),
+    expiration_date: IsoDateSchema.nullable().default(null),
+    low_threshold: z.number().positive().nullable().default(null),
+  })
+  .strict();
+
+export const FridgeSetupRequestSchema = z
+  .object({
+    items: z.array(FridgeSetupItemSchema).min(1).max(100),
+  })
+  .strict()
+  .superRefine((request, context) => {
+    const seen = new Set<string>();
+    request.items.forEach((item, index) => {
+      if (seen.has(item.item_name)) {
+        context.addIssue({
+          code: "custom",
+          path: ["items", index, "item_name"],
+          message: "Each canonical item name can appear only once",
+        });
+      }
+      seen.add(item.item_name);
+    });
+  });
+
+export const FridgeSetupStatusSchema = z.object({
+  completed: z.boolean(),
+  completed_at: z.string().nullable(),
+});
+
+export const FridgeSetupResponseSchema = FridgeSetupStatusSchema.extend({
+  events: z.array(EventRecordSchema),
+  inventory: z.array(InventoryItemSchema),
+});
+
 export type Intent = z.infer<typeof IntentSchema>;
 export type SpeakerRole = z.infer<typeof SpeakerRoleSchema>;
 export type ActivationMode = z.infer<typeof ActivationModeSchema>;
@@ -614,3 +662,7 @@ export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;
 export type EventRecord = z.infer<typeof EventRecordSchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
+export type FridgeSetupItem = z.infer<typeof FridgeSetupItemSchema>;
+export type FridgeSetupRequest = z.infer<typeof FridgeSetupRequestSchema>;
+export type FridgeSetupStatus = z.infer<typeof FridgeSetupStatusSchema>;
+export type FridgeSetupResponse = z.infer<typeof FridgeSetupResponseSchema>;

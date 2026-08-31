@@ -1,6 +1,6 @@
 # Jangoing Action Items
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 
 This document is the operational checklist for moving from annotation
 infrastructure to an English NLP MVP. [PLAN.md](./PLAN.md) describes the
@@ -11,7 +11,10 @@ completion gates.
 
 - [x] Add per-item low thresholds and quantity-derived Low/Out status.
 - [x] Add natural-language `set_low_threshold` parsing and annotation support.
-- [ ] Apply D1 migration 0009 and deploy the inventory threshold update.
+- [x] Apply D1 migration 0009 and deploy the inventory threshold update.
+- [x] Implement atomic guided initial-fridge setup in Worker, local API, and Home.
+- [ ] Apply D1 migration 0010 and deploy the fridge setup Worker before Vercel.
+- [ ] Verify one production setup with a test household before wider use.
 - [x] Store original `reference_date`, `timezone`, and inference timestamp.
 - [x] Normalize relative expiry language with deterministic shared code.
 - [x] Ground assistant expiry proposals to original inference context.
