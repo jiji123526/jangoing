@@ -9,6 +9,8 @@ interface Batch {
   unit: string | null;
   location: InventoryItem["location"];
   expirationDate: string | null;
+  sourcePurchaseId: string | null;
+  forcedStatusBeforePurchase: InventoryItem["status"] | null;
 }
 
 interface ItemState {
@@ -76,11 +78,7 @@ export function projectInventory(
   const states = new Map<string, ItemState>();
 
   for (const event of events) {
-    if (
-      event.event_type === "item_added_to_buy" ||
-      event.event_type === "shopping_item_purchased" ||
-      event.event_type === "shopping_item_restored"
-    ) {
+    if (event.event_type === "item_added_to_buy") {
       continue;
     }
 
@@ -96,6 +94,40 @@ export function projectInventory(
       lowThresholdUnit: null,
       visible: false,
     };
+
+    if (event.event_type === "shopping_item_purchased") {
+      // Legacy purchase events had no context and must not retroactively add stock.
+      if (event.quantity === null || event.quantity === undefined) {
+        continue;
+      }
+      state.batches.push({
+        quantity: event.quantity,
+        unit: event.unit ?? null,
+        location: event.location ?? "fridge",
+        expirationDate: event.expiration_date ?? null,
+        sourcePurchaseId: event.id,
+        forcedStatusBeforePurchase: state.forcedStatus,
+      });
+      state.forcedStatus = null;
+      states.set(event.item_name, state);
+      continue;
+    }
+
+    if (event.event_type === "shopping_item_restored") {
+      let purchaseBatchIndex = -1;
+      for (let index = state.batches.length - 1; index >= 0; index -= 1) {
+        if (state.batches[index].sourcePurchaseId !== null) {
+          purchaseBatchIndex = index;
+          break;
+        }
+      }
+      if (purchaseBatchIndex >= 0) {
+        const [purchaseBatch] = state.batches.splice(purchaseBatchIndex, 1);
+        state.forcedStatus = purchaseBatch.forcedStatusBeforePurchase;
+      }
+      states.set(event.item_name, state);
+      continue;
+    }
 
     if (event.event_type === "item_low_threshold_set") {
       state.lowThreshold = event.low_threshold ?? null;
@@ -122,6 +154,8 @@ export function projectInventory(
         unit: event.unit ?? null,
         location: event.location ?? null,
         expirationDate: event.expiration_date ?? null,
+        sourcePurchaseId: null,
+        forcedStatusBeforePurchase: null,
       }];
       state.lowThreshold = nextLowThreshold;
       state.lowThresholdUnit =
@@ -137,6 +171,8 @@ export function projectInventory(
         unit: event.unit ?? null,
         location: event.location ?? "fridge",
         expirationDate: event.expiration_date ?? null,
+        sourcePurchaseId: null,
+        forcedStatusBeforePurchase: null,
       });
       state.forcedStatus = null;
     }
@@ -164,7 +200,10 @@ export function projectInventory(
   }
 
   return [...states.entries()]
-    .filter(([, state]) => state.visible)
+    .filter(([, state]) =>
+      state.visible ||
+      state.batches.some((batch) => batch.sourcePurchaseId !== null),
+    )
     .map(([itemName, state]): InventoryItem => {
       const quantity = state.batches.reduce(
         (total, batch) => total + batch.quantity,
@@ -217,6 +256,10 @@ export function projectShoppingList(
         added_at: event.created_at,
         status: "active",
         purchased_at: null,
+        quantity: event.quantity ?? 1,
+        unit: event.unit ?? null,
+        location: event.location ?? null,
+        expiration_date: event.expiration_date ?? null,
       });
     }
 

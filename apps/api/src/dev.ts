@@ -8,6 +8,7 @@ import {
   EventRecordSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
+  ShoppingItemContextRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
   type Interpretation,
@@ -695,6 +696,55 @@ async function route(
     }
 
     const action = shoppingMutation[2] as "add" | "purchase" | "restore";
+    const parsedContext = ShoppingItemContextRequestSchema.safeParse(
+      (await readBody(request)) ?? {},
+    );
+    if (!parsedContext.success) {
+      sendJson(
+        response,
+        origin,
+        {
+          error: "Invalid shopping item context",
+          details: parsedContext.error.flatten(),
+        },
+        400,
+      );
+      return;
+    }
+    const currentItem = action === "add"
+      ? null
+      : projectShoppingList(
+          events(),
+          new Date(),
+          Number.POSITIVE_INFINITY,
+        ).find((item) => item.item_name === itemName) ?? null;
+    if (
+      action === "purchase" &&
+      (!currentItem || currentItem.status !== "active")
+    ) {
+      sendJson(response, origin, { error: "Active shopping item not found" }, 409);
+      return;
+    }
+    if (
+      action === "restore" &&
+      (!currentItem || currentItem.status !== "purchased")
+    ) {
+      sendJson(
+        response,
+        origin,
+        { error: "Purchased shopping item not found" },
+        409,
+      );
+      return;
+    }
+    const context = currentItem
+      ? {
+          quantity: currentItem.quantity,
+          unit: currentItem.unit,
+          location: currentItem.location,
+          expiration_date: currentItem.expiration_date,
+        }
+      : parsedContext.data;
     const event: EventRecord = {
       id: crypto.randomUUID(),
       event_type:
@@ -704,10 +754,10 @@ async function route(
           ? "shopping_item_purchased"
           : "shopping_item_restored",
       item_name: itemName,
-      quantity: null,
-      unit: null,
-      location: null,
-      expiration_date: null,
+      quantity: context.quantity,
+      unit: context.unit,
+      location: context.location,
+      expiration_date: context.expiration_date,
       low_threshold: null,
       raw_utterance:
         action === "add"

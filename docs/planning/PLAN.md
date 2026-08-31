@@ -289,6 +289,11 @@ MVP event types:
 - `item_marked_low`
 - `item_thrown_away`
 - `item_added_to_buy`
+- `shopping_item_purchased`
+- `shopping_item_restored`
+- `item_low_threshold_set`
+- `item_adjusted`
+- `item_removed`
 
 Event fields:
 
@@ -305,6 +310,13 @@ Event fields:
 - `created_at`
 
 For MVP-scale data, read endpoints replay all events. A materialized projection can be added when event volume justifies it.
+
+Shopping items reuse `quantity`, `unit`, `location`, and `expiration_date` as
+planned purchase context. A context-aware `shopping_item_purchased` event adds
+one reversible inventory batch. `shopping_item_restored` removes only that
+purchase batch, preserving inventory that existed before the purchase. Legacy
+purchase events with no quantity remain shopping history and do not
+retroactively change inventory.
 
 ## Architecture
 
@@ -360,6 +372,12 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 - `POST /events`: store a confirmed state-changing action
 - `GET /inventory`: return current projected inventory
 - `GET /shopping-list`: return projected shopping items
+- `POST /shopping-list/:item/add`: add or replace an active item and its planned
+  purchase context
+- `POST /shopping-list/:item/purchase`: mark the item purchased and add its
+  context as an inventory batch
+- `POST /shopping-list/:item/restore`: restore the item and remove only its
+  purchase-created inventory batch
 - `GET /events`: return recent event history
 - `GET /health`: health check
 - `POST /inferences/outcome`: record reviewed non-event outcomes

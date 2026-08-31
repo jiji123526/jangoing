@@ -19,6 +19,7 @@ import {
   type UpdateInferenceOutcomeRequest,
   type InventoryItem,
   type ShoppingListItem,
+  type ShoppingItemContextRequest,
   type ActivationMode,
   type AdjustInventoryItemRequest,
   type SpeakerRole,
@@ -241,10 +242,16 @@ export async function markShoppingItemPurchased(
 
 export async function addShoppingItem(
   itemName: string,
+  context: ShoppingItemContextRequest = {
+    quantity: 1,
+    unit: null,
+    location: null,
+    expiration_date: null,
+  },
 ): Promise<EventRecord> {
   const body = await apiRequest(
     `/shopping-list/${encodeURIComponent(itemName)}/add`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify(context) },
   );
   return EventRecordSchema.parse(body);
 }

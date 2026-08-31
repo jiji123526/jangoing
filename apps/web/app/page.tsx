@@ -6,6 +6,7 @@ import type {
   Intent,
   InventoryItem,
   LoggedInterpretation,
+  ShoppingListItem,
 } from "@jangoing/contracts";
 import {
   CalendarDays,
@@ -228,6 +229,26 @@ function shoppingInventoryStatusLabel(item: InventoryItem | undefined): string {
   const amount = quantityLabel(item);
   if (item.status === "low") return `Low · ${amount} left`;
   return `In stock · ${amount}`;
+}
+
+function shoppingPurchaseContextLabel(item: ShoppingListItem): string {
+  const unit = item.unit
+    ? `${item.unit}${
+        item.quantity > 1 &&
+        item.unit !== "dozen" &&
+        !item.unit.endsWith("s")
+          ? "s"
+          : ""
+      }`
+    : "";
+  const parts = [
+    `Buy ${item.quantity}${unit ? ` ${unit}` : ""}`,
+    item.location ? titleCase(item.location) : null,
+    item.expiration_date
+      ? `Expires ${editorDateLabel(item.expiration_date)}`
+      : null,
+  ].filter((part): part is string => part !== null);
+  return parts.join(" · ");
 }
 
 const shoppingSwipeActionWidth = 84;
@@ -666,8 +687,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [shoppingSaving, setShoppingSaving] = useState<string | null>(null);
   const [shoppingAddOpen, setShoppingAddOpen] = useState(false);
   const [shoppingDraft, setShoppingDraft] = useState("");
+  const [shoppingQuantityDraft, setShoppingQuantityDraft] = useState("1");
+  const [shoppingUnitDraft, setShoppingUnitDraft] = useState("");
+  const [shoppingLocationDraft, setShoppingLocationDraft] =
+    useState<"" | NonNullable<InventoryItem["location"]>>("fridge");
+  const [shoppingExpiryDraft, setShoppingExpiryDraft] = useState("");
   const [revealedShoppingItem, setRevealedShoppingItem] =
     useState<string | null>(null);
+  const shoppingAddDialogRef = useRef<HTMLDialogElement>(null);
 
   const attentionItems = useMemo(
     () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
@@ -731,6 +758,17 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     void loadDashboard();
   }, [view]);
 
+  useEffect(() => {
+    const dialog = shoppingAddDialogRef.current;
+    if (!dialog) return;
+
+    if (shoppingAddOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!shoppingAddOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [shoppingAddOpen]);
+
   async function handleSaveInventoryItem(
     itemName: string,
     update: Parameters<typeof updateInventoryItem>[1],
@@ -775,8 +813,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       } else {
         await restoreShoppingItem(itemName);
       }
-      const shoppingList = await getShoppingListData();
-      setDashboard((current) => ({ ...current, shoppingList }));
+      const [inventory, shoppingList] = await Promise.all([
+        getInventoryData(),
+        getShoppingListData(),
+      ]);
+      setDashboard((current) => ({ ...current, inventory, shoppingList }));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -788,11 +829,24 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     }
   }
 
-  async function handleAddRecommendation(itemName: string) {
-    setShoppingSaving(itemName);
+  function resetShoppingDraft() {
+    setShoppingDraft("");
+    setShoppingQuantityDraft("1");
+    setShoppingUnitDraft("");
+    setShoppingLocationDraft("fridge");
+    setShoppingExpiryDraft("");
+  }
+
+  async function handleAddRecommendation(item: InventoryItem) {
+    setShoppingSaving(item.item_name);
     setError(null);
     try {
-      await addShoppingItem(itemName);
+      await addShoppingItem(item.item_name, {
+        quantity: 1,
+        unit: item.unit,
+        location: item.location,
+        expiration_date: null,
+      });
       const shoppingList = await getShoppingListData();
       setDashboard((current) => ({ ...current, shoppingList }));
     } catch (caught) {
@@ -809,15 +863,21 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   async function handleManualShoppingAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const itemName = canonicalItemName(shoppingDraft);
-    if (!itemName) return;
+    const quantity = Number(shoppingQuantityDraft);
+    if (!itemName || !Number.isFinite(quantity) || quantity <= 0) return;
 
     setShoppingSaving(itemName);
     setError(null);
     try {
-      await addShoppingItem(itemName);
+      await addShoppingItem(itemName, {
+        quantity,
+        unit: shoppingUnitDraft.trim() || null,
+        location: shoppingLocationDraft || null,
+        expiration_date: shoppingExpiryDraft || null,
+      });
       const shoppingList = await getShoppingListData();
       setDashboard((current) => ({ ...current, shoppingList }));
-      setShoppingDraft("");
+      resetShoppingDraft();
       setShoppingAddOpen(false);
     } catch (caught) {
       setError(
@@ -1356,41 +1416,124 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               className="shopping-add-trigger"
               type="button"
               aria-expanded={shoppingAddOpen}
-              aria-controls="shopping-manual-add"
+              aria-controls="shopping-add-dialog"
               onClick={() => {
-                setShoppingAddOpen((current) => !current);
-                setShoppingDraft("");
+                resetShoppingDraft();
+                setError(null);
+                setShoppingAddOpen(true);
               }}
             >
               + Add
             </button>
           </div>
 
-          {error && <p className="message error shopping-message">{error}</p>}
+          {error && !shoppingAddOpen && (
+            <p className="message error shopping-message">{error}</p>
+          )}
 
-          {shoppingAddOpen && (
+          <dialog
+            className="shopping-add-dialog"
+            id="shopping-add-dialog"
+            ref={shoppingAddDialogRef}
+            aria-labelledby="shopping-add-dialog-title"
+            onCancel={() => setShoppingAddOpen(false)}
+            onClose={() => setShoppingAddOpen(false)}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                setShoppingAddOpen(false);
+              }
+            }}
+          >
             <form
-              className="shopping-manual-add"
-              id="shopping-manual-add"
+              className="shopping-add-dialog-form"
               onSubmit={handleManualShoppingAdd}
             >
-              <input
-                autoFocus
-                required
-                maxLength={120}
-                aria-label="New shopping item"
-                placeholder="Item name"
-                value={shoppingDraft}
-                onChange={(event) => setShoppingDraft(event.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={!shoppingDraft.trim() || shoppingSaving !== null}
-              >
-                Add
-              </button>
+              <div className="shopping-add-dialog-header">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetShoppingDraft();
+                    setError(null);
+                    setShoppingAddOpen(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <h3 id="shopping-add-dialog-title">Add Item</h3>
+                <button
+                  type="submit"
+                  disabled={!shoppingDraft.trim() || shoppingSaving !== null}
+                >
+                  {shoppingSaving !== null ? "Adding…" : "Add"}
+                </button>
+              </div>
+              <div className="shopping-add-fields">
+                <label>
+                  <span>Item</span>
+                  <input
+                    autoFocus
+                    required
+                    maxLength={120}
+                    autoComplete="off"
+                    placeholder="e.g. Oat milk"
+                    value={shoppingDraft}
+                    onChange={(event) => setShoppingDraft(event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Quantity</span>
+                  <input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    inputMode="decimal"
+                    value={shoppingQuantityDraft}
+                    onChange={(event) =>
+                      setShoppingQuantityDraft(event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Unit</span>
+                  <input
+                    maxLength={40}
+                    placeholder="Optional"
+                    value={shoppingUnitDraft}
+                    onChange={(event) => setShoppingUnitDraft(event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Location</span>
+                  <select
+                    value={shoppingLocationDraft}
+                    onChange={(event) =>
+                      setShoppingLocationDraft(
+                        event.target.value as typeof shoppingLocationDraft,
+                      )
+                    }
+                  >
+                    <option value="">Not set</option>
+                    <option value="fridge">Fridge</option>
+                    <option value="freezer">Freezer</option>
+                    <option value="pantry">Pantry</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Expiry</span>
+                  <input
+                    type="date"
+                    value={shoppingExpiryDraft}
+                    onChange={(event) =>
+                      setShoppingExpiryDraft(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+              <p>This context will be added to Inventory when marked purchased.</p>
+              {error && <p className="shopping-add-dialog-error">{error}</p>}
             </form>
-          )}
+          </dialog>
 
           {loading ? (
             <p className="empty-state shopping-empty">Loading shopping list...</p>
@@ -1427,7 +1570,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           aria-label={`Add ${titleCase(item.item_name)} to shopping list`}
                           disabled={shoppingSaving === item.item_name}
                           onClick={() =>
-                            void handleAddRecommendation(item.item_name)
+                            void handleAddRecommendation(item)
                           }
                         >
                           <span aria-hidden="true">+</span>
@@ -1454,9 +1597,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <ShoppingSwipeRow
                         key={item.item_name}
                         itemName={item.item_name}
-                        secondaryText={shoppingInventoryStatusLabel(
-                          inventoryByItemName.get(item.item_name),
-                        )}
+                        secondaryText={[
+                          shoppingInventoryStatusLabel(
+                            inventoryByItemName.get(item.item_name),
+                          ),
+                          shoppingPurchaseContextLabel(item),
+                        ].join(" · ")}
                         actionLabel="Done"
                         busy={shoppingSaving === item.item_name}
                         open={revealedShoppingItem === item.item_name}

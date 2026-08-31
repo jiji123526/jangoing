@@ -8,9 +8,11 @@ import {
   EventRecordSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
+  ShoppingItemContextRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
   type Interpretation,
+  type ShoppingItemContextRequest,
 } from "@jangoing/contracts";
 import {
   buildAnnotationAssistantProposal,
@@ -621,7 +623,43 @@ async function handleShoppingMutation(
   env: Env,
   itemName: string,
   action: "add" | "purchase" | "restore",
+  requestedContext: ShoppingItemContextRequest,
 ): Promise<Response> {
+  const existingEvents = action === "add" ? [] : await readEvents(env);
+  const currentItem = action === "add"
+    ? null
+    : projectShoppingList(
+        existingEvents,
+        new Date(),
+        Number.POSITIVE_INFINITY,
+      ).find((item) => item.item_name === itemName) ?? null;
+
+  if (
+    action === "purchase" &&
+    (!currentItem || currentItem.status !== "active")
+  ) {
+    return json(request, env, { error: "Active shopping item not found" }, 409);
+  }
+  if (
+    action === "restore" &&
+    (!currentItem || currentItem.status !== "purchased")
+  ) {
+    return json(
+      request,
+      env,
+      { error: "Purchased shopping item not found" },
+      409,
+    );
+  }
+
+  const context = currentItem
+    ? {
+        quantity: currentItem.quantity,
+        unit: currentItem.unit,
+        location: currentItem.location,
+        expiration_date: currentItem.expiration_date,
+      }
+    : requestedContext;
   const event: EventRecord = {
     id: crypto.randomUUID(),
     event_type:
@@ -631,10 +669,10 @@ async function handleShoppingMutation(
         ? "shopping_item_purchased"
         : "shopping_item_restored",
     item_name: itemName,
-    quantity: null,
-    unit: null,
-    location: null,
-    expiration_date: null,
+    quantity: context.quantity,
+    unit: context.unit,
+    location: context.location,
+    expiration_date: context.expiration_date,
     low_threshold: null,
     raw_utterance:
       action === "add"
@@ -693,11 +731,32 @@ async function route(request: Request, env: Env): Promise<Response> {
       return json(request, env, { error: "Invalid item name" }, 400);
     }
     if (!itemName) return json(request, env, { error: "Invalid item name" }, 400);
+    const rawContext = await request.text();
+    let contextPayload: unknown = {};
+    try {
+      contextPayload = rawContext ? JSON.parse(rawContext) : {};
+    } catch {
+      return json(request, env, { error: "Invalid shopping item context" }, 400);
+    }
+    const parsedContext =
+      ShoppingItemContextRequestSchema.safeParse(contextPayload);
+    if (!parsedContext.success) {
+      return json(
+        request,
+        env,
+        {
+          error: "Invalid shopping item context",
+          details: parsedContext.error.flatten(),
+        },
+        400,
+      );
+    }
     return handleShoppingMutation(
       request,
       env,
       itemName,
       shoppingMutation[2] as "add" | "purchase" | "restore",
+      parsedContext.data,
     );
   }
 

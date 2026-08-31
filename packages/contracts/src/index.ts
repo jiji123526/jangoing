@@ -494,6 +494,15 @@ export const AdjustInventoryItemRequestSchema = z
   })
   .strict();
 
+export const ShoppingItemContextRequestSchema = z
+  .object({
+    quantity: z.number().positive().default(1),
+    unit: z.string().trim().min(1).max(40).nullable().default(null),
+    location: LocationSchema.nullable().default(null),
+    expiration_date: IsoDateSchema.nullable().default(null),
+  })
+  .strict();
+
 export const CreateEventRequestSchema = z
   .object({
     event_type: EventTypeSchema,
@@ -553,6 +562,10 @@ export const ShoppingListItemSchema = z.object({
   added_at: z.string(),
   status: z.enum(["active", "purchased"]).default("active"),
   purchased_at: z.string().nullable().default(null),
+  quantity: z.number().positive().default(1),
+  unit: z.string().nullable().default(null),
+  location: LocationSchema.nullable().default(null),
+  expiration_date: IsoDateSchema.nullable().default(null),
 });
 
 export type Intent = z.infer<typeof IntentSchema>;
@@ -591,6 +604,9 @@ export type UpdateInferenceOutcomeRequest = z.infer<
 export type EventType = z.infer<typeof EventTypeSchema>;
 export type AdjustInventoryItemRequest = z.infer<
   typeof AdjustInventoryItemRequestSchema
+>;
+export type ShoppingItemContextRequest = z.infer<
+  typeof ShoppingItemContextRequestSchema
 >;
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
 export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;

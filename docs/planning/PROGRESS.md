@@ -2,6 +2,82 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Shopping purchases now update inventory
+
+### Completed
+
+- Added quantity, unit, location, and expiration context to projected shopping
+  items without adding D1 columns.
+- Extended the manual Add Item dialog with fields for all purchase context.
+- Prefilled one-tap inventory recommendations with quantity one and the
+  inventory item's current unit and location.
+- Displayed current inventory status and planned purchase context together on
+  every To Buy row.
+- Made a context-aware purchase event add a tracked inventory batch.
+- Made Undo remove only the batch created by that purchase, preserving older
+  inventory.
+- Refetched both shopping and inventory projections after Done/Undo so status
+  text and recommendations update immediately.
+- Added API validation that rejects purchase/restore requests for items in the
+  wrong shopping state.
+- Protected production history by ignoring legacy purchase events whose
+  quantity/context was not recorded.
+
+### Decisions
+
+- Reuse existing event columns instead of introducing a shopping-details table
+  or D1 migration.
+- Treat planned context stored on `item_added_to_buy` as the server-authoritative
+  purchase payload.
+- Keep recommendation addition one-tap by inferring unit and location, while
+  manual additions collect full context in the dialog.
+- Deploy Worker/contracts before Vercel because inventory projection and
+  mutation semantics changed.
+
+### Validation
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api` (110 tests)
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+
+## 2026-08-31 - Manual shopping add moved to a dialog
+
+### Completed
+
+- Replaced the inline manual shopping form with a native modal dialog.
+- Added a focused item-name field, format hint, and navbar-style Cancel/Add
+  actions.
+- Kept failed submissions open and displayed their error inside the dialog.
+- Added Escape, backdrop-click, focus-trap, and disabled-submit behavior.
+
+### Decisions
+
+- Use the browser's native dialog semantics instead of recreating focus
+  management and modal accessibility with generic div elements.
+- Keep recommendation additions as one-tap actions; only free-form manual
+  additions require the dialog.
+
+## 2026-08-31 - Shopping recommendation production 404 diagnosed
+
+### Problem
+
+- The recommendation `+` action returned `Not found` in production while
+  shopping-list reads continued to work.
+
+### Cause
+
+- The web app calls `POST /shopping-list/:item/add`, which was introduced after
+  the original purchase/restore Worker routes.
+- A Vercel deployment using the new web client against an older Worker returns
+  the Worker's route-level 404 response.
+
+### Resolution
+
+- Deploy the current Worker before testing the recommendation action again.
+- No D1 migration is required because the action writes the existing
+  `item_added_to_buy` event type into the existing `events` table.
+
 ## 2026-08-31 - Inventory-scale shopping typography adopted
 
 ### Completed

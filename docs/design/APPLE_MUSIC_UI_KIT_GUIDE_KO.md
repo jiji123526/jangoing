@@ -253,8 +253,9 @@ navbar와 artwork가 있는 기본 Table View Row를 사용한다. 추천, 구�
 3. primary label은 item name이다. 원본의 artist-name 위치인 secondary label은
    suggestion에서 `Low stock · quantity`, To Buy에서 현재 inventory projection
    상태(`Out of stock`, `Low · 3 cartons left`, `In stock · 5 cartons`,
-   `Not tracked in inventory`), Purchased에서 `Purchased Aug 31, 2026` 형식의
-   실제 완료일을 표시한다.
+   `Not tracked in inventory`)와 구매 예정 context(`Buy 2 cartons · Fridge ·
+   Expires Sep 4, 2026`), Purchased에서 `Purchased Aug 31, 2026` 형식의 실제
+   완료일을 표시한다.
 4. `Suggested from Inventory`는 현재 `low`이고 To Buy/Purchased에 없는 item만
    표시하며 trailing `28×28` pink `+`로 추가한다.
 5. `To Buy` item은 checkbox 대신 왼쪽 swipe로 오른쪽의 84px green `Done`
@@ -274,7 +275,12 @@ Shopping add control의 구현 값:
 - recommendation trailing `+`: visual `28×28px`, pink `#FF2D55`,
   row 안의 실제 button hit area는 `52×56px`.
 - icon-only plus는 border, circle fill, shadow를 추가하지 않는다.
-- `+ Add`를 누르면 compact manual-item form을 열고, 성공한 뒤 form을 닫는다.
+- `+ Add`를 누르면 native modal dialog를 연다. dialog는 `Add Item` 제목,
+  `Cancel`/`Add` actions, item, quantity, unit, location, expiry fields를
+  제공하고 성공한 뒤 닫힌다. Escape와 backdrop click도 취소 동작으로 처리한다.
+- `Done`은 저장된 구매 context를 가진 purchase event를 만들며 inventory에
+  새 batch로 반영한다. `Undo`는 그 purchase batch만 제거하고 기존 inventory
+  batch는 건드리지 않는다.
 
 Album artwork, transport, mini player, playback control은 shopping action과
 관련이 없으므로 이 화면에 가져오지 않는다.

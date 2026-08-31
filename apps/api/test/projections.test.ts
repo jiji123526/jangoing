@@ -288,9 +288,59 @@ describe("projectInventory", () => {
     ).toEqual([]);
   });
 
-  it("ignores shopping-only status events", () => {
+  it("adds purchased shopping context to inventory", () => {
     expect(
       projectInventory([
+        event({
+          event_type: "item_added_to_buy",
+          item_name: "milk",
+          quantity: 2,
+          unit: "carton",
+          location: "fridge",
+          expiration_date: "2026-09-10",
+        }),
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+          quantity: 2,
+          unit: "carton",
+          location: "fridge",
+          expiration_date: "2026-09-10",
+        }),
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+        location: "fridge",
+        nearest_expiration_date: "2026-09-10",
+        status: "in_stock",
+      }),
+    ]);
+  });
+
+  it("does not retroactively stock legacy purchases without context", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+          quantity: null,
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("removes only the purchased batch when a shopping item is restored", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 1,
+          unit: "carton",
+        }),
         event({
           event_type: "item_added_to_buy",
           item_name: "milk",
@@ -298,13 +348,21 @@ describe("projectInventory", () => {
         event({
           event_type: "shopping_item_purchased",
           item_name: "milk",
+          quantity: 2,
+          unit: "carton",
         }),
         event({
           event_type: "shopping_item_restored",
           item_name: "milk",
         }),
       ]),
-    ).toEqual([]);
+    ).toEqual([
+      expect.objectContaining({
+        item_name: "milk",
+        quantity: 1,
+        unit: "carton",
+      }),
+    ]);
   });
 });
 
@@ -318,6 +376,7 @@ describe("projectShoppingList", () => {
     expect(list).toHaveLength(1);
     expect(list[0].item_name).toBe("yogurt");
     expect(list[0].status).toBe("active");
+    expect(list[0].quantity).toBe(1);
   });
 
   it("moves purchased items into a retained completed state", () => {
@@ -342,7 +401,32 @@ describe("projectShoppingList", () => {
       added_at: "2026-08-30T10:00:00.000Z",
       status: "purchased",
       purchased_at: "2026-08-31T09:00:00.000Z",
+      quantity: 1,
+      unit: null,
+      location: null,
+      expiration_date: null,
     }]);
+  });
+
+  it("preserves purchase context on the shopping item", () => {
+    const list = projectShoppingList([
+      event({
+        event_type: "item_added_to_buy",
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+        location: "fridge",
+        expiration_date: "2026-09-10",
+      }),
+    ]);
+
+    expect(list[0]).toMatchObject({
+      item_name: "milk",
+      quantity: 2,
+      unit: "carton",
+      location: "fridge",
+      expiration_date: "2026-09-10",
+    });
   });
 
   it("restores purchased items to the active queue", () => {
