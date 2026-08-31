@@ -2,6 +2,20 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Mobile tab bar bottom gap removed
+
+### Completed
+
+- Removed the fixed 34px simulated iOS home-indicator area from the web tab
+  bar, which appeared as unnecessary white space above mobile browser chrome.
+- Kept real device inset support through `env(safe-area-inset-bottom)` and
+  synchronized the page bottom padding with the rendered navigation height.
+
+### Decision
+
+- Reproduce the Figma tab row itself on the web, but let the browser provide
+  its own chrome and reserve only a real safe-area inset reported by the device.
+
 ## 2026-08-30 - Apple Music UI kit design system extracted
 
 ### Completed

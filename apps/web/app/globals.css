@@ -26,7 +26,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  padding-bottom: 83px;
+  padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px));
   background:
     linear-gradient(rgba(31, 107, 69, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(31, 107, 69, 0.045) 1px, transparent 1px),
@@ -605,8 +605,8 @@ h1 {
   right: 0;
   bottom: 0;
   left: 0;
-  height: 83px;
-  padding-bottom: 34px;
+  height: calc(49px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: #fafafa;
   border-top: 0.5px solid #c6c6c8;
   backdrop-filter: blur(15px);
