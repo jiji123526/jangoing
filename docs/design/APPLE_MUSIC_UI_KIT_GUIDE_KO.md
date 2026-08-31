@@ -294,19 +294,23 @@ container를 둔다. 구현 동작은 Seb Vidal의
 [Apple Music Search Chips 분석](https://sebvidal.com/blog/recreating-apple-musics-search-chips-ui/)
 을 웹 interaction으로 변환한다.
 
-1. search field가 focus된 동안 secondary container는 `Kitchen / History`
+1. search field가 focus된 동안 secondary container는
+   `Inventory / Shopping List`
    segmented scope를 표시한다. 검색 전 또는 cancel 후에는 container 높이를
-   `0`으로 접는다.
+   `0`으로 접는다. 선택 배경은 두 button 사이를 `300ms` spring curve로
+   이동하는 하나의 shared white pill이다.
 2. 검색 submit 후 input이 blur되면 scope는 위로 이동하며 fade out되고,
-   `Top Results`, `Inventory`, `Shopping`, `Activity` horizontal chips가
-   아래에서 이동하며 fade in된다. 전환 시간은 레퍼런스와 같은 `250ms`다.
+   scope별 상태 filter chip이 아래에서 이동하며 fade in된다. Inventory는
+   `Top Results / In Stock / Low / Out / Expiring`, Shopping List는
+   `Top Results / To Buy / Purchased`를 사용한다. 전환 시간은 레퍼런스와
+   같은 `250ms`다.
 3. chip row는 좌우 `16px` inset, horizontal scrolling, hidden scrollbar를
    사용한다. 선택 chip은 높이 `32px`, radius `16px`, accent fill과 white
    label을 사용한다. 각 button에 별도 배경을 켜지 않고 하나의 shared pill이
    선택 button의 offset과 width로 이동하도록 구현한다.
-4. 검색은 read-only다. Inventory, Shopping, 최근 50개 Activity를 local
-   projection에서 검색하고 source별 `60px` row로 그룹화한다. 상태 변경은
-   Home Quick Update에서만 수행한다.
+4. 검색은 read-only다. 선택 scope의 Inventory 또는 Shopping projection을
+   검색하고 `60px` row로 표시한다. 상태 변경은 Home Quick Update에서만
+   수행한다.
 5. 검색 전에는 최근 검색을 최대 5개 localStorage에서 표시하며, 기록이 없으면
    example query를 보여 준다.
 

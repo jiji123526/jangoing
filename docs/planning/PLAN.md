@@ -160,8 +160,8 @@ These limitations are acceptable only while every state-changing action requires
   `/annotate` workspace remains direct-URL-only and has no product UI link
 - All five consumer tabs, their bottom navigation, and the Home mini-player use
   a fluid 430px maximum shell; the Annotation workspace keeps its desktop width
-- Search is a read-only universal lookup over Inventory, Shopping, and recent
-  Activity, using Apple Music's focus-scope to submitted-chip transition
+- Search is a read-only lookup with a sliding Inventory / Shopping List scope
+  and scope-specific status chips using Apple Music's focus-to-chip transition
 - Weekly Analytics requests the complete event window through
   `GET /events?since=<ISO timestamp>` instead of using the default recent-50
   dashboard history

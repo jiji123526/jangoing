@@ -1,26 +1,38 @@
 "use client";
 
 import type {
-  EventRecord,
   InventoryItem,
   ShoppingListItem,
 } from "@jangoing/contracts";
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  getEventsData,
   getInventoryData,
   getShoppingListData,
 } from "../../lib/api";
 
-type SearchScope = "kitchen" | "history";
-type SearchTag = "top" | "inventory" | "shopping" | "activity";
+type SearchScope = "inventory" | "shopping";
+type SearchTag =
+  | "top"
+  | "in_stock"
+  | "low"
+  | "out"
+  | "expiring"
+  | "to_buy"
+  | "purchased";
 
-const searchTags: Array<{ value: SearchTag; label: string }> = [
+const inventorySearchTags: Array<{ value: SearchTag; label: string }> = [
   { value: "top", label: "Top Results" },
-  { value: "inventory", label: "Inventory" },
-  { value: "shopping", label: "Shopping" },
-  { value: "activity", label: "Activity" },
+  { value: "in_stock", label: "In Stock" },
+  { value: "low", label: "Low" },
+  { value: "out", label: "Out" },
+  { value: "expiring", label: "Expiring" },
+];
+
+const shoppingSearchTags: Array<{ value: SearchTag; label: string }> = [
+  { value: "top", label: "Top Results" },
+  { value: "to_buy", label: "To Buy" },
+  { value: "purchased", label: "Purchased" },
 ];
 
 const suggestedSearches = [
@@ -63,19 +75,12 @@ function shoppingMetadata(item: ShoppingListItem): string {
     : `To buy · ${item.quantity}${item.unit ? ` ${item.unit}` : ""}`;
 }
 
-function activityMetadata(event: EventRecord): string {
-  return `${titleCase(event.event_type)} · ${new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(event.created_at))}`;
-}
-
 function SearchArtwork({
   itemName,
   source,
 }: {
   itemName: string;
-  source: "inventory" | "shopping" | "activity";
+  source: "inventory" | "shopping";
 }) {
   const initials = titleCase(itemName)
     .split(" ")
@@ -93,10 +98,9 @@ function SearchArtwork({
 export default function SearchPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [shopping, setShopping] = useState<ShoppingListItem[]>([]);
-  const [events, setEvents] = useState<EventRecord[]>([]);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [scope, setScope] = useState<SearchScope>("kitchen");
+  const [scope, setScope] = useState<SearchScope>("inventory");
   const [selectedTag, setSelectedTag] = useState<SearchTag>("top");
   const [focused, setFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -108,16 +112,11 @@ export default function SearchPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      getInventoryData(),
-      getShoppingListData(),
-      getEventsData(),
-    ])
-      .then(([inventoryResult, shoppingResult, eventResult]) => {
+    Promise.all([getInventoryData(), getShoppingListData()])
+      .then(([inventoryResult, shoppingResult]) => {
         if (!active) return;
         setInventory(inventoryResult);
         setShopping(shoppingResult);
-        setEvents(eventResult);
       })
       .catch((caught: unknown) => {
         if (!active) return;
@@ -153,9 +152,9 @@ export default function SearchPage() {
 
   const results = useMemo(() => {
     const needle = searchable(submittedQuery);
-    if (!needle) return { inventory: [], shopping: [], activity: [] };
+    if (!needle) return { inventory: [], shopping: [] };
 
-    const inventoryResults = scope === "history"
+    const inventoryResults = scope !== "inventory"
       ? []
       : inventory.filter((item) =>
           [
@@ -170,43 +169,53 @@ export default function SearchPage() {
             item.nearest_expiration_date ? "expires expiry" : "",
           ].some((value) => searchable(value).includes(needle)),
         );
-    const shoppingResults = scope === "history"
+    const shoppingResults = scope !== "shopping"
       ? []
       : shopping.filter((item) =>
           [
             item.item_name,
-            item.status,
+            item.status === "active" ? "active to buy" : "purchased",
             item.location,
             item.unit,
           ].some((value) => searchable(value).includes(needle)),
         );
-    const activityResults = scope === "kitchen"
-      ? []
-      : events.filter((event) =>
-          [
-            event.item_name,
-            event.event_type,
-            event.raw_utterance,
-          ].some((value) => searchable(value).includes(needle)),
-        );
-
     return {
       inventory: inventoryResults,
       shopping: shoppingResults,
-      activity: activityResults,
     };
-  }, [events, inventory, scope, shopping, submittedQuery]);
+  }, [inventory, scope, shopping, submittedQuery]);
 
-  const resultCount =
-    results.inventory.length + results.shopping.length + results.activity.length;
-  const showTags = Boolean(submittedQuery) && !focused;
-  const visibleSearchTags = searchTags.filter(
-    (tag) =>
-      tag.value === "top" ||
-      (scope === "kitchen"
-        ? tag.value === "inventory" || tag.value === "shopping"
-        : tag.value === "activity"),
+  const filteredInventory = useMemo(
+    () =>
+      results.inventory.filter((item) => {
+        if (selectedTag === "top") return true;
+        if (selectedTag === "in_stock") return item.status === "in_stock";
+        if (selectedTag === "low") return item.status === "low";
+        if (selectedTag === "out") return item.status === "out";
+        if (selectedTag === "expiring") {
+          return (
+            item.expiry_state === "expiring_soon" ||
+            item.expiry_state === "expired"
+          );
+        }
+        return false;
+      }),
+    [results.inventory, selectedTag],
   );
+  const filteredShopping = useMemo(
+    () =>
+      results.shopping.filter((item) => {
+        if (selectedTag === "top") return true;
+        if (selectedTag === "to_buy") return item.status === "active";
+        if (selectedTag === "purchased") return item.status === "purchased";
+        return false;
+      }),
+    [results.shopping, selectedTag],
+  );
+  const resultCount = filteredInventory.length + filteredShopping.length;
+  const showTags = Boolean(submittedQuery) && !focused;
+  const visibleSearchTags =
+    scope === "inventory" ? inventorySearchTags : shoppingSearchTags;
 
   useEffect(() => {
     if (!showTags) return;
@@ -265,13 +274,6 @@ export default function SearchPage() {
     inputRef.current?.blur();
   }
 
-  const showInventory =
-    selectedTag === "top" || selectedTag === "inventory";
-  const showShopping =
-    selectedTag === "top" || selectedTag === "shopping";
-  const showActivity =
-    selectedTag === "top" || selectedTag === "activity";
-
   return (
     <main id="search" className="search-page">
       <header className="search-titlebar">
@@ -286,8 +288,8 @@ export default function SearchPage() {
               ref={inputRef}
               type="search"
               value={query}
-              placeholder="Inventory, shopping, and activity"
-              aria-label="Search inventory, shopping, and activity"
+              placeholder="Inventory and shopping list"
+              aria-label="Search inventory and shopping list"
               autoComplete="off"
               enterKeyHint="search"
               onFocus={() => setFocused(true)}
@@ -324,38 +326,39 @@ export default function SearchPage() {
           }${showTags ? " shows-tags" : ""}`}
         >
           <div
-            className="search-scope-control"
+            className={`search-scope-control scope-${scope}`}
             role="radiogroup"
             aria-label="Search scope"
             aria-hidden={!focused}
           >
+            <span className="search-scope-pill" aria-hidden="true" />
             <button
               type="button"
               role="radio"
-              aria-checked={scope === "kitchen"}
+              aria-checked={scope === "inventory"}
               tabIndex={focused ? 0 : -1}
-              className={scope === "kitchen" ? "is-selected" : undefined}
+              className={scope === "inventory" ? "is-selected" : undefined}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                setScope("kitchen");
+                setScope("inventory");
                 setSelectedTag("top");
               }}
             >
-              Kitchen
+              Inventory
             </button>
             <button
               type="button"
               role="radio"
-              aria-checked={scope === "history"}
+              aria-checked={scope === "shopping"}
               tabIndex={focused ? 0 : -1}
-              className={scope === "history" ? "is-selected" : undefined}
+              className={scope === "shopping" ? "is-selected" : undefined}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                setScope("history");
+                setScope("shopping");
                 setSelectedTag("top");
               }}
             >
-              History
+              Shopping List
             </button>
           </div>
 
@@ -432,10 +435,10 @@ export default function SearchPage() {
         </p>
       ) : (
         <div className="search-results" aria-live="polite">
-          {showInventory && results.inventory.length > 0 && (
+          {scope === "inventory" && filteredInventory.length > 0 && (
             <section aria-labelledby="inventory-results-heading">
               <h2 id="inventory-results-heading">In Inventory</h2>
-              {results.inventory.map((item) => (
+              {filteredInventory.map((item) => (
                 <a href="/inventory" key={item.item_name}>
                   <SearchArtwork itemName={item.item_name} source="inventory" />
                   <span>
@@ -447,10 +450,10 @@ export default function SearchPage() {
             </section>
           )}
 
-          {showShopping && results.shopping.length > 0 && (
+          {scope === "shopping" && filteredShopping.length > 0 && (
             <section aria-labelledby="shopping-results-heading">
               <h2 id="shopping-results-heading">On Shopping List</h2>
-              {results.shopping.map((item) => (
+              {filteredShopping.map((item) => (
                 <a href="/shopping" key={item.item_name}>
                   <SearchArtwork itemName={item.item_name} source="shopping" />
                   <span>
@@ -462,28 +465,6 @@ export default function SearchPage() {
             </section>
           )}
 
-          {showActivity && results.activity.length > 0 && (
-            <section aria-labelledby="activity-results-heading">
-              <h2 id="activity-results-heading">Recent Activity</h2>
-              {results.activity.map((event) => (
-                <article key={event.id}>
-                  <SearchArtwork itemName={event.item_name} source="activity" />
-                  <span>
-                    <strong>{titleCase(event.item_name)}</strong>
-                    <small>{activityMetadata(event)}</small>
-                  </span>
-                </article>
-              ))}
-            </section>
-          )}
-
-          {((selectedTag === "inventory" && results.inventory.length === 0) ||
-            (selectedTag === "shopping" && results.shopping.length === 0) ||
-            (selectedTag === "activity" && results.activity.length === 0)) && (
-            <p className="search-empty">
-              No {searchTags.find((tag) => tag.value === selectedTag)?.label.toLowerCase()} results.
-            </p>
-          )}
         </div>
       )}
     </main>

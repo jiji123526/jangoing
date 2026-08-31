@@ -2,6 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Search scope now slides between Inventory and Shopping List
+
+### Completed
+
+- Replaced Kitchen / History with the concrete Inventory / Shopping List data
+  scopes.
+- Added one shared white segmented-control pill that slides between scopes with
+  a 300ms spring curve.
+- Changed submitted chips to status filters: Inventory uses In Stock, Low, Out,
+  and Expiring; Shopping List uses To Buy and Purchased.
+- Removed Activity from Search so the scope and result filters have one clear
+  responsibility.
+
+### Deployment
+
+- This change is Web-only.
+
 ## 2026-08-31 - Search rebuilt with Apple Music search chips
 
 ### Completed
