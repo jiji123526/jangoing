@@ -1894,6 +1894,7 @@ h1 {
 .inventory-section {
   grid-area: inventory;
   padding: 0 0 34px;
+  border-bottom: 0;
   border-right: 0;
   background: #fff;
   scroll-margin-top: 70px;
@@ -1902,6 +1903,7 @@ h1 {
 .data-section.shopping-section {
   grid-area: shopping;
   padding: 0 0 34px;
+  border-bottom: 0;
   background: #fff;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
 }

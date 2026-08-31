@@ -291,6 +291,9 @@ Jangoing Home 구현은 다음 구조와 수치를 사용한다.
 
 Large Navbar → attention section → category header/filter → `390×116` item rows → tab bar 순서가 기본이다. 인벤토리 구조는 다음으로 고정한다.
 
+Inventory와 Shopping List의 최상위 section에는 generic data-section의
+page-level bottom divider를 표시하지 않는다. item 간 inset divider는 유지한다.
+
 1. 상단 제목 `Inventory`와 trailing add/action.
 2. `Needs attention` 섹션: 유통기한 임박, 소진, 상태 확인 필요 항목만 노출.
 3. category filter: All, Produce, Dairy, Meat, Pantry, Frozen 등. 초기에는 28px chip을 사용하되 카테고리가 많아지면 별도 picker로 전환.
@@ -324,7 +327,11 @@ container를 둔다. 구현 동작은 Seb Vidal의
    선택 button의 offset과 width로 이동하도록 구현한다.
 4. 검색은 read-only다. 선택 scope의 Inventory 또는 Shopping projection을
    검색하고 `60px` row로 표시한다. 상태 변경은 Home Quick Update에서만
-   수행한다.
+   수행한다. item name뿐 아니라 projection status keyword와 동의어도
+   검색한다. Inventory는 `in stock`, `low`, `out of stock`, `expiring`,
+   `expired`를, Shopping은 `to buy`, `purchased`를 지원한다. query token은
+   item, status, location, unit을 합친 search document 전체에서 AND로
+   일치시켜 `low milk`, `purchased soda` 같은 복합 검색을 허용한다.
 5. 검색 전에는 최근 검색을 최대 5개 localStorage에서 표시하며, 기록이 없으면
    example query를 보여 준다.
 

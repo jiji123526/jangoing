@@ -2,6 +2,34 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Removed consumer list page bottom dividers
+
+### Completed
+
+- Removed the generic data-section bottom border from Inventory and Shopping
+  List pages.
+- Preserved inset dividers between individual inventory and shopping rows.
+
+### Deployment
+
+- This change is Web-only.
+
+## 2026-08-31 - Search supports status keywords
+
+### Completed
+
+- Added inventory status search for in-stock, low, out-of-stock, expiring, and
+  expired vocabulary plus common English aliases.
+- Added shopping status search for to-buy and purchased vocabulary.
+- Changed matching from one complete query per field to tokenized AND matching
+  across item, status, expiry state, location, and unit.
+- Enabled compound queries such as `low milk`, `expiring fridge`, and
+  `purchased soda`.
+
+### Deployment
+
+- This change is Web-only.
+
 ## 2026-08-31 - Fridge setup hero uses one card action
 
 ### Completed

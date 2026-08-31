@@ -50,7 +50,56 @@ function titleCase(value: string): string {
 }
 
 function searchable(value: string | null | undefined): string {
-  return (value ?? "").toLowerCase().replaceAll("_", " ");
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function matchesSearch(
+  values: Array<string | null | undefined>,
+  rawQuery: string,
+): boolean {
+  const document = searchable(values.filter(Boolean).join(" "));
+  const terms = searchable(rawQuery).split(/\s+/).filter(Boolean);
+  return terms.length > 0 && terms.every((term) => document.includes(term));
+}
+
+function inventorySearchValues(item: InventoryItem): string[] {
+  const stockStatus =
+    item.status === "out"
+      ? "out out of stock empty unavailable"
+      : item.status === "low"
+        ? "low low stock running low almost out"
+        : "in stock available stocked";
+  const expiryStatus =
+    item.expiry_state === "expired"
+      ? "expired past date expiry expires"
+      : item.expiry_state === "expiring_soon"
+        ? "expiring expiring soon use soon expiry expires"
+        : item.nearest_expiration_date
+          ? "fresh dated expiry expires"
+          : "";
+
+  return [
+    item.item_name,
+    stockStatus,
+    expiryStatus,
+    item.location ?? "",
+    item.unit ?? "",
+    item.nearest_expiration_date ?? "",
+  ];
+}
+
+function shoppingSearchValues(item: ShoppingListItem): string[] {
+  return [
+    item.item_name,
+    item.status === "active"
+      ? "active to buy shopping needed need to buy"
+      : "purchased bought done completed",
+    item.location ?? "",
+    item.unit ?? "",
+  ];
 }
 
 function inventoryMetadata(item: InventoryItem): string {
@@ -157,27 +206,12 @@ export default function SearchPage() {
     const inventoryResults = scope !== "inventory"
       ? []
       : inventory.filter((item) =>
-          [
-            item.item_name,
-            item.status === "out"
-              ? "out out of stock"
-              : item.status === "low"
-                ? "low low stock"
-                : "in stock",
-            item.location,
-            item.unit,
-            item.nearest_expiration_date ? "expires expiry" : "",
-          ].some((value) => searchable(value).includes(needle)),
+          matchesSearch(inventorySearchValues(item), needle)
         );
     const shoppingResults = scope !== "shopping"
       ? []
       : shopping.filter((item) =>
-          [
-            item.item_name,
-            item.status === "active" ? "active to buy" : "purchased",
-            item.location,
-            item.unit,
-          ].some((value) => searchable(value).includes(needle)),
+          matchesSearch(shoppingSearchValues(item), needle)
         );
     return {
       inventory: inventoryResults,
