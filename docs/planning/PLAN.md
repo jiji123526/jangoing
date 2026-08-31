@@ -382,7 +382,9 @@ Raspberry Pi -> wake word -> local ASR -> Worker API
 Purchase and restore responses include the stored event and the resulting
 inventory and shopping projections. The web applies this response directly so
 the visible state does not depend on a separate read immediately after a D1
-write.
+write. Clients request this response with `?include=projections`; requests
+without the parameter retain the legacy single-event response for rolling
+deployment compatibility.
 - `GET /events`: return recent event history
 - `GET /health`: health check
 - `POST /inferences/outcome`: record reviewed non-event outcomes

@@ -703,7 +703,9 @@ async function handleShoppingMutation(
     event.created_at,
   ).run();
 
-  if (action !== "add") {
+  const includeProjections =
+    new URL(request.url).searchParams.get("include") === "projections";
+  if (action !== "add" && includeProjections) {
     const nextEvents = [...existingEvents, event];
     return json(
       request,

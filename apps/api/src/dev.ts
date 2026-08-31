@@ -246,7 +246,8 @@ async function route(
     return;
   }
 
-  const path = new URL(request.url ?? "/", `http://localhost:${port}`).pathname;
+  const url = new URL(request.url ?? "/", `http://localhost:${port}`);
+  const path = url.pathname;
 
   if (request.method === "GET" && path === "/health") {
     sendJson(response, origin, { status: "ok" });
@@ -787,7 +788,9 @@ async function route(
       event.source,
       event.created_at,
     );
-    if (action !== "add") {
+    const includeProjections =
+      url.searchParams.get("include") === "projections";
+    if (action !== "add" && includeProjections) {
       const nextEvents = [...existingEvents, event];
       sendJson(
         response,

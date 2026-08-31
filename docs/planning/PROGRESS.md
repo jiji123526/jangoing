@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Shopping mutation rollout made backward compatible
+
+### Problem
+
+- Production Worker returned the new `{ event, inventory, items }` mutation
+  response while an older Vercel client still parsed a single `EventRecord`.
+- The resulting schema error prevented Done from completing in the UI.
+
+### Resolution
+
+- New clients explicitly request authoritative projections with
+  `?include=projections`.
+- Requests without that parameter continue receiving the legacy single-event
+  response, so Worker-first deployments remain compatible with the previous
+  web release.
+
+### Deployment
+
+- Deploy the Worker first, then push/redeploy Vercel.
+- The current production screenshot and schema error indicate Vercel has not
+  yet loaded the commit containing the alignment and composite-response client.
+
 ## 2026-08-31 - Shopping add field focus simplified
 
 ### Completed

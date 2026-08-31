@@ -242,7 +242,7 @@ export async function markShoppingItemPurchased(
   itemName: string,
 ): Promise<ShoppingMutationResult> {
   const body = await apiRequest(
-    `/shopping-list/${encodeURIComponent(itemName)}/purchase`,
+    `/shopping-list/${encodeURIComponent(itemName)}/purchase?include=projections`,
     { method: "POST" },
   );
   return ShoppingMutationResponseSchema.parse(body);
@@ -268,7 +268,7 @@ export async function restoreShoppingItem(
   itemName: string,
 ): Promise<ShoppingMutationResult> {
   const body = await apiRequest(
-    `/shopping-list/${encodeURIComponent(itemName)}/restore`,
+    `/shopping-list/${encodeURIComponent(itemName)}/restore?include=projections`,
     { method: "POST" },
   );
   return ShoppingMutationResponseSchema.parse(body);
