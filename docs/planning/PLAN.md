@@ -80,6 +80,8 @@ The text MVP is implemented and deployable:
   inference request context and reviewed exports
 - Guided first-run fridge setup with a locally recoverable draft, atomic bulk
   event write, and explicit persisted completion state
+- Planned item-media pipeline that uses user photos as artwork first, then
+  evolves into confirmation-gated vision and catalog retrieval
 
 The language layer is currently rule-based. It recognizes a small set of sentence patterns and does not represent broad natural-language understanding.
 
@@ -184,6 +186,9 @@ These limitations are acceptable only while every state-changing action requires
 - Multi-user authentication
 - Push notifications
 - Barcode or camera input
+- User-photo artwork and vision recognition; the staged security, R2/D1,
+  confirmation, and evaluation plan is defined in
+  [ITEM_MEDIA_AND_VISION_PLAN_KO.md](./ITEM_MEDIA_AND_VISION_PLAN_KO.md)
 - Native mobile apps
 - Automatic shelf-life prediction
 - Multi-turn conversational context and recommendation ranking in the MVP only;

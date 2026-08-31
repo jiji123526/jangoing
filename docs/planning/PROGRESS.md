@@ -2,6 +2,26 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Item photo and vision roadmap documented
+
+### Completed
+
+- Defined an artwork-first photo flow using browser processing, R2 object
+  storage, and D1 item-media metadata.
+- Kept photo metadata independent from inventory event projections and made
+  category artwork the final fallback.
+- Required authentication or a constrained household token before production
+  uploads because CORS does not authorize writes.
+- Planned a confirmation-gated progression from pretrained vision proposals to
+  catalog retrieval, multimodal ranking, and possible Raspberry Pi/ONNX use.
+- Defined privacy, consent, leakage prevention, unknown rejection, and
+  evaluation requirements for future vision training.
+
+### Next Gate
+
+- Stabilize the current MVP, then choose the upload authentication mechanism
+  before creating R2 and migration `0011`.
+
 ## 2026-08-31 - Removed consumer list page bottom dividers
 
 ### Completed

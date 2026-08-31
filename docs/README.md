@@ -8,6 +8,7 @@ operational guides, decisions, and learning references live in this directory.
 - [Product and model plan](./planning/PLAN.md)
 - [Current action items](./planning/ACTION_ITEMS.md)
 - [Progress log](./planning/PROGRESS.md)
+- [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
 
 ## Annotation
 

@@ -15,6 +15,10 @@ completion gates.
 - [x] Implement atomic guided initial-fridge setup in Worker, local API, and Home.
 - [ ] Apply D1 migration 0010 and deploy the fridge setup Worker before Vercel.
 - [ ] Verify one production setup with a test household before wider use.
+- [x] Define the artwork-first, vision-later item media architecture.
+- [ ] Choose authentication or a constrained household upload token before
+  exposing any production media upload endpoint.
+- [ ] Implement R2/D1 item media storage only after the upload security gate.
 - [x] Store original `reference_date`, `timezone`, and inference timestamp.
 - [x] Normalize relative expiry language with deterministic shared code.
 - [x] Ground assistant expiry proposals to original inference context.
