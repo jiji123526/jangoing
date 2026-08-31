@@ -1379,7 +1379,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           )}
 
           {!loading && fridgeSetupStatus?.completed === false && (
-            <section className="home-setup-hero" aria-labelledby="home-setup-title">
+            <button
+              className="home-setup-hero"
+              type="button"
+              aria-labelledby="home-setup-title"
+              onClick={() => setFridgeSetupOpen(true)}
+            >
               <span className="home-setup-icon" aria-hidden="true">
                 <PackageOpen size={28} strokeWidth={1.8} />
               </span>
@@ -1388,10 +1393,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 <h2 id="home-setup-title">Set Up My Fridge</h2>
                 <p>Add what you currently have in one guided setup.</p>
               </div>
-              <button type="button" onClick={() => setFridgeSetupOpen(true)}>
-                Start
-              </button>
-            </section>
+              <ChevronRight size={20} aria-hidden="true" />
+            </button>
           )}
 
           <FridgeSetupDialog

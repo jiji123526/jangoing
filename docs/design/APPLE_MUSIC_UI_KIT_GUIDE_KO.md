@@ -275,8 +275,9 @@ Jangoing Home 구현은 다음 구조와 수치를 사용한다.
     향후 별도 analytics tab에서 다룬다.
 14. 초기 설정이 완료되지 않은 household에는 large title 바로 아래, `Today`
     이전에 `Set Up My Fridge` hero를 표시한다. hero는 `16px` inset,
-    radius `10px`, setup 설명과 명시적인 `Start` action을 사용한다. inventory가
-    비었다는 사실만으로 완료 여부를 추론하지 않고 서버의
+    radius `10px`을 사용하고 card 전체를 하나의 접근 가능한 setup action으로
+    만든다. 별도 `Start` button은 두지 않는다. inventory가 비었다는 사실만으로
+    완료 여부를 추론하지 않고 서버의
     `fridge_setup_completed_at` 상태를 사용한다.
 15. setup은 item name 입력, quantity/unit/location/expiry/low threshold 상세
     입력, 최종 review의 3단계다. 작은 화면에서는 하단 sheet, 넓은 화면에서는

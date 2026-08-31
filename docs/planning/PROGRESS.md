@@ -2,6 +2,18 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Fridge setup hero uses one card action
+
+### Completed
+
+- Removed the separate Start button from the first-run setup hero.
+- Made the complete banner one accessible button with a trailing disclosure
+  chevron and visible keyboard focus treatment.
+
+### Deployment
+
+- This follow-up is Web-only.
+
 ## 2026-08-31 - Guided Set Up My Fridge onboarding
 
 ### Completed
