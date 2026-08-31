@@ -4,6 +4,7 @@ import type {
   CreateEventRequest,
   EventType,
   Intent,
+  InventoryItem,
   LoggedInterpretation,
 } from "@jangoing/contracts";
 import {
@@ -12,12 +13,11 @@ import {
   History,
   LoaderCircle,
   RefreshCw,
-  Refrigerator,
   Send,
   ShoppingBasket,
   X,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   createEvent,
   getDashboardData,
@@ -92,6 +92,124 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
+const inventoryCategories = [
+  "All",
+  "Produce",
+  "Dairy & Eggs",
+  "Meat & Seafood",
+  "Pantry",
+  "Frozen",
+  "Drinks",
+  "Snacks",
+  "Other",
+] as const;
+
+type InventoryCategory = (typeof inventoryCategories)[number];
+type ItemCategory = Exclude<InventoryCategory, "All">;
+
+const categoryTerms: Record<Exclude<ItemCategory, "Other">, string[]> = {
+  Frozen: ["frozen", "ice cream", "dumpling"],
+  Produce: [
+    "apple", "avocado", "banana", "berry", "berries", "blueberry",
+    "broccoli", "carrot", "celery", "cucumber", "fruit", "grape",
+    "lettuce", "lemon", "lime", "mango", "onion", "orange", "pear",
+    "pepper", "potato", "salad", "spinach", "strawberry", "tomato",
+  ],
+  "Dairy & Eggs": [
+    "butter", "cheese", "cream", "egg", "eggs", "milk", "yogurt",
+  ],
+  "Meat & Seafood": [
+    "beef", "chicken", "fish", "meat", "pork", "salmon", "seafood",
+    "shrimp", "steak", "tuna", "turkey",
+  ],
+  Pantry: [
+    "bean", "beans", "bread", "cereal", "flour", "noodle", "oat",
+    "oats", "oil", "pasta", "rice", "sauce", "soup", "spice", "sugar",
+  ],
+  Drinks: [
+    "coffee", "drink", "juice", "soda", "sparkling water", "tea", "water",
+  ],
+  Snacks: [
+    "bar", "candy", "chip", "chips", "chocolate", "cookie", "cracker",
+    "nuts", "popcorn", "snack",
+  ],
+};
+
+function inventoryCategory(itemName: string): ItemCategory {
+  const normalized = itemName.toLowerCase().replaceAll("_", " ");
+  for (const [category, terms] of Object.entries(categoryTerms) as [
+    Exclude<ItemCategory, "Other">,
+    string[],
+  ][]) {
+    if (terms.some((term) => normalized.includes(term))) return category;
+  }
+  return "Other";
+}
+
+function quantityLabel(item: InventoryItem): string {
+  if (item.quantity <= 0) return "Quantity not recorded";
+  return `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`;
+}
+
+function expiryLabel(item: InventoryItem): string | null {
+  if (!item.nearest_expiration_date) return null;
+  const expiry = new Date(`${item.nearest_expiration_date}T00:00:00`);
+  const today = new Date();
+  const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const days = Math.round((expiry.getTime() - localToday.getTime()) / 86_400_000);
+  if (days < 0) return "Expired";
+  if (days === 0) return "Expires today";
+  if (days === 1) return "Expires tomorrow";
+  return `Expires in ${days} days`;
+}
+
+function attentionLabel(item: InventoryItem): string | null {
+  if (item.expiry_state === "expired" || item.expiry_state === "expiring_soon") {
+    return expiryLabel(item);
+  }
+  if (item.status === "out") return "Out of stock";
+  if (item.status === "low") return "Low stock";
+  return null;
+}
+
+function InventoryArtwork({ category }: { category: ItemCategory }) {
+  const shortLabel = category === "Dairy & Eggs"
+    ? "D&E"
+    : category === "Meat & Seafood"
+      ? "M&S"
+      : category.slice(0, 3).toUpperCase();
+  return (
+    <div className="inventory-artwork" aria-hidden="true">
+      <span>{shortLabel}</span>
+    </div>
+  );
+}
+
+function InventoryItemRow({ item }: { item: InventoryItem }) {
+  const category = inventoryCategory(item.item_name);
+  const attention = attentionLabel(item);
+  const metadata = [
+    quantityLabel(item),
+    item.location ? titleCase(item.location) : null,
+    attention ? null : expiryLabel(item),
+  ].filter((value): value is string => Boolean(value));
+
+  return (
+    <article className="inventory-item-row">
+      <InventoryArtwork category={category} />
+      <div className="inventory-item-copy">
+        <strong>{titleCase(item.item_name)}</strong>
+        <p>{metadata.join(" · ")}</p>
+        {attention && (
+          <span className={`inventory-attention attention-${item.expiry_state === "expired" ? "urgent" : item.status}`}>
+            {attention}
+          </span>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default function Home() {
   const [command, setCommand] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -103,6 +221,26 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [inventoryFilter, setInventoryFilter] =
+    useState<InventoryCategory>("All");
+
+  const attentionItems = useMemo(
+    () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
+    [dashboard.inventory],
+  );
+
+  const inventoryGroups = useMemo(() => {
+    const groups = new Map<ItemCategory, InventoryItem[]>();
+    for (const item of dashboard.inventory) {
+      const category = inventoryCategory(item.item_name);
+      if (inventoryFilter !== "All" && category !== inventoryFilter) continue;
+      groups.set(category, [...(groups.get(category) ?? []), item]);
+    }
+    return inventoryCategories
+      .filter((category): category is ItemCategory => category !== "All")
+      .map((category) => ({ category, items: groups.get(category) ?? [] }))
+      .filter((group) => group.items.length > 0);
+  }, [dashboard.inventory, inventoryFilter]);
 
   async function loadDashboard() {
     setLoading(true);
@@ -513,45 +651,73 @@ export default function Home() {
 
       <div className="dashboard-grid">
         <section className="data-section inventory-section" id="inventory">
-          <div className="data-heading">
+          <div className="inventory-titlebar">
             <div>
-              <Refrigerator size={19} />
+              <p>Kitchen library</p>
               <h2>Inventory</h2>
             </div>
-            <span>{dashboard.inventory.length}</span>
+            <span aria-label={`${dashboard.inventory.length} inventory items`}>
+              {dashboard.inventory.length}
+            </span>
           </div>
 
           {loading ? (
-            <p className="empty-state">Loading inventory...</p>
+            <p className="empty-state inventory-empty">Loading inventory...</p>
           ) : dashboard.inventory.length === 0 ? (
-            <p className="empty-state">No inventory actions yet.</p>
+            <p className="empty-state inventory-empty">No inventory actions yet.</p>
           ) : (
-            <div className="inventory-list">
-              {dashboard.inventory.map((item) => (
-                <div className="inventory-row" key={item.item_name}>
-                  <div>
-                    <strong>{titleCase(item.item_name)}</strong>
-                    <span>
-                      {item.quantity > 0
-                        ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
-                        : "Quantity not recorded"}
-                    </span>
+            <div className="inventory-library">
+              {attentionItems.length > 0 && (
+                <section className="inventory-attention-section" aria-labelledby="attention-heading">
+                  <div className="inventory-section-heading">
+                    <h3 id="attention-heading">Needs Attention</h3>
+                    <span>{attentionItems.length}</span>
                   </div>
-                  <div className="inventory-meta">
-                    <span className={`status status-${item.status}`}>
-                      {titleCase(item.status)}
-                    </span>
-                    {item.nearest_expiration_date && (
-                      <time
-                        className={`expiry expiry-${item.expiry_state}`}
-                        dateTime={item.nearest_expiration_date}
-                      >
-                        {item.nearest_expiration_date}
-                      </time>
-                    )}
+                  <div className="inventory-list">
+                    {attentionItems.map((item) => (
+                      <InventoryItemRow item={item} key={`attention-${item.item_name}`} />
+                    ))}
                   </div>
-                </div>
-              ))}
+                </section>
+              )}
+
+              <div className="inventory-filters" role="group" aria-label="Filter inventory by category">
+                {inventoryCategories.map((category) => (
+                  <button
+                    className={inventoryFilter === category ? "is-selected" : undefined}
+                    key={category}
+                    type="button"
+                    aria-pressed={inventoryFilter === category}
+                    onClick={() => setInventoryFilter(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              <div className="inventory-category-groups">
+                {inventoryGroups.length === 0 ? (
+                  <p className="empty-state inventory-empty">No items in this category.</p>
+                ) : inventoryGroups.map(({ category, items }) => (
+                  <section
+                    className="inventory-category"
+                    key={category}
+                    aria-labelledby={`category-${category.toLowerCase().replaceAll(/[^a-z]+/g, "-")}`}
+                  >
+                    <div className="inventory-section-heading">
+                      <h3 id={`category-${category.toLowerCase().replaceAll(/[^a-z]+/g, "-")}`}>
+                        {category}
+                      </h3>
+                      <span>{items.length}</span>
+                    </div>
+                    <div className="inventory-list">
+                      {items.map((item) => (
+                        <InventoryItemRow item={item} key={item.item_name} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             </div>
           )}
         </section>

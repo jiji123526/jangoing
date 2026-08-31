@@ -421,7 +421,10 @@ h1 {
 
 .inventory-section {
   grid-area: inventory;
+  padding: 0 0 34px;
   border-right: 1px solid var(--line);
+  background: #fff;
+  scroll-margin-top: 70px;
 }
 
 .shopping-section {
@@ -468,75 +471,214 @@ h1 {
   font-size: 0.85rem;
 }
 
-.inventory-list {
-  border-top: 1px solid var(--line);
-}
-
-.inventory-row {
-  min-height: 78px;
-  padding: 15px 2px;
+.inventory-titlebar {
+  min-height: 110px;
+  padding: 26px 16px 12px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 15px;
-  border-bottom: 1px solid var(--line);
+  gap: 16px;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.inventory-row > div:first-child {
+.inventory-titlebar p {
+  margin: 0 0 2px;
+  color: rgba(60, 60, 67, 0.6);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+}
+
+.inventory-titlebar h2 {
+  margin: 0;
+  color: #000;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.374px;
+}
+
+.inventory-titlebar > span {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #ff2d55;
+  background: rgba(118, 118, 128, 0.12);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.inventory-library {
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.inventory-attention-section {
+  margin-bottom: 22px;
+  padding-top: 8px;
+  background: #fff;
+}
+
+.inventory-section-heading {
+  min-height: 36px;
+  padding: 0 16px 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.inventory-section-heading h3 {
+  margin: 0;
+  color: #000;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0.35px;
+}
+
+.inventory-section-heading > span {
+  padding-bottom: 2px;
+  color: #ff2d55;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.inventory-filters {
+  margin: 0 0 24px;
+  padding: 0 16px 2px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inventory-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.inventory-filters button {
+  height: 28px;
+  padding: 0 11px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  color: #000;
+  background: rgba(118, 118, 128, 0.12);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.inventory-filters button.is-selected {
+  color: #fff;
+  background: #ff2d55;
+}
+
+.inventory-filters button:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+.inventory-category + .inventory-category {
+  margin-top: 24px;
+}
+
+.inventory-list {
+  width: 100%;
+}
+
+.inventory-item-row {
+  min-width: 0;
+  min-height: 116px;
+  padding: 7px 16px;
   display: grid;
-  gap: 4px;
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 16px;
+  color: #000;
+  background: #fff;
 }
 
-.inventory-row strong {
-  font-size: 0.91rem;
+.inventory-artwork {
+  width: 102px;
+  height: 102px;
+  display: flex;
+  align-items: flex-end;
+  padding: 10px;
+  overflow: hidden;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 2px;
+  color: rgba(60, 60, 67, 0.6);
+  background: #f2f2f7;
 }
 
-.inventory-row > div:first-child span {
-  color: var(--muted);
-  font-size: 0.73rem;
+.inventory-artwork span {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
 }
 
-.inventory-meta {
-  display: grid;
-  justify-items: end;
-  gap: 6px;
+.inventory-item-copy {
+  min-width: 0;
+  min-height: 102px;
+  padding: 0 0 8px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
 }
 
-.status {
-  padding: 4px 7px;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 800;
+.inventory-item-copy strong {
+  width: 100%;
+  overflow: hidden;
+  color: #000;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.status-in_stock {
-  color: var(--green);
-  background: var(--green-soft);
+.inventory-item-copy p {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.status-low {
-  color: #715400;
-  background: var(--yellow-soft);
+.inventory-attention {
+  margin-top: auto;
+  color: #8a5b00;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: -0.078px;
 }
 
-.status-out {
-  color: var(--red);
-  background: var(--red-soft);
+.inventory-attention.attention-urgent,
+.inventory-attention.attention-out {
+  color: #a63d40;
 }
 
-.expiry {
-  color: var(--muted);
-  font-size: 0.68rem;
-}
-
-.expiry-expiring_soon {
-  color: #805e00;
-  font-weight: 750;
-}
-
-.expiry-expired {
-  color: var(--red);
-  font-weight: 750;
+.inventory-empty {
+  margin: 24px 16px 40px;
 }
 
 .shopping-list,
@@ -704,6 +846,7 @@ h1 {
   }
 
   .inventory-section {
+    padding: 0 0 30px;
     border-right: 0;
   }
 }

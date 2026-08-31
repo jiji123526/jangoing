@@ -2,6 +2,34 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-30 - Apple Music-style inventory library implemented
+
+### Completed
+
+- Rebuilt the Inventory section from Figma screen `1:20888` and its
+  `390x116` Album Teaser row `1:126073`.
+- Added an at-a-glance Needs Attention section for expired, expiring-soon,
+  low-stock, and out-of-stock items.
+- Added horizontally scrollable category filters and category-grouped item
+  lists while preserving the existing inventory API response.
+- Added explicit quantity, storage-location, expiry, and stock metadata with
+  accessible text labels rather than color-only status.
+- Added deterministic client-side category fallback rules until the inventory
+  schema exposes a reviewed category value.
+- Kept `frozen` specificity ahead of generic product terms so, for example,
+  frozen blueberries remain separate from fresh produce.
+
+### Validation
+
+- Web TypeScript check passed.
+- Web production build passed.
+- Verified the empty state and Inventory navigation at a 390x844 viewport.
+
+### Next
+
+- Replace category artwork and heuristic classification with catalog-backed
+  product images and reviewed category values when those fields are added.
+
 ## 2026-08-30 - Mobile tab bar bottom gap removed
 
 ### Completed
