@@ -13,7 +13,6 @@ import {
   History,
   LoaderCircle,
   Send,
-  ShoppingBasket,
   Trash2,
   X,
 } from "lucide-react";
@@ -24,7 +23,9 @@ import {
   getInventoryData,
   getShoppingListData,
   interpretCommand,
+  markShoppingItemPurchased,
   removeInventoryItem,
+  restoreShoppingItem,
   updateInventoryItem,
   updateInferenceOutcome,
   type DashboardData,
@@ -201,6 +202,13 @@ function editorDateLabel(value: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function shoppingDateLabel(value: string, prefix: string): string {
+  return `${prefix} ${new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value))}`;
 }
 
 function attentionLabel(item: InventoryItem): string | null {
@@ -525,6 +533,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
     useState<string | null>(null);
   const [inventorySaving, setInventorySaving] = useState<string | null>(null);
+  const [shoppingSaving, setShoppingSaving] = useState<string | null>(null);
 
   const attentionItems = useMemo(
     () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
@@ -543,6 +552,13 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       .map((category) => ({ category, items: groups.get(category) ?? [] }))
       .filter((group) => group.items.length > 0);
   }, [dashboard.inventory, inventoryFilter]);
+  const activeShoppingItems = dashboard.shoppingList.filter(
+    (item) => item.status === "active",
+  );
+  const purchasedShoppingItems = dashboard.shoppingList.filter(
+    (item) => item.status === "purchased",
+  );
+
   async function loadDashboard() {
     setLoading(true);
     setError(null);
@@ -597,6 +613,31 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setError(caught instanceof Error ? caught.message : "Could not remove item.");
     } finally {
       setInventorySaving(null);
+    }
+  }
+
+  async function handleShoppingStatus(
+    itemName: string,
+    status: "active" | "purchased",
+  ) {
+    setShoppingSaving(itemName);
+    setError(null);
+    try {
+      if (status === "active") {
+        await markShoppingItemPurchased(itemName);
+      } else {
+        await restoreShoppingItem(itemName);
+      }
+      const shoppingList = await getShoppingListData();
+      setDashboard({ ...emptyDashboard, shoppingList });
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update the shopping list.",
+      );
+    } finally {
+      setShoppingSaving(null);
     }
   }
 
@@ -1122,25 +1163,91 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
         {view === "shopping" && (
         <section className="data-section shopping-section" id="shopping">
-          <div className="data-heading">
-            <div>
-              <ShoppingBasket size={19} />
-              <h2>Shopping list</h2>
-            </div>
-            <span>{dashboard.shoppingList.length}</span>
+          <div className="shopping-titlebar">
+            <h2>Shopping List</h2>
           </div>
 
-          {dashboard.shoppingList.length === 0 ? (
-            <p className="empty-state">Nothing to buy yet.</p>
+          {error && <p className="message error shopping-message">{error}</p>}
+
+          {loading ? (
+            <p className="empty-state shopping-empty">Loading shopping list...</p>
+          ) : dashboard.shoppingList.length === 0 ? (
+            <p className="empty-state shopping-empty">Nothing to buy yet.</p>
           ) : (
-            <ul className="shopping-list">
-              {dashboard.shoppingList.map((item) => (
-                <li key={item.item_name}>
-                  <span className="check-box" aria-hidden="true" />
-                  {titleCase(item.item_name)}
-                </li>
-              ))}
-            </ul>
+            <div className="shopping-queue">
+              <section aria-labelledby="shopping-active-heading">
+                <div className="shopping-section-heading">
+                  <h3 id="shopping-active-heading">To Buy</h3>
+                  <span>{activeShoppingItems.length}</span>
+                </div>
+                {activeShoppingItems.length === 0 ? (
+                  <p className="shopping-section-empty">Nothing left to buy.</p>
+                ) : (
+                  <ul className="shopping-track-list">
+                    {activeShoppingItems.map((item) => (
+                      <li key={item.item_name}>
+                        <button
+                          className="shopping-check-button"
+                          type="button"
+                          aria-label={`Mark ${titleCase(item.item_name)} as purchased`}
+                          disabled={shoppingSaving === item.item_name}
+                          onClick={() =>
+                            void handleShoppingStatus(item.item_name, item.status)
+                          }
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                        <div className="shopping-row-copy">
+                          <strong>{titleCase(item.item_name)}</strong>
+                          <small>{shoppingDateLabel(item.added_at, "Added")}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {purchasedShoppingItems.length > 0 && (
+                <section
+                  className="shopping-purchased-section"
+                  aria-labelledby="shopping-purchased-heading"
+                >
+                  <div className="shopping-section-heading">
+                    <div>
+                      <h3 id="shopping-purchased-heading">Purchased</h3>
+                      <small>Clears after 24 hours</small>
+                    </div>
+                    <span>{purchasedShoppingItems.length}</span>
+                  </div>
+                  <ul className="shopping-track-list">
+                    {purchasedShoppingItems.map((item) => (
+                      <li className="is-purchased" key={item.item_name}>
+                        <button
+                          className="shopping-check-button is-checked"
+                          type="button"
+                          aria-label={`Restore ${titleCase(item.item_name)} to shopping list`}
+                          disabled={shoppingSaving === item.item_name}
+                          onClick={() =>
+                            void handleShoppingStatus(item.item_name, item.status)
+                          }
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                        <div className="shopping-row-copy">
+                          <strong>{titleCase(item.item_name)}</strong>
+                          <small>
+                            {shoppingDateLabel(
+                              item.purchased_at ?? item.added_at,
+                              "Purchased",
+                            )}
+                          </small>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
         </section>
         )}

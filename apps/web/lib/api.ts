@@ -229,6 +229,26 @@ export async function getShoppingListData(): Promise<ShoppingListItem[]> {
   return ShoppingListResponseSchema.parse(body).items;
 }
 
+export async function markShoppingItemPurchased(
+  itemName: string,
+): Promise<EventRecord> {
+  const body = await apiRequest(
+    `/shopping-list/${encodeURIComponent(itemName)}/purchase`,
+    { method: "POST" },
+  );
+  return EventRecordSchema.parse(body);
+}
+
+export async function restoreShoppingItem(
+  itemName: string,
+): Promise<EventRecord> {
+  const body = await apiRequest(
+    `/shopping-list/${encodeURIComponent(itemName)}/restore`,
+    { method: "POST" },
+  );
+  return EventRecordSchema.parse(body);
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
   const [inventory, events, shoppingList] = await Promise.all([
     getInventoryData(),

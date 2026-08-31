@@ -1,5 +1,5 @@
 :root {
-  --canvas: #f7f8f3;
+  --canvas: #ffffff;
   --surface: #ffffff;
   --ink: #17201b;
   --muted: #68716b;
@@ -27,11 +27,7 @@ body {
   margin: 0;
   min-height: 100vh;
   padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px));
-  background:
-    linear-gradient(rgba(31, 107, 69, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 107, 69, 0.045) 1px, transparent 1px),
-    var(--canvas);
-  background-size: 28px 28px;
+  background: #fff;
 }
 
 html {
@@ -58,7 +54,7 @@ main {
   width: min(1180px, 100%);
   min-height: 100vh;
   margin: 0 auto;
-  background: color-mix(in srgb, var(--canvas) 92%, transparent);
+  background: #fff;
   border-inline: 1px solid rgba(217, 222, 215, 0.72);
 }
 
@@ -69,7 +65,7 @@ main {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
-  background: rgba(247, 248, 243, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
@@ -447,6 +443,9 @@ h1 {
 
 .shopping-section {
   grid-area: shopping;
+  padding: 0 0 34px;
+  background: #fff;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .history-section {
@@ -991,29 +990,184 @@ h1 {
   margin: 24px 16px 40px;
 }
 
-.shopping-list,
 .event-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.shopping-list li {
-  padding: 11px 0;
+.shopping-titlebar {
+  min-height: 95px;
+  padding: 47px 16px 7px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.86rem;
-  font-weight: 650;
+  align-items: flex-end;
 }
 
-.check-box {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 auto;
-  border: 1px solid #aeb8b0;
-  border-radius: 3px;
+.shopping-titlebar h2 {
+  margin: 0;
+  color: #000;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.374px;
+}
+
+.shopping-message {
+  margin: 0 16px 16px;
+}
+
+.shopping-empty {
+  margin: 24px 16px 40px;
+}
+
+.shopping-queue {
+  padding-top: 8px;
+}
+
+.shopping-section-heading {
+  min-height: 40px;
+  padding: 0 16px 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shopping-section-heading > div {
+  min-width: 0;
+}
+
+.shopping-section-heading h3 {
+  margin: 0;
+  color: #000;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0.35px;
+}
+
+.shopping-section-heading small {
+  display: block;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+}
+
+.shopping-section-heading > span {
+  padding-bottom: 2px;
+  color: #ff2d55;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.shopping-section-empty {
+  margin: 0;
+  padding: 10px 16px 22px;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.shopping-purchased-section {
+  margin-top: 28px;
+}
+
+.shopping-track-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shopping-track-list li {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: stretch;
+  padding-left: 4px;
+}
+
+.shopping-check-button {
+  width: 52px;
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.shopping-check-button > span {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(60, 60, 67, 0.38);
+  border-radius: 50%;
+  display: block;
+  background: #fff;
+}
+
+.shopping-check-button.is-checked > span {
+  position: relative;
+  border-color: #ff2d55;
+  background: #ff2d55;
+}
+
+.shopping-check-button.is-checked > span::after {
+  position: absolute;
+  top: 4px;
+  left: 7px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.shopping-check-button:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -4px;
+}
+
+.shopping-row-copy {
+  min-width: 0;
+  padding: 7px 16px 7px 0;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.shopping-row-copy strong {
+  overflow: hidden;
+  color: #000;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-row-copy small {
+  overflow: hidden;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-track-list li.is-purchased .shopping-row-copy strong {
+  color: rgba(60, 60, 67, 0.6);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
 }
 
 .event-list li {

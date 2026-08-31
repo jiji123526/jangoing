@@ -678,6 +678,63 @@ async function route(
   }
 
   const inventoryMutation = path.match(/^\/inventory\/([^/]+)\/(edit|remove)$/);
+  const shoppingMutation = path.match(
+    /^\/shopping-list\/([^/]+)\/(purchase|restore)$/,
+  );
+  if (request.method === "POST" && shoppingMutation) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(shoppingMutation[1]).trim();
+    } catch {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+    if (!itemName) {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+
+    const action = shoppingMutation[2] as "purchase" | "restore";
+    const event: EventRecord = {
+      id: crypto.randomUUID(),
+      event_type:
+        action === "purchase"
+          ? "shopping_item_purchased"
+          : "shopping_item_restored",
+      item_name: itemName,
+      quantity: null,
+      unit: null,
+      location: null,
+      expiration_date: null,
+      low_threshold: null,
+      raw_utterance: `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+      confidence: 1,
+      source: "web",
+      created_at: new Date().toISOString(),
+    };
+    database.prepare(
+      `INSERT INTO events (
+        id, event_type, item_name, quantity, unit, location,
+        expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      event.id,
+      event.event_type,
+      event.item_name,
+      event.quantity ?? null,
+      event.unit ?? null,
+      event.location ?? null,
+      event.expiration_date ?? null,
+      event.low_threshold ?? null,
+      event.raw_utterance,
+      event.confidence,
+      event.source,
+      event.created_at,
+    );
+    sendJson(response, origin, event, 201);
+    return;
+  }
+
   if (request.method === "POST" && inventoryMutation) {
     let itemName: string;
     try {

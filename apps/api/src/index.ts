@@ -602,11 +602,58 @@ async function handleInventoryMutation(
     event.id,
     event.event_type,
     event.item_name,
+    event.quantity ?? null,
+    event.unit ?? null,
+    event.location ?? null,
+    event.expiration_date ?? null,
+    event.low_threshold ?? null,
+    event.raw_utterance,
+    event.confidence,
+    event.source,
+    event.created_at,
+  ).run();
+
+  return json(request, env, event, 201);
+}
+
+async function handleShoppingMutation(
+  request: Request,
+  env: Env,
+  itemName: string,
+  action: "purchase" | "restore",
+): Promise<Response> {
+  const event: EventRecord = {
+    id: crypto.randomUUID(),
+    event_type:
+      action === "purchase"
+        ? "shopping_item_purchased"
+        : "shopping_item_restored",
+    item_name: itemName,
+    quantity: null,
+    unit: null,
+    location: null,
+    expiration_date: null,
+    low_threshold: null,
+    raw_utterance: `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+    confidence: 1,
+    source: "web",
+    created_at: new Date().toISOString(),
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO events (
+      id, event_type, item_name, quantity, unit, location,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    event.id,
+    event.event_type,
+    event.item_name,
     event.quantity,
     event.unit,
     event.location,
     event.expiration_date,
-    event.low_threshold,
+    event.low_threshold ?? null,
     event.raw_utterance,
     event.confidence,
     event.source,
@@ -629,6 +676,25 @@ async function route(request: Request, env: Env): Promise<Response> {
   const inventoryMutation = url.pathname.match(
     /^\/inventory\/([^/]+)\/(edit|remove)$/,
   );
+  const shoppingMutation = url.pathname.match(
+    /^\/shopping-list\/([^/]+)\/(purchase|restore)$/,
+  );
+
+  if (request.method === "POST" && shoppingMutation) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(shoppingMutation[1]).trim();
+    } catch {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+    if (!itemName) return json(request, env, { error: "Invalid item name" }, 400);
+    return handleShoppingMutation(
+      request,
+      env,
+      itemName,
+      shoppingMutation[2] as "purchase" | "restore",
+    );
+  }
 
   if (request.method === "POST" && inventoryMutation) {
     let itemName: string;

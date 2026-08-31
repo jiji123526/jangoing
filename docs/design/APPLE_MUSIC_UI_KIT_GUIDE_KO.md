@@ -240,6 +240,26 @@ Compact/large navbar 아래 검색 control을 두고, 최근 검색 또는 categ
 
 Compact Navbar → 큰 artwork/cover → primary/secondary metadata → horizontal actions → grouped table rows. 편집 가능한 모든 필드를 첫 화면에 펼치지 않는다.
 
+### 7.5 Playing Next / Shopping List
+
+Shopping은 Library grid가 아니라 `Playing Next` queue와 `Track List`를
+재사용한다. 아직 구매하지 않은 item은 앞으로 처리할 queue이고, 구매 완료 item은
+최근 처리 기록이기 때문이다.
+
+1. Large Navbar의 제목은 `Shopping List`다.
+2. 첫 section은 `To Buy`이며 active item count를 trailing value로 표시한다.
+3. 각 item은 56px Track List row를 사용한다.
+4. leading control은 44px 이상 hit area를 가진 22px 원형 checkbox다.
+5. primary label은 item name, secondary label은 추가 날짜다.
+6. 체크하면 `Purchased` section으로 이동한다.
+7. Purchased row는 pink filled check와 취소선 primary label을 사용한다.
+8. Purchased check를 다시 누르면 `To Buy`로 복원한다.
+9. Purchased section은 24시간 동안만 표시하며 그 이후 projection에서 숨긴다.
+10. 원본 event는 audit/history를 위해 삭제하지 않는다.
+
+Album artwork, transport, mini player, playback control은 shopping action과
+관련이 없으므로 이 화면에 가져오지 않는다.
+
 ## 8. 반응형과 접근성
 
 - 기준은 390px이나 320px부터 깨지지 않아야 한다. label은 줄바꿈보다 1줄 말줄임을 우선하고 detail에서 전체 값을 제공한다.

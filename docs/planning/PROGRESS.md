@@ -2,6 +2,43 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Playing Next-style shopping queue implemented
+
+### Completed
+
+- Rebuilt Shopping with the Apple Music `Playing Next` and 56px Track List
+  structure.
+- Split projected items into `To Buy` and `Purchased` sections.
+- Added accessible leading circular controls for purchase and restore actions.
+- Added `shopping_item_purchased` and `shopping_item_restored` events.
+- Kept purchased items visible for 24 hours, then hid them from the projection
+  without deleting event history.
+- Added matching production Worker and local API mutation endpoints.
+- Prevented shopping-only events from creating inventory projection rows.
+- Added projection tests for purchase, restore, retention cleanup, deduplication,
+  and inventory isolation.
+
+### Decisions
+
+- Treat Purchased as a reversible recent-action section rather than deleting
+  an item immediately.
+- Retain event history for auditability; "clears after 24 hours" means the row
+  leaves the shopping projection.
+- Use the Track List template instead of album cards because Shopping is an
+  action queue, not a browsing library.
+
+### Deployment
+
+- No D1 migration is required because `events.event_type` already stores text.
+- Deploy the Worker before the Vercel web update.
+
+### Validation
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api` (106 tests)
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+
 ## 2026-08-31 - Quantity-based inventory status added
 
 ### Completed
@@ -60,6 +97,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 ### Completed
 
+- Changed the global page canvas from the green-tinted grid to a plain white
+  background, including the main shell and sticky topbar.
 - Restored the navbar-level `Edit`/`Done` mode.
 - Made category rows clickable only while Edit mode is active.
 - Expanded the selected item in place with quantity, unit, location, expiry,

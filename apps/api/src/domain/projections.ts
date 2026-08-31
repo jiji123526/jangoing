@@ -76,7 +76,11 @@ export function projectInventory(
   const states = new Map<string, ItemState>();
 
   for (const event of events) {
-    if (event.event_type === "item_added_to_buy") {
+    if (
+      event.event_type === "item_added_to_buy" ||
+      event.event_type === "shopping_item_purchased" ||
+      event.event_type === "shopping_item_restored"
+    ) {
       continue;
     }
 
@@ -201,6 +205,8 @@ export function projectInventory(
 
 export function projectShoppingList(
   events: EventRecord[],
+  now = new Date(),
+  purchasedRetentionMs = 24 * 60 * 60 * 1000,
 ): ShoppingListItem[] {
   const items = new Map<string, ShoppingListItem>();
 
@@ -209,11 +215,39 @@ export function projectShoppingList(
       items.set(event.item_name, {
         item_name: event.item_name,
         added_at: event.created_at,
+        status: "active",
+        purchased_at: null,
       });
+    }
+
+    const item = items.get(event.item_name);
+    if (!item) continue;
+
+    if (event.event_type === "shopping_item_purchased") {
+      item.status = "purchased";
+      item.purchased_at = event.created_at;
+    }
+
+    if (event.event_type === "shopping_item_restored") {
+      item.status = "active";
+      item.purchased_at = null;
     }
   }
 
-  return [...items.values()].sort((left, right) =>
-    right.added_at.localeCompare(left.added_at),
-  );
+  const cutoff = now.getTime() - purchasedRetentionMs;
+
+  return [...items.values()]
+    .filter((item) =>
+      item.status === "active" ||
+      (item.purchased_at !== null &&
+        Date.parse(item.purchased_at) >= cutoff),
+    )
+    .sort((left, right) => {
+      if (left.status !== right.status) {
+        return left.status === "active" ? -1 : 1;
+      }
+      const leftTimestamp = left.purchased_at ?? left.added_at;
+      const rightTimestamp = right.purchased_at ?? right.added_at;
+      return rightTimestamp.localeCompare(leftTimestamp);
+    });
 }

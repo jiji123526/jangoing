@@ -287,6 +287,25 @@ describe("projectInventory", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("ignores shopping-only status events", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added_to_buy",
+          item_name: "milk",
+        }),
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+        }),
+        event({
+          event_type: "shopping_item_restored",
+          item_name: "milk",
+        }),
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("projectShoppingList", () => {
@@ -298,5 +317,65 @@ describe("projectShoppingList", () => {
 
     expect(list).toHaveLength(1);
     expect(list[0].item_name).toBe("yogurt");
+    expect(list[0].status).toBe("active");
+  });
+
+  it("moves purchased items into a retained completed state", () => {
+    const list = projectShoppingList(
+      [
+        event({
+          event_type: "item_added_to_buy",
+          item_name: "milk",
+          created_at: "2026-08-30T10:00:00.000Z",
+        }),
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+          created_at: "2026-08-31T09:00:00.000Z",
+        }),
+      ],
+      new Date("2026-08-31T12:00:00.000Z"),
+    );
+
+    expect(list).toEqual([{
+      item_name: "milk",
+      added_at: "2026-08-30T10:00:00.000Z",
+      status: "purchased",
+      purchased_at: "2026-08-31T09:00:00.000Z",
+    }]);
+  });
+
+  it("restores purchased items to the active queue", () => {
+    const list = projectShoppingList([
+      event({ event_type: "item_added_to_buy", item_name: "milk" }),
+      event({ event_type: "shopping_item_purchased", item_name: "milk" }),
+      event({ event_type: "shopping_item_restored", item_name: "milk" }),
+    ]);
+
+    expect(list[0]).toMatchObject({
+      item_name: "milk",
+      status: "active",
+      purchased_at: null,
+    });
+  });
+
+  it("hides purchased items after the retention window", () => {
+    const list = projectShoppingList(
+      [
+        event({
+          event_type: "item_added_to_buy",
+          item_name: "milk",
+          created_at: "2026-08-29T08:00:00.000Z",
+        }),
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+          created_at: "2026-08-30T08:00:00.000Z",
+        }),
+      ],
+      new Date("2026-08-31T12:00:00.000Z"),
+    );
+
+    expect(list).toEqual([]);
   });
 });

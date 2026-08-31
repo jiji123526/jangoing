@@ -477,6 +477,8 @@ export const EventTypeSchema = z.enum([
   "item_marked_out",
   "item_thrown_away",
   "item_added_to_buy",
+  "shopping_item_purchased",
+  "shopping_item_restored",
   "item_low_threshold_set",
   "item_adjusted",
   "item_removed",
@@ -549,6 +551,8 @@ export const InventoryItemSchema = z.object({
 export const ShoppingListItemSchema = z.object({
   item_name: z.string(),
   added_at: z.string(),
+  status: z.enum(["active", "purchased"]).default("active"),
+  purchased_at: z.string().nullable().default(null),
 });
 
 export type Intent = z.infer<typeof IntentSchema>;
