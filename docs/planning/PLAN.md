@@ -147,7 +147,9 @@ These limitations are acceptable only while every state-changing action requires
 - English text commands
 - Deterministic intent and slot parsing
 - Confirmation before storing an event
-- Inventory, shopping list, and recent event views
+- Apple Music-derived Home with projection-based Kitchen Briefing, item-level
+  Recently Updated cards, and a compact Quick Update command workflow
+- Inventory and shopping-list views
 - Optional expiry date when adding an item
 - Expiring-soon and expired status calculation
 - Cloudflare Worker API and D1
@@ -173,7 +175,8 @@ These limitations are acceptable only while every state-changing action requires
 4. The web app displays the proposed action.
 5. The user confirms or cancels it.
 6. The API stores an append-only event.
-7. Inventory, shopping list, and history are recalculated.
+7. Inventory, shopping list, Home briefing, and recent item cards are
+   recalculated.
 
 Interpretation and mutation remain separate. Parser or model output never directly modifies inventory.
 
@@ -608,7 +611,8 @@ Completion: `We are low on milk` is parsed, confirmed, persisted, and visible th
 
 - Command and optional expiry inputs
 - Interpretation preview and confirmation
-- Inventory, shopping-list, and history views
+- Home briefing and horizontally swipeable recent-item cards
+- Inventory and shopping-list views
 - Loading, empty, and error states
 
 Completion: the full flow works on a phone-sized viewport and persists across refresh.

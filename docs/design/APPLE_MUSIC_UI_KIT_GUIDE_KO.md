@@ -218,6 +218,27 @@ Regular 17/22, 자간 `-0.408px`, `#FF2D55`이며 편집 중에는 같은 위치
 
 Large Navbar → feature block → horizontal card row → section divider → tab bar 순서다. 카드 한 행은 횡스크롤이며 다음 카드가 일부 보여 스크롤 가능성을 알린다.
 
+Jangoing Home 구현은 다음 구조와 수치를 사용한다.
+
+1. `Home` large title은 다른 주요 탭과 동일한 높이 `95px`, 좌우 inset
+   `16px`, 제목 `34/41px`을 사용한다.
+2. `Kitchen Briefing`은 expiry attention, low/out inventory, active shopping
+   projection을 각각 `Use Soon`, `Restock`, `Shopping Run` feature로 계산한다.
+   feature card는 원본 feature 너비 `278px`, radius `6px`, 카드 간격 `16px`을
+   사용한다.
+3. `Recently Updated`는 event를 그대로 나열하지 않고 `item_name`별 최신
+   event 하나만 남긴다. 각 card는 원본 vertical Album Teaser 규격인
+   `160px` 너비, `160×160px` artwork, radius `6px`, primary `17/22px`,
+   secondary `15/20px`을 사용한다.
+4. 두 card row 모두 `16px` inset과 gap, touch momentum,
+   `scroll-snap-type: x mandatory`를 사용한다. scrollbar는 숨기지만 다음 card가
+   일부 보이도록 고정 폭을 유지해 수평 swipe affordance를 제공한다.
+5. 상품 이미지가 없는 현재 단계에서는 category별 gradient와 item initial을
+   artwork로 사용한다. Open Food Facts 등 신뢰 가능한 이미지가 연결되면 같은
+   `160×160px` frame 안에서 교체한다.
+6. 기존 command workflow는 삭제하지 않고 `Quick Update` 섹션으로 내린다.
+   Search 화면의 전체 command band는 변경하지 않는다.
+
 ### 7.2 Library / Inventory
 
 Large Navbar → attention section → category header/filter → `390×116` item rows → tab bar 순서가 기본이다. 인벤토리 구조는 다음으로 고정한다.

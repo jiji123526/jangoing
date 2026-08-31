@@ -2,6 +2,7 @@
 
 import type {
   CreateEventRequest,
+  EventRecord,
   EventType,
   Intent,
   InventoryItem,
@@ -11,7 +12,6 @@ import type {
 import {
   CalendarDays,
   Check,
-  History,
   LoaderCircle,
   Send,
   Trash2,
@@ -105,10 +105,19 @@ function canonicalItemName(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-function formatTimestamp(value: string): string {
+function relativeTimestamp(value: string): string {
+  const elapsed = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(0, Math.floor(elapsed / 60_000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
   return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    month: "short",
+    day: "numeric",
   }).format(new Date(value));
 }
 
@@ -402,6 +411,67 @@ function InventoryArtwork({ category }: { category: ItemCategory }) {
       <span>{shortLabel}</span>
     </div>
   );
+}
+
+function HomeArtwork({ itemName }: { itemName: string }) {
+  const category = inventoryCategory(itemName);
+  const categoryClass = category
+    .toLowerCase()
+    .replaceAll(" & ", "-")
+    .replaceAll(" ", "-");
+  const initials = titleCase(itemName)
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("");
+
+  return (
+    <div
+      className={`home-update-artwork category-${categoryClass}`}
+      aria-hidden="true"
+    >
+      <span>{initials || "JG"}</span>
+      <small>{category}</small>
+    </div>
+  );
+}
+
+function recentUpdateLabel(
+  event: EventRecord,
+  inventoryItem: InventoryItem | undefined,
+): string {
+  const amount = event.quantity
+    ? `${event.quantity}${event.unit ? ` ${event.unit}` : ""}`
+    : null;
+
+  switch (event.event_type) {
+    case "item_added":
+      return `Added${amount ? ` ${amount}` : ""} · ${relativeTimestamp(event.created_at)}`;
+    case "item_consumed":
+      return `Used${amount ? ` ${amount}` : ""} · ${relativeTimestamp(event.created_at)}`;
+    case "item_marked_low":
+      return `Marked low · ${relativeTimestamp(event.created_at)}`;
+    case "item_marked_out":
+      return `Out of stock · ${relativeTimestamp(event.created_at)}`;
+    case "item_thrown_away":
+      return `Thrown away · ${relativeTimestamp(event.created_at)}`;
+    case "item_added_to_buy":
+      return `Added to shopping · ${relativeTimestamp(event.created_at)}`;
+    case "shopping_item_purchased":
+      return `Purchased · ${relativeTimestamp(event.created_at)}`;
+    case "shopping_item_restored":
+      return `Returned to list · ${relativeTimestamp(event.created_at)}`;
+    case "shopping_item_deleted":
+      return `Removed from list · ${relativeTimestamp(event.created_at)}`;
+    case "item_low_threshold_set":
+      return `Low level updated · ${relativeTimestamp(event.created_at)}`;
+    case "item_adjusted":
+      return inventoryItem
+        ? `${quantityLabel(inventoryItem)} · ${relativeTimestamp(event.created_at)}`
+        : `Inventory updated · ${relativeTimestamp(event.created_at)}`;
+    case "item_removed":
+      return `Removed from inventory · ${relativeTimestamp(event.created_at)}`;
+  }
 }
 
 function InventoryItemRow({
@@ -748,6 +818,64 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const inventoryByItemName = new Map(
     dashboard.inventory.map((item) => [item.item_name, item]),
   );
+  const homeBriefing = useMemo(() => {
+    const expiring = dashboard.inventory.filter(
+      (item) =>
+        item.expiry_state === "expired" ||
+        item.expiry_state === "expiring_soon",
+    );
+    const restock = dashboard.inventory.filter(
+      (item) => item.status === "low" || item.status === "out",
+    );
+    const toBuy = dashboard.shoppingList.filter(
+      (item) => item.status === "active",
+    );
+
+    return [
+      {
+        eyebrow: "USE SOON",
+        title: expiring.length
+          ? `${expiring.length} item${expiring.length === 1 ? "" : "s"} need attention`
+          : "Nothing expiring soon",
+        detail: expiring.length
+          ? expiring.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
+          : "Your dated items look current.",
+        href: "/inventory",
+        tone: "expiry",
+      },
+      {
+        eyebrow: "RESTOCK",
+        title: restock.length
+          ? `${restock.length} item${restock.length === 1 ? "" : "s"} running low`
+          : "Inventory levels look good",
+        detail: restock.length
+          ? restock.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
+          : "No low or out-of-stock items.",
+        href: "/inventory",
+        tone: "restock",
+      },
+      {
+        eyebrow: "SHOPPING RUN",
+        title: toBuy.length
+          ? `${toBuy.length} item${toBuy.length === 1 ? "" : "s"} to buy`
+          : "Shopping list is clear",
+        detail: toBuy.length
+          ? toBuy.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
+          : "Add an item when you need it.",
+        href: "/shopping",
+        tone: "shopping",
+      },
+    ];
+  }, [dashboard.inventory, dashboard.shoppingList]);
+  const recentlyUpdated = useMemo(() => {
+    const latestByItem = new Map<string, EventRecord>();
+    for (const event of dashboard.events) {
+      if (!latestByItem.has(event.item_name)) {
+        latestByItem.set(event.item_name, event);
+      }
+    }
+    return [...latestByItem.values()].slice(0, 10);
+  }, [dashboard.events]);
 
   async function loadDashboard() {
     setLoading(true);
@@ -1097,15 +1225,78 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
   return (
     <main id={view}>
+      {view === "home" && (
+        <div className="home-overview">
+          <header className="home-titlebar">
+            <h1>Home</h1>
+          </header>
+
+          <section className="home-section" aria-labelledby="briefing-heading">
+            <div className="home-section-heading">
+              <h2 id="briefing-heading">Kitchen Briefing</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Loading kitchen status…</p>
+            ) : (
+              <div className="home-feature-scroll">
+                {homeBriefing.map((briefing) => (
+                  <a
+                    className={`home-feature-card tone-${briefing.tone}`}
+                    href={briefing.href}
+                    key={briefing.eyebrow}
+                  >
+                    <span>{briefing.eyebrow}</span>
+                    <strong>{briefing.title}</strong>
+                    <p>{briefing.detail}</p>
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="recent-heading">
+            <div className="home-section-heading">
+              <h2 id="recent-heading">Recently Updated</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Loading recent updates…</p>
+            ) : recentlyUpdated.length === 0 ? (
+              <p className="home-empty">
+                Confirmed inventory and shopping actions will appear here.
+              </p>
+            ) : (
+              <div className="home-update-scroll">
+                {recentlyUpdated.map((event) => (
+                  <article className="home-update-card" key={event.id}>
+                    <HomeArtwork itemName={event.item_name} />
+                    <strong>{titleCase(event.item_name)}</strong>
+                    <p>
+                      {recentUpdateLabel(
+                        event,
+                        inventoryByItemName.get(event.item_name),
+                      )}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       {(view === "home" || view === "search") && (
       <section
-        className="command-band"
+        className={`command-band${view === "home" ? " home-quick-update" : ""}`}
         id="command"
         aria-labelledby="command-heading"
       >
         <div className="section-heading">
-          <p className="eyebrow">Kitchen command</p>
-          <h1 id="command-heading">What changed?</h1>
+          {view === "search" && <p className="eyebrow">Kitchen command</p>}
+          {view === "home" ? (
+            <h2 id="command-heading">Quick Update</h2>
+          ) : (
+            <h1 id="command-heading">What changed?</h1>
+          )}
         </div>
 
         <form onSubmit={handleInterpret} className="command-form">
@@ -1338,7 +1529,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       </section>
       )}
 
-      {view !== "search" && (
+      {(view === "inventory" || view === "shopping") && (
       <div className={`dashboard-grid dashboard-grid-${view}`}>
         {view === "inventory" && (
         <section className="data-section inventory-section" id="inventory">
@@ -1701,36 +1892,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         </section>
         )}
 
-        {view === "home" && (
-        <section className="data-section history-section">
-          <div className="data-heading">
-            <div>
-              <History size={19} />
-              <h2>Recent actions</h2>
-            </div>
-            <span>{dashboard.events.length}</span>
-          </div>
-
-          {dashboard.events.length === 0 ? (
-            <p className="empty-state">Confirmed actions will appear here.</p>
-          ) : (
-            <ol className="event-list">
-              {dashboard.events.slice(0, 10).map((event) => (
-                <li key={event.id}>
-                  <span className="event-marker" />
-                  <div>
-                    <strong>{titleCase(event.event_type)}</strong>
-                    <p>{event.raw_utterance}</p>
-                    <time dateTime={event.created_at}>
-                      {formatTimestamp(event.created_at)}
-                    </time>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-        )}
       </div>
       )}
 

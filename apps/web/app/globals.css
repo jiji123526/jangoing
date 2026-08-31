@@ -137,6 +137,280 @@ main {
   border-bottom: 1px solid var(--line);
 }
 
+.home-overview,
+.home-quick-update {
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+.home-titlebar {
+  min-height: 95px;
+  padding: 47px 16px 7px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.home-titlebar h1 {
+  margin: 0;
+  color: #000;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.374px;
+}
+
+.home-section {
+  min-width: 0;
+  padding: 8px 0 24px;
+}
+
+.home-section + .home-section {
+  padding-top: 4px;
+}
+
+.home-section-heading {
+  min-height: 36px;
+  padding: 0 16px 8px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.home-section-heading h2,
+.home-quick-update .section-heading h2 {
+  margin: 0;
+  color: #000;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0.35px;
+}
+
+.home-feature-scroll,
+.home-update-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-feature-scroll {
+  padding: 0 16px;
+}
+
+.home-feature-scroll::after,
+.home-update-scroll::after {
+  width: 1px;
+  flex: 0 0 1px;
+  content: "";
+}
+
+.home-feature-scroll::-webkit-scrollbar,
+.home-update-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.home-feature-card {
+  width: 278px;
+  height: 188px;
+  padding: 20px;
+  flex: 0 0 278px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  scroll-snap-align: start;
+  text-decoration: none;
+}
+
+.home-feature-card.tone-expiry {
+  background:
+    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.32), transparent 34%),
+    linear-gradient(145deg, #ef7d55, #bf3d46);
+}
+
+.home-feature-card.tone-restock {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 255, 255, 0.25), transparent 32%),
+    linear-gradient(145deg, #4f8d72, #245743);
+}
+
+.home-feature-card.tone-shopping {
+  background:
+    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.3), transparent 34%),
+    linear-gradient(145deg, #567fac, #315271);
+}
+
+.home-feature-card > span {
+  margin-bottom: 7px;
+  opacity: 0.78;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+}
+
+.home-feature-card > strong {
+  max-width: 230px;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 29px;
+  letter-spacing: 0.3px;
+}
+
+.home-feature-card > p {
+  margin: auto 0 0;
+  overflow: hidden;
+  opacity: 0.82;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-update-scroll {
+  padding: 0 16px 2px;
+}
+
+.home-update-card {
+  width: 160px;
+  flex: 0 0 160px;
+  scroll-snap-align: start;
+}
+
+.home-update-artwork {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin-bottom: 6px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.94);
+  background: linear-gradient(145deg, #7b8f83, #354d41);
+}
+
+.home-update-artwork::after {
+  position: absolute;
+  right: -25px;
+  bottom: -40px;
+  width: 130px;
+  height: 130px;
+  border: 18px solid rgba(255, 255, 255, 0.13);
+  border-radius: 50%;
+  content: "";
+}
+
+.home-update-artwork.category-produce {
+  background: linear-gradient(145deg, #db9950, #708d43);
+}
+
+.home-update-artwork.category-dairy-eggs {
+  color: rgba(25, 44, 65, 0.85);
+  background: linear-gradient(145deg, #f3e7ba, #91bad5);
+}
+
+.home-update-artwork.category-meat-seafood {
+  background: linear-gradient(145deg, #d77769, #8c3f50);
+}
+
+.home-update-artwork.category-pantry {
+  background: linear-gradient(145deg, #c7905c, #78513f);
+}
+
+.home-update-artwork.category-frozen {
+  background: linear-gradient(145deg, #83c8cf, #4d6ca4);
+}
+
+.home-update-artwork.category-drinks {
+  background: linear-gradient(145deg, #5db6a6, #2d647b);
+}
+
+.home-update-artwork.category-snacks {
+  background: linear-gradient(145deg, #dd8c5f, #b44954);
+}
+
+.home-update-artwork > span {
+  z-index: 1;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.374px;
+}
+
+.home-update-artwork > small {
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.home-update-card > strong {
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  color: #000;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-update-card > p {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-loading,
+.home-empty {
+  margin: 10px 16px 24px;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.home-quick-update {
+  margin-top: 2px;
+  padding: 4px 16px 32px;
+  border-bottom: 0;
+  background: #fff;
+}
+
+.home-quick-update .section-heading {
+  margin-bottom: 12px;
+}
+
+.home-quick-update .command-form {
+  grid-template-columns: minmax(0, 1fr) 210px;
+}
+
+.home-quick-update .command-input-wrap {
+  box-shadow: none;
+}
+
 .section-heading {
   margin-bottom: 25px;
 }
@@ -1592,6 +1866,14 @@ h1 {
 
   .command-band {
     padding: 34px 18px 26px;
+  }
+
+  .home-quick-update {
+    padding: 4px 16px 32px;
+  }
+
+  .home-quick-update .command-form {
+    grid-template-columns: 1fr;
   }
 
   .command-form {

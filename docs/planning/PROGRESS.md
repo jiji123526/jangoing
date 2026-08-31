@@ -2,6 +2,25 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Home adopts the Apple Music horizontal content structure
+
+### Completed
+
+- Replaced the developer-oriented recent-action list with a consumer Home
+  hierarchy: large title, Kitchen Briefing, Recently Updated, and Quick Update.
+- Derived briefing cards from current expiry, inventory status, and shopping
+  projections without adding an API or database schema.
+- Deduplicated recent events by item so one item occupies only its latest card.
+- Added 278px feature cards and 160px square media cards with horizontal touch
+  scrolling, momentum, hidden scrollbars, and snap alignment.
+- Kept the full command interpretation and confirmation workflow in a compact
+  Home section while preserving Search behavior.
+- Documented the exact Home component measurements in the design guide.
+
+### Deployment
+
+- This change is Web-only. No Worker deployment or D1 migration is required.
+
 ## 2026-08-31 - To Buy swipe now provides Done and Delete
 
 ### Completed
