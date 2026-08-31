@@ -12,7 +12,10 @@ import type {
 import {
   CalendarDays,
   Check,
+  ChevronUp,
+  CircleUserRound,
   LoaderCircle,
+  Mic,
   Send,
   Trash2,
   X,
@@ -768,6 +771,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [homeQuickUpdateOpen, setHomeQuickUpdateOpen] = useState(false);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
   const [editingInventory, setEditingInventory] = useState(false);
@@ -785,6 +789,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [revealedShoppingItem, setRevealedShoppingItem] =
     useState<string | null>(null);
   const shoppingAddDialogRef = useRef<HTMLDialogElement>(null);
+  const commandInputRef = useRef<HTMLInputElement>(null);
+  const homeQuickUpdateRef = useRef<HTMLElement>(null);
 
   const attentionItems = useMemo(
     () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
@@ -905,6 +911,25 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   useEffect(() => {
     void loadDashboard();
   }, [view]);
+
+  useEffect(() => {
+    if (view !== "home" || !homeQuickUpdateOpen) return;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      commandInputRef.current?.focus();
+    });
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setHomeQuickUpdateOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [homeQuickUpdateOpen, view]);
 
   useEffect(() => {
     const dialog = shoppingAddDialogRef.current;
@@ -1126,6 +1151,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         setEdited(null);
         setCommand("");
         setNotice("Saved as a request that needs clarification.");
+        if (view === "home") setHomeQuickUpdateOpen(false);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "Could not save review.");
       } finally {
@@ -1191,6 +1217,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setEdited(null);
       setNotice(`${titleCase(payload.item_name)} updated.`);
       await loadDashboard();
+      if (view === "home") setHomeQuickUpdateOpen(false);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not save the action.",
@@ -1229,6 +1256,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         <div className="home-overview">
           <header className="home-titlebar">
             <h1>Home</h1>
+            <span
+              className="home-profile-placeholder"
+              role="img"
+              aria-label="Account profile placeholder"
+              title="Account profiles are planned"
+            >
+              <CircleUserRound size={30} strokeWidth={1.75} />
+            </span>
           </header>
 
           <section className="home-section" aria-labelledby="briefing-heading">
@@ -1285,15 +1320,64 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       )}
 
       {(view === "home" || view === "search") && (
+      <>
+      {view === "home" && homeQuickUpdateOpen && (
+        <button
+          className="home-quick-update-backdrop"
+          type="button"
+          aria-label="Close Quick Update"
+          onClick={() => setHomeQuickUpdateOpen(false)}
+        />
+      )}
       <section
-        className={`command-band${view === "home" ? " home-quick-update" : ""}`}
+        className={`command-band${
+          view === "home" ? " home-quick-update-dialog" : ""
+        }`}
         id="command"
         aria-labelledby="command-heading"
+        role={view === "home" ? "dialog" : undefined}
+        aria-modal={view === "home" ? true : undefined}
+        hidden={view === "home" && !homeQuickUpdateOpen}
+        ref={view === "home" ? homeQuickUpdateRef : undefined}
+        onKeyDown={
+          view === "home"
+            ? (event) => {
+                if (event.key !== "Tab") return;
+                const focusable =
+                  homeQuickUpdateRef.current?.querySelectorAll<HTMLElement>(
+                    "button:not(:disabled), input:not(:disabled), select:not(:disabled)",
+                  );
+                if (!focusable?.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                  event.preventDefault();
+                  last.focus();
+                } else if (
+                  !event.shiftKey &&
+                  document.activeElement === last
+                ) {
+                  event.preventDefault();
+                  first.focus();
+                }
+              }
+            : undefined
+        }
       >
         <div className="section-heading">
           {view === "search" && <p className="eyebrow">Kitchen command</p>}
           {view === "home" ? (
-            <h2 id="command-heading">Quick Update</h2>
+            <>
+              <h2 id="command-heading">Quick Update</h2>
+              <button
+                className="home-quick-update-close"
+                type="button"
+                aria-label="Close Quick Update"
+                onClick={() => setHomeQuickUpdateOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </>
           ) : (
             <h1 id="command-heading">What changed?</h1>
           )}
@@ -1304,6 +1388,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <span>English command</span>
             <div className="command-input-wrap">
               <input
+                ref={view === "home" ? commandInputRef : undefined}
                 value={command}
                 onChange={(event) => {
                   setCommand(event.target.value);
@@ -1527,6 +1612,29 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           </div>
         )}
       </section>
+      {view === "home" && (
+        <div className="home-mini-player">
+          <button
+            type="button"
+            onClick={() => setHomeQuickUpdateOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={homeQuickUpdateOpen}
+            aria-controls="command"
+          >
+            <span className="home-mini-player-artwork" aria-hidden="true">
+              <Mic size={22} strokeWidth={2} />
+            </span>
+            <span className="home-mini-player-copy">
+              <strong>Tell Jangoing what changed</strong>
+              <small>Quick Update</small>
+            </span>
+            <span className="home-mini-player-action" aria-hidden="true">
+              <ChevronUp size={22} strokeWidth={2} />
+            </span>
+          </button>
+        </div>
+      )}
+      </>
       )}
 
       {(view === "inventory" || view === "shopping") && (

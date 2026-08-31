@@ -2,6 +2,40 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Quick Update moved into the Home mini player
+
+### Completed
+
+- Replaced the full inline Home command form with a 64px mini-player bar above
+  the tab bar.
+- Made the entire bar open the existing command, correction, and confirmation
+  workflow in a modal without duplicating that logic.
+- Added backdrop, Escape, explicit close, initial input focus, focus
+  containment, background scroll lock, and automatic close after every
+  successful save path.
+- Used a 44px microphone artwork region that can later display Raspberry Pi or
+  voice-listening state.
+- Kept the Search command interface unchanged and limited the fixed bar to Home.
+
+### Deployment
+
+- This change is Web-only. No Worker deployment or D1 migration is required.
+
+## 2026-08-31 - Home profile placeholder added
+
+### Completed
+
+- Added the reference-style circular account icon to the right side of the Home
+  large-title navbar.
+- Reserved a 44px region around a 30px icon so it can become an accessible
+  profile link when authentication and account routes are implemented.
+- Kept the placeholder non-interactive to avoid linking users to a route that
+  does not exist yet.
+
+### Deployment
+
+- This change is Web-only. No Worker deployment or D1 migration is required.
+
 ## 2026-08-31 - Home adopts the Apple Music horizontal content structure
 
 ### Completed

@@ -138,12 +138,14 @@ main {
 }
 
 .home-overview,
-.home-quick-update {
+.home-quick-update-dialog,
+.home-mini-player {
   font-family: "SF Pro Text", "SF Pro Display", -apple-system,
     BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
 
 .home-titlebar {
+  position: relative;
   min-height: 95px;
   padding: 47px 16px 7px;
   display: flex;
@@ -158,6 +160,17 @@ main {
   font-weight: 700;
   line-height: 41px;
   letter-spacing: 0.374px;
+}
+
+.home-profile-placeholder {
+  position: absolute;
+  right: 9px;
+  bottom: 4px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #ff2d55;
 }
 
 .home-section {
@@ -177,7 +190,7 @@ main {
 }
 
 .home-section-heading h2,
-.home-quick-update .section-heading h2 {
+.home-quick-update-dialog .section-heading h2 {
   margin: 0;
   color: #000;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -392,23 +405,140 @@ main {
   line-height: 20px;
 }
 
-.home-quick-update {
-  margin-top: 2px;
-  padding: 4px 16px 32px;
-  border-bottom: 0;
+.home-quick-update-backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: default;
+}
+
+.home-quick-update-dialog {
+  position: fixed;
+  z-index: 201;
+  top: 50%;
+  left: 50%;
+  width: min(720px, calc(100% - 32px));
+  max-height: calc(100dvh - 96px);
+  margin: 0;
+  padding: 24px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 10px;
   background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  transform: translate(-50%, -50%);
 }
 
-.home-quick-update .section-heading {
+.home-quick-update-dialog .section-heading {
+  min-height: 44px;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.home-quick-update .command-form {
+.home-quick-update-close {
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px -8px 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: rgba(60, 60, 67, 0.6);
+  background: transparent;
+}
+
+.home-quick-update-dialog .command-form {
   grid-template-columns: minmax(0, 1fr) 210px;
 }
 
-.home-quick-update .command-input-wrap {
+.home-quick-update-dialog .command-input-wrap {
   box-shadow: none;
+}
+
+.home-mini-player {
+  position: fixed;
+  z-index: 99;
+  bottom: calc(49px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(1180px, 100%);
+  height: 64px;
+  padding: 0 8px;
+  border-top: 0.5px solid #c6c6c8;
+  background: rgba(250, 250, 250, 0.92);
+  backdrop-filter: blur(15px);
+  transform: translateX(-50%);
+}
+
+.home-mini-player > button {
+  width: 100%;
+  height: 64px;
+  padding: 0 8px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  color: #000;
+  background: transparent;
+  text-align: left;
+}
+
+.home-mini-player-artwork {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  background: linear-gradient(145deg, #ff5a78, #d91f49);
+}
+
+.home-mini-player-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-mini-player-copy strong,
+.home-mini-player-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-mini-player-copy strong {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.home-mini-player-copy small {
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+}
+
+.home-mini-player-action {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #ff2d55;
+}
+
+#home {
+  padding-bottom: 64px;
 }
 
 .section-heading {
@@ -1868,11 +1998,18 @@ h1 {
     padding: 34px 18px 26px;
   }
 
-  .home-quick-update {
-    padding: 4px 16px 32px;
+  .home-quick-update-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    border-radius: 10px 10px 0 0;
+    transform: none;
   }
 
-  .home-quick-update .command-form {
+  .home-quick-update-dialog .command-form {
     grid-template-columns: 1fr;
   }
 

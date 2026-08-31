@@ -221,7 +221,10 @@ Large Navbar → feature block → horizontal card row → section divider → t
 Jangoing Home 구현은 다음 구조와 수치를 사용한다.
 
 1. `Home` large title은 다른 주요 탭과 동일한 높이 `95px`, 좌우 inset
-   `16px`, 제목 `34/41px`을 사용한다.
+   `16px`, 제목 `34/41px`을 사용한다. 오른쪽에는 `44×44px` 영역 안의
+   `30×30px` account/profile symbol을 accent 색으로 표시한다. 현재는
+   비동작 placeholder이며 인증과 profile route가 추가되면 같은 영역을
+   접근 가능한 link로 교체한다.
 2. `Kitchen Briefing`은 expiry attention, low/out inventory, active shopping
    projection을 각각 `Use Soon`, `Restock`, `Shopping Run` feature로 계산한다.
    feature card는 원본 feature 너비 `278px`, radius `6px`, 카드 간격 `16px`을
@@ -236,8 +239,16 @@ Jangoing Home 구현은 다음 구조와 수치를 사용한다.
 5. 상품 이미지가 없는 현재 단계에서는 category별 gradient와 item initial을
    artwork로 사용한다. Open Food Facts 등 신뢰 가능한 이미지가 연결되면 같은
    `160×160px` frame 안에서 교체한다.
-6. 기존 command workflow는 삭제하지 않고 `Quick Update` 섹션으로 내린다.
-   Search 화면의 전체 command band는 변경하지 않는다.
+6. 기존 command workflow는 Home에서 tab bar 바로 위의 `64px` mini-player
+   형태 `Quick Update` bar로 축약한다. 왼쪽에는 `44×44px` microphone
+   artwork, 가운데에는 `17/22px` primary와 `13/16px` secondary label,
+   오른쪽에는 `44×44px` open action을 둔다.
+7. Home의 bar를 누르면 기존 command form과 interpretation confirmation을
+   modal로 연다. 작은 화면에서는 하단 sheet, 넓은 화면에서는 중앙 dialog로
+   표시하며 저장 성공 시 자동으로 닫는다. 향후 voice 연결 시 같은 bar의
+   microphone artwork와 secondary label을 listening/error 상태 표시에 쓴다.
+8. mini-player는 Home에서만 표시한다. Search 화면의 전체 command band는
+   변경하지 않는다.
 
 ### 7.2 Library / Inventory
 

@@ -148,7 +148,10 @@ These limitations are acceptable only while every state-changing action requires
 - Deterministic intent and slot parsing
 - Confirmation before storing an event
 - Apple Music-derived Home with projection-based Kitchen Briefing, item-level
-  Recently Updated cards, and a compact Quick Update command workflow
+  Recently Updated cards, and a Home-only mini-player that opens the Quick
+  Update command workflow as a modal
+- Home account/profile placeholder reserved for later authentication and
+  account routing
 - Inventory and shopping-list views
 - Optional expiry date when adding an item
 - Expiring-soon and expired status calculation
