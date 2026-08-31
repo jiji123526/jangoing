@@ -620,12 +620,14 @@ async function handleShoppingMutation(
   request: Request,
   env: Env,
   itemName: string,
-  action: "purchase" | "restore",
+  action: "add" | "purchase" | "restore",
 ): Promise<Response> {
   const event: EventRecord = {
     id: crypto.randomUUID(),
     event_type:
-      action === "purchase"
+      action === "add"
+        ? "item_added_to_buy"
+        : action === "purchase"
         ? "shopping_item_purchased"
         : "shopping_item_restored",
     item_name: itemName,
@@ -634,7 +636,10 @@ async function handleShoppingMutation(
     location: null,
     expiration_date: null,
     low_threshold: null,
-    raw_utterance: `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+    raw_utterance:
+      action === "add"
+        ? `Shopping list added ${itemName}`
+        : `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
     confidence: 1,
     source: "web",
     created_at: new Date().toISOString(),
@@ -677,7 +682,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     /^\/inventory\/([^/]+)\/(edit|remove)$/,
   );
   const shoppingMutation = url.pathname.match(
-    /^\/shopping-list\/([^/]+)\/(purchase|restore)$/,
+    /^\/shopping-list\/([^/]+)\/(add|purchase|restore)$/,
   );
 
   if (request.method === "POST" && shoppingMutation) {
@@ -692,7 +697,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       request,
       env,
       itemName,
-      shoppingMutation[2] as "purchase" | "restore",
+      shoppingMutation[2] as "add" | "purchase" | "restore",
     );
   }
 

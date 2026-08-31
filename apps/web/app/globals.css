@@ -997,6 +997,7 @@ h1 {
 }
 
 .shopping-titlebar {
+  position: relative;
   min-height: 95px;
   padding: 47px 16px 7px;
   display: flex;
@@ -1011,6 +1012,73 @@ h1 {
   font-weight: 700;
   line-height: 41px;
   letter-spacing: 0.374px;
+}
+
+.shopping-add-trigger {
+  position: absolute;
+  top: 11px;
+  right: 16px;
+  width: 75px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  color: #ff2d55;
+  background: rgba(118, 118, 128, 0.12);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.shopping-add-trigger:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+.shopping-manual-add {
+  margin: 0 16px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.shopping-manual-add input {
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: #000;
+  background: rgba(118, 118, 128, 0.12);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.shopping-manual-add input:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 1px;
+}
+
+.shopping-manual-add button {
+  min-width: 52px;
+  height: 44px;
+  padding: 0 4px;
+  border: 0;
+  color: #ff2d55;
+  background: transparent;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.shopping-manual-add button:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -2px;
 }
 
 .shopping-message {
@@ -1077,6 +1145,10 @@ h1 {
   margin-top: 28px;
 }
 
+.shopping-recommendations {
+  margin-bottom: 28px;
+}
+
 .shopping-track-list {
   margin: 0;
   padding: 0;
@@ -1089,6 +1161,70 @@ h1 {
   grid-template-columns: 52px minmax(0, 1fr);
   align-items: stretch;
   padding-left: 4px;
+}
+
+.shopping-suggestion-list li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-left: 16px;
+}
+
+.shopping-suggestion-copy {
+  min-width: 0;
+  min-height: 56px;
+  padding: 7px 12px 7px 0;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.shopping-suggestion-copy strong {
+  overflow: hidden;
+  color: #000;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-suggestion-copy small {
+  overflow: hidden;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: -0.078px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-add-button {
+  width: 52px;
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
+  color: #ff2d55;
+  background: transparent;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 28px;
+  letter-spacing: 0;
+}
+
+.shopping-add-button > span {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.shopping-add-button:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -4px;
 }
 
 .shopping-check-button {

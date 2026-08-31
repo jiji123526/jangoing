@@ -679,7 +679,7 @@ async function route(
 
   const inventoryMutation = path.match(/^\/inventory\/([^/]+)\/(edit|remove)$/);
   const shoppingMutation = path.match(
-    /^\/shopping-list\/([^/]+)\/(purchase|restore)$/,
+    /^\/shopping-list\/([^/]+)\/(add|purchase|restore)$/,
   );
   if (request.method === "POST" && shoppingMutation) {
     let itemName: string;
@@ -694,11 +694,13 @@ async function route(
       return;
     }
 
-    const action = shoppingMutation[2] as "purchase" | "restore";
+    const action = shoppingMutation[2] as "add" | "purchase" | "restore";
     const event: EventRecord = {
       id: crypto.randomUUID(),
       event_type:
-        action === "purchase"
+        action === "add"
+          ? "item_added_to_buy"
+          : action === "purchase"
           ? "shopping_item_purchased"
           : "shopping_item_restored",
       item_name: itemName,
@@ -707,7 +709,10 @@ async function route(
       location: null,
       expiration_date: null,
       low_threshold: null,
-      raw_utterance: `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
+      raw_utterance:
+        action === "add"
+          ? `Shopping list added ${itemName}`
+          : `Shopping list ${action === "purchase" ? "purchased" : "restored"} ${itemName}`,
       confidence: 1,
       source: "web",
       created_at: new Date().toISOString(),

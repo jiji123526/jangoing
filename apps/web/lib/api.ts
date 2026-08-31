@@ -239,6 +239,16 @@ export async function markShoppingItemPurchased(
   return EventRecordSchema.parse(body);
 }
 
+export async function addShoppingItem(
+  itemName: string,
+): Promise<EventRecord> {
+  const body = await apiRequest(
+    `/shopping-list/${encodeURIComponent(itemName)}/add`,
+    { method: "POST" },
+  );
+  return EventRecordSchema.parse(body);
+}
+
 export async function restoreShoppingItem(
   itemName: string,
 ): Promise<EventRecord> {

@@ -17,6 +17,14 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Prevented shopping-only events from creating inventory projection rows.
 - Added projection tests for purchase, restore, retention cleanup, deduplication,
   and inventory isolation.
+- Added `Suggested from Inventory` for Low items not already represented in To
+  Buy or recent Purchased.
+- Added a direct recommendation action that records `item_added_to_buy` and
+  refreshes the queue without discarding the inventory snapshot.
+- Replaced recommendation text actions with the Figma-derived 28px trailing
+  plus control and added the 75x28 `+ Add` navbar chip for manual entries.
+- Added a compact manual item form that canonicalizes a typed display name
+  before saving it to the shopping queue.
 
 ### Decisions
 
@@ -26,6 +34,8 @@ Add new entries at the top of the log so the latest state is easy to find.
   leaves the shopping projection.
 - Use the Track List template instead of album cards because Shopping is an
   action queue, not a browsing library.
+- Recommend only explicit `low` inventory states; expiry warnings and generic
+  in-stock items do not become shopping suggestions.
 
 ### Deployment
 
@@ -35,7 +45,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Validation
 
 - `npm run typecheck`
-- `npm run test --workspace @jangoing/api` (106 tests)
+- `npm run test --workspace @jangoing/api` (107 tests)
 - `npm run build --workspace @jangoing/api`
 - `npm run build --workspace @jangoing/web`
 

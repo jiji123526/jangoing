@@ -359,6 +359,25 @@ describe("projectShoppingList", () => {
     });
   });
 
+  it("reactivates a purchased item when it is added again", () => {
+    const list = projectShoppingList([
+      event({ event_type: "item_added_to_buy", item_name: "milk" }),
+      event({ event_type: "shopping_item_purchased", item_name: "milk" }),
+      event({
+        event_type: "item_added_to_buy",
+        item_name: "milk",
+        created_at: "2026-08-27T10:00:00.000Z",
+      }),
+    ]);
+
+    expect(list[0]).toMatchObject({
+      item_name: "milk",
+      status: "active",
+      purchased_at: null,
+      added_at: "2026-08-27T10:00:00.000Z",
+    });
+  });
+
   it("hides purchased items after the retention window", () => {
     const list = projectShoppingList(
       [

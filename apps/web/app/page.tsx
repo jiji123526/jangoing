@@ -16,8 +16,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  addShoppingItem,
   createEvent,
   getDashboardData,
   getInventoryData,
@@ -92,6 +93,14 @@ function titleCase(value: string): string {
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function canonicalItemName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function formatTimestamp(value: string): string {
@@ -209,6 +218,87 @@ function shoppingDateLabel(value: string, prefix: string): string {
     month: "short",
     day: "numeric",
   }).format(new Date(value))}`;
+}
+
+const shoppingSwipeActionWidth = 84;
+
+function ShoppingSwipeRow({
+  itemName,
+  addedAt,
+  busy,
+  open,
+  onOpenChange,
+  onDone,
+}: {
+  itemName: string;
+  addedAt: string;
+  busy: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const pointerStart = useRef(0);
+  const pointerBase = useRef(0);
+  const pointerMoved = useRef(false);
+  const [dragOffset, setDragOffset] = useState<number | null>(null);
+  const offset = dragOffset ?? (open ? -shoppingSwipeActionWidth : 0);
+
+  function finishSwipe() {
+    const shouldOpen = offset <= -(shoppingSwipeActionWidth / 2);
+    setDragOffset(null);
+    onOpenChange(shouldOpen);
+  }
+
+  return (
+    <li className="shopping-swipe-row">
+      <button
+        className="shopping-swipe-action"
+        type="button"
+        disabled={busy}
+        onFocus={() => onOpenChange(true)}
+        onClick={onDone}
+      >
+        {busy ? "Saving…" : "Done"}
+      </button>
+      <div
+        className="shopping-swipe-content"
+        style={{ transform: `translate3d(${offset}px, 0, 0)` }}
+        onClick={() => {
+          if (open && !pointerMoved.current) onOpenChange(false);
+        }}
+        onPointerDown={(event) => {
+          if (busy || event.button !== 0) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          pointerStart.current = event.clientX;
+          pointerBase.current = open ? -shoppingSwipeActionWidth : 0;
+          pointerMoved.current = false;
+          setDragOffset(pointerBase.current);
+        }}
+        onPointerMove={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          const delta = event.clientX - pointerStart.current;
+          if (Math.abs(delta) > 4) pointerMoved.current = true;
+          setDragOffset(
+            Math.max(
+              -shoppingSwipeActionWidth,
+              Math.min(0, pointerBase.current + delta),
+            ),
+          );
+        }}
+        onPointerUp={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          finishSwipe();
+        }}
+        onPointerCancel={finishSwipe}
+      >
+        <div className="shopping-row-copy">
+          <strong>{titleCase(itemName)}</strong>
+          <small>{shoppingDateLabel(addedAt, "Added")}</small>
+        </div>
+      </div>
+    </li>
+  );
 }
 
 function attentionLabel(item: InventoryItem): string | null {
@@ -534,6 +624,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     useState<string | null>(null);
   const [inventorySaving, setInventorySaving] = useState<string | null>(null);
   const [shoppingSaving, setShoppingSaving] = useState<string | null>(null);
+  const [shoppingAddOpen, setShoppingAddOpen] = useState(false);
+  const [shoppingDraft, setShoppingDraft] = useState("");
+  const [revealedShoppingItem, setRevealedShoppingItem] =
+    useState<string | null>(null);
 
   const attentionItems = useMemo(
     () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
@@ -558,6 +652,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const purchasedShoppingItems = dashboard.shoppingList.filter(
     (item) => item.status === "purchased",
   );
+  const shoppingItemNames = new Set(
+    dashboard.shoppingList.map((item) => item.item_name),
+  );
+  const recommendedShoppingItems = dashboard.inventory.filter(
+    (item) => item.status === "low" && !shoppingItemNames.has(item.item_name),
+  );
 
   async function loadDashboard() {
     setLoading(true);
@@ -567,8 +667,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         const inventory = await getInventoryData();
         setDashboard({ ...emptyDashboard, inventory });
       } else if (view === "shopping") {
-        const shoppingList = await getShoppingListData();
-        setDashboard({ ...emptyDashboard, shoppingList });
+        const [inventory, shoppingList] = await Promise.all([
+          getInventoryData(),
+          getShoppingListData(),
+        ]);
+        setDashboard({ ...emptyDashboard, inventory, shoppingList });
       } else {
         setDashboard(await getDashboardData());
       }
@@ -621,6 +724,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     status: "active" | "purchased",
   ) {
     setShoppingSaving(itemName);
+    setRevealedShoppingItem(null);
     setError(null);
     try {
       if (status === "active") {
@@ -629,12 +733,52 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         await restoreShoppingItem(itemName);
       }
       const shoppingList = await getShoppingListData();
-      setDashboard({ ...emptyDashboard, shoppingList });
+      setDashboard((current) => ({ ...current, shoppingList }));
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
           : "Could not update the shopping list.",
+      );
+    } finally {
+      setShoppingSaving(null);
+    }
+  }
+
+  async function handleAddRecommendation(itemName: string) {
+    setShoppingSaving(itemName);
+    setError(null);
+    try {
+      await addShoppingItem(itemName);
+      const shoppingList = await getShoppingListData();
+      setDashboard((current) => ({ ...current, shoppingList }));
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not add the recommendation.",
+      );
+    } finally {
+      setShoppingSaving(null);
+    }
+  }
+
+  async function handleManualShoppingAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const itemName = canonicalItemName(shoppingDraft);
+    if (!itemName) return;
+
+    setShoppingSaving(itemName);
+    setError(null);
+    try {
+      await addShoppingItem(itemName);
+      const shoppingList = await getShoppingListData();
+      setDashboard((current) => ({ ...current, shoppingList }));
+      setShoppingDraft("");
+      setShoppingAddOpen(false);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not add the item.",
       );
     } finally {
       setShoppingSaving(null);
@@ -1165,19 +1309,97 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         <section className="data-section shopping-section" id="shopping">
           <div className="shopping-titlebar">
             <h2>Shopping List</h2>
+            <button
+              className="shopping-add-trigger"
+              type="button"
+              aria-expanded={shoppingAddOpen}
+              aria-controls="shopping-manual-add"
+              onClick={() => {
+                setShoppingAddOpen((current) => !current);
+                setShoppingDraft("");
+              }}
+            >
+              + Add
+            </button>
           </div>
 
           {error && <p className="message error shopping-message">{error}</p>}
 
+          {shoppingAddOpen && (
+            <form
+              className="shopping-manual-add"
+              id="shopping-manual-add"
+              onSubmit={handleManualShoppingAdd}
+            >
+              <input
+                autoFocus
+                required
+                maxLength={120}
+                aria-label="New shopping item"
+                placeholder="Item name"
+                value={shoppingDraft}
+                onChange={(event) => setShoppingDraft(event.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={!shoppingDraft.trim() || shoppingSaving !== null}
+              >
+                Add
+              </button>
+            </form>
+          )}
+
           {loading ? (
             <p className="empty-state shopping-empty">Loading shopping list...</p>
-          ) : dashboard.shoppingList.length === 0 ? (
+          ) : dashboard.shoppingList.length === 0 &&
+            recommendedShoppingItems.length === 0 ? (
             <p className="empty-state shopping-empty">Nothing to buy yet.</p>
           ) : (
             <div className="shopping-queue">
+              {recommendedShoppingItems.length > 0 && (
+                <section
+                  className="shopping-recommendations"
+                  aria-labelledby="shopping-recommendations-heading"
+                >
+                  <div className="shopping-section-heading">
+                    <div>
+                      <h3 id="shopping-recommendations-heading">
+                        Suggested from Inventory
+                      </h3>
+                      <small>Items currently marked Low</small>
+                    </div>
+                    <span>{recommendedShoppingItems.length}</span>
+                  </div>
+                  <ul className="shopping-track-list shopping-suggestion-list">
+                    {recommendedShoppingItems.map((item) => (
+                      <li key={item.item_name}>
+                        <div className="shopping-suggestion-copy">
+                          <strong>{titleCase(item.item_name)}</strong>
+                          <small>Low stock · {quantityLabel(item)}</small>
+                        </div>
+                        <button
+                          className="shopping-add-button"
+                          type="button"
+                          aria-label={`Add ${titleCase(item.item_name)} to shopping list`}
+                          disabled={shoppingSaving === item.item_name}
+                          onClick={() =>
+                            void handleAddRecommendation(item.item_name)
+                          }
+                        >
+                          <span aria-hidden="true">+</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               <section aria-labelledby="shopping-active-heading">
                 <div className="shopping-section-heading">
-                  <h3 id="shopping-active-heading">To Buy</h3>
+                  <div>
+                    <h3 id="shopping-active-heading">To Buy</h3>
+                    <small>Swipe left to mark purchased</small>
+                  </div>
                   <span>{activeShoppingItems.length}</span>
                 </div>
                 {activeShoppingItems.length === 0 ? (
@@ -1185,23 +1407,19 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 ) : (
                   <ul className="shopping-track-list">
                     {activeShoppingItems.map((item) => (
-                      <li key={item.item_name}>
-                        <button
-                          className="shopping-check-button"
-                          type="button"
-                          aria-label={`Mark ${titleCase(item.item_name)} as purchased`}
-                          disabled={shoppingSaving === item.item_name}
-                          onClick={() =>
-                            void handleShoppingStatus(item.item_name, item.status)
-                          }
-                        >
-                          <span aria-hidden="true" />
-                        </button>
-                        <div className="shopping-row-copy">
-                          <strong>{titleCase(item.item_name)}</strong>
-                          <small>{shoppingDateLabel(item.added_at, "Added")}</small>
-                        </div>
-                      </li>
+                      <ShoppingSwipeRow
+                        key={item.item_name}
+                        itemName={item.item_name}
+                        addedAt={item.added_at}
+                        busy={shoppingSaving === item.item_name}
+                        open={revealedShoppingItem === item.item_name}
+                        onOpenChange={(open) =>
+                          setRevealedShoppingItem(open ? item.item_name : null)
+                        }
+                        onDone={() =>
+                          void handleShoppingStatus(item.item_name, item.status)
+                        }
+                      />
                     ))}
                   </ul>
                 )}
@@ -1221,18 +1439,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   </div>
                   <ul className="shopping-track-list">
                     {purchasedShoppingItems.map((item) => (
-                      <li className="is-purchased" key={item.item_name}>
-                        <button
-                          className="shopping-check-button is-checked"
-                          type="button"
-                          aria-label={`Restore ${titleCase(item.item_name)} to shopping list`}
-                          disabled={shoppingSaving === item.item_name}
-                          onClick={() =>
-                            void handleShoppingStatus(item.item_name, item.status)
-                          }
-                        >
-                          <span aria-hidden="true" />
-                        </button>
+                      <li className="is-purchased shopping-purchased-row" key={item.item_name}>
                         <div className="shopping-row-copy">
                           <strong>{titleCase(item.item_name)}</strong>
                           <small>
@@ -1242,6 +1449,16 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                             )}
                           </small>
                         </div>
+                        <button
+                          className="shopping-undo-button"
+                          type="button"
+                          disabled={shoppingSaving === item.item_name}
+                          onClick={() =>
+                            void handleShoppingStatus(item.item_name, item.status)
+                          }
+                        >
+                          Undo
+                        </button>
                       </li>
                     ))}
                   </ul>

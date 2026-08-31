@@ -256,6 +256,20 @@ Shopping은 Library grid가 아니라 `Playing Next` queue와 `Track List`를
 8. Purchased check를 다시 누르면 `To Buy`로 복원한다.
 9. Purchased section은 24시간 동안만 표시하며 그 이후 projection에서 숨긴다.
 10. 원본 event는 audit/history를 위해 삭제하지 않는다.
+11. `Suggested from Inventory`는 현재 `low` 상태이고 To Buy/Purchased에 없는
+    item만 표시한다.
+12. suggestion row는 Track List typography와 divider를 유지하고 trailing pink
+    `Add` action으로 queue에 추가한다.
+
+Shopping add control의 구현 값:
+
+- navbar `+ Add`: `75×28px`, radius `14px`,
+  `rgba(118,118,128,.12)` fill, `#FF2D55`, SF Pro Text Medium `15/20px`,
+  tracking `-0.24px`.
+- recommendation trailing `+`: visual `28×28px`, pink `#FF2D55`,
+  row 안의 실제 button hit area는 `52×56px`.
+- icon-only plus는 border, circle fill, shadow를 추가하지 않는다.
+- `+ Add`를 누르면 compact manual-item form을 열고, 성공한 뒤 form을 닫는다.
 
 Album artwork, transport, mini player, playback control은 shopping action과
 관련이 없으므로 이 화면에 가져오지 않는다.
