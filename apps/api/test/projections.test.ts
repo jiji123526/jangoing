@@ -109,7 +109,173 @@ describe("projectInventory", () => {
       quantity: 1,
       unit: "bottle",
       location: "pantry",
+      low_threshold: null,
       nearest_expiration_date: "2026-09-04",
+    });
+  });
+
+  it("derives low and out status from quantity and the item threshold", () => {
+    const lowInventory = projectInventory([
+      event({
+        event_type: "item_adjusted",
+        item_name: "egg",
+        quantity: 6,
+        unit: "piece",
+        low_threshold: 6,
+      }),
+    ]);
+    const outInventory = projectInventory([
+      event({
+        event_type: "item_adjusted",
+        item_name: "milk",
+        quantity: 0,
+        unit: "carton",
+        low_threshold: 1,
+      }),
+    ]);
+
+    expect(lowInventory[0]).toMatchObject({
+      quantity: 6,
+      low_threshold: 6,
+      status: "low",
+    });
+    expect(outInventory[0]).toMatchObject({
+      quantity: 0,
+      low_threshold: 1,
+      status: "out",
+    });
+  });
+
+  it("preserves an explicit low status when only metadata is edited", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "egg",
+          quantity: 12,
+          unit: "piece",
+          location: "fridge",
+        }),
+        event({ event_type: "item_marked_low", item_name: "egg" }),
+        event({
+          event_type: "item_adjusted",
+          item_name: "egg",
+          quantity: 12,
+          unit: "piece",
+          location: "fridge",
+          expiration_date: "2026-09-10",
+          low_threshold: null,
+        }),
+      ])[0],
+    ).toMatchObject({
+      quantity: 12,
+      status: "low",
+      nearest_expiration_date: "2026-09-10",
+    });
+  });
+
+  it("recalculates an explicit status when quantity changes", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "egg",
+          quantity: 2,
+        }),
+        event({ event_type: "item_marked_low", item_name: "egg" }),
+        event({
+          event_type: "item_adjusted",
+          item_name: "egg",
+          quantity: 12,
+          low_threshold: 6,
+        }),
+      ])[0],
+    ).toMatchObject({
+      quantity: 12,
+      low_threshold: 6,
+      status: "in_stock",
+    });
+  });
+
+  it("applies a threshold policy without replacing inventory batches", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 1,
+          unit: "carton",
+          location: "fridge",
+        }),
+        event({
+          event_type: "item_low_threshold_set",
+          item_name: "milk",
+          low_threshold: 1,
+          unit: "carton",
+        }),
+      ])[0],
+    ).toMatchObject({
+      item_name: "milk",
+      quantity: 1,
+      unit: "carton",
+      location: "fridge",
+      low_threshold: 1,
+      low_threshold_unit: "carton",
+      status: "low",
+    });
+  });
+
+  it("keeps a threshold-only item hidden until inventory is added", () => {
+    const events = [
+      event({
+        event_type: "item_low_threshold_set",
+        item_name: "milk",
+        low_threshold: 1,
+        unit: "carton",
+      }),
+    ];
+
+    expect(projectInventory(events)).toEqual([]);
+    expect(
+      projectInventory([
+        ...events,
+        event({
+          event_type: "item_added",
+          item_name: "milk",
+          quantity: 1,
+          unit: "carton",
+        }),
+      ])[0],
+    ).toMatchObject({
+      quantity: 1,
+      low_threshold: 1,
+      low_threshold_unit: "carton",
+      status: "low",
+    });
+  });
+
+  it("does not compare a threshold against an incompatible inventory unit", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added",
+          item_name: "soda",
+          quantity: 2,
+          unit: "bottle",
+        }),
+        event({
+          event_type: "item_low_threshold_set",
+          item_name: "soda",
+          low_threshold: 2,
+          unit: "can",
+        }),
+      ])[0],
+    ).toMatchObject({
+      quantity: 2,
+      unit: "bottle",
+      low_threshold: 2,
+      low_threshold_unit: "can",
+      status: "in_stock",
     });
   });
 

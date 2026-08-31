@@ -44,6 +44,10 @@ const quantityPattern =
   "(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+(?:\\.\\d+)?)";
 const unitPattern =
   "(bags?|bottles?|cans?|cartons?|dozens?|jars?|packs?|pieces?)";
+const quantityTokenPattern =
+  "a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+(?:\\.\\d+)?";
+const unitTokenPattern =
+  "bags?|bottles?|cans?|cartons?|dozens?|jars?|packs?|pieces?";
 
 function cleanItem(value: string): string {
   const cleaned = value
@@ -62,6 +66,12 @@ function parseQuantity(value: string | undefined): number | undefined {
   }
 
   return numberWords[value] ?? Number(value);
+}
+
+function normalizedUnit(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase();
+  return unitAliases[normalized] ?? normalized;
 }
 
 function parseItemPhrase(value: string): Pick<
@@ -100,7 +110,10 @@ function interpretation(
     slots,
     confidence,
     requires_confirmation:
-      intent === "throw_away" || intent === "mark_out" || confidence < 0.85,
+      intent === "throw_away" ||
+      intent === "mark_out" ||
+      intent === "set_low_threshold" ||
+      confidence < 0.85,
     raw_utterance: rawUtterance,
   };
 }
@@ -114,6 +127,79 @@ export function parseCommand(
   const temporalContext = resolveTemporalGrounding(request);
   const expirationDate = request.expiration_date
     ?? normalizeExpiryDate(inlineExpiry.expirationDateText, temporalContext);
+
+  const thresholdPatterns: Array<{
+    pattern: RegExp;
+    itemIndex: number;
+    quantityIndex: number;
+    unitIndex: number;
+  }> = [
+    {
+      pattern: new RegExp(
+        `^(?:tell|notify|remind) me when (.+?) (?:reaches|gets to|drops to) (${quantityTokenPattern})(?:\\s+(${unitTokenPattern}))?$`,
+        "i",
+      ),
+      itemIndex: 1,
+      quantityIndex: 2,
+      unitIndex: 3,
+    },
+    {
+      pattern: new RegExp(
+        `^(?:set|make) (?:the )?(?:low threshold|low point) for (.+?) (?:to|at) (${quantityTokenPattern})(?:\\s+(${unitTokenPattern}))?$`,
+        "i",
+      ),
+      itemIndex: 1,
+      quantityIndex: 2,
+      unitIndex: 3,
+    },
+    {
+      pattern: new RegExp(
+        `^(?:set|make|change) (.+?)(?:'s)? (?:low threshold|low point|low at) (?:to |at )?(${quantityTokenPattern})(?:\\s+(${unitTokenPattern}))?$`,
+        "i",
+      ),
+      itemIndex: 1,
+      quantityIndex: 2,
+      unitIndex: 3,
+    },
+    {
+      pattern: new RegExp(
+        `^(.+?) (?:is|are) low at (${quantityTokenPattern})(?:\\s+(${unitTokenPattern}))?$`,
+        "i",
+      ),
+      itemIndex: 1,
+      quantityIndex: 2,
+      unitIndex: 3,
+    },
+    {
+      pattern: new RegExp(
+        `^(?:let me know|tell me) when (?:there is|there are|we have) (${quantityTokenPattern})(?:\\s+(${unitTokenPattern}))?(?:\\s+of)?\\s+(.+?) left$`,
+        "i",
+      ),
+      itemIndex: 3,
+      quantityIndex: 1,
+      unitIndex: 2,
+    },
+  ];
+
+  for (const { pattern, itemIndex, quantityIndex, unitIndex } of thresholdPatterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+
+    const lowThreshold = parseQuantity(match[quantityIndex]?.toLowerCase());
+    if (lowThreshold === undefined) continue;
+
+    const unit = normalizedUnit(match[unitIndex]);
+    return interpretation(
+      rawUtterance,
+      "set_low_threshold",
+      {
+        item_name: cleanItem(match[itemIndex]),
+        low_threshold: lowThreshold,
+        ...(unit ? { unit } : {}),
+      },
+      0.95,
+    );
+  }
 
   const shoppingMatch = text.match(
     /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?shopping list$/i,

@@ -14,6 +14,9 @@ interface Batch {
 interface ItemState {
   batches: Batch[];
   forcedStatus: InventoryItem["status"] | null;
+  lowThreshold: number | null;
+  lowThresholdUnit: string | null;
+  visible: boolean;
 }
 
 function dateAtUtcMidnight(value: string): number {
@@ -85,16 +88,43 @@ export function projectInventory(
     const state = states.get(event.item_name) ?? {
       batches: [],
       forcedStatus: null,
+      lowThreshold: null,
+      lowThresholdUnit: null,
+      visible: false,
     };
 
+    if (event.event_type === "item_low_threshold_set") {
+      state.lowThreshold = event.low_threshold ?? null;
+      state.lowThresholdUnit =
+        event.unit ?? state.batches[0]?.unit ?? null;
+      state.forcedStatus = null;
+    } else {
+      state.visible = true;
+    }
+
     if (event.event_type === "item_adjusted") {
+      const previousQuantity = state.batches.reduce(
+        (total, batch) => total + batch.quantity,
+        0,
+      );
+      const nextQuantity = event.quantity ?? 1;
+      const nextLowThreshold = event.low_threshold ?? null;
+      const inventoryLevelChanged =
+        previousQuantity !== nextQuantity ||
+        state.lowThreshold !== nextLowThreshold;
+
       state.batches = [{
-        quantity: event.quantity ?? 1,
+        quantity: nextQuantity,
         unit: event.unit ?? null,
         location: event.location ?? null,
         expirationDate: event.expiration_date ?? null,
       }];
-      state.forcedStatus = null;
+      state.lowThreshold = nextLowThreshold;
+      state.lowThresholdUnit =
+        nextLowThreshold === null ? null : event.unit ?? null;
+      if (inventoryLevelChanged) {
+        state.forcedStatus = null;
+      }
     }
 
     if (event.event_type === "item_added") {
@@ -130,6 +160,7 @@ export function projectInventory(
   }
 
   return [...states.entries()]
+    .filter(([, state]) => state.visible)
     .map(([itemName, state]): InventoryItem => {
       const quantity = state.batches.reduce(
         (total, batch) => total + batch.quantity,
@@ -141,6 +172,9 @@ export function projectInventory(
         .sort();
       const nearestExpirationDate = expirations[0] ?? null;
       const firstBatch = state.batches[0];
+      const thresholdUnitMatches =
+        state.lowThresholdUnit === null ||
+        state.lowThresholdUnit === firstBatch?.unit;
 
       return {
         item_name: itemName,
@@ -148,7 +182,16 @@ export function projectInventory(
         unit: firstBatch?.unit ?? null,
         location: firstBatch?.location ?? null,
         status:
-          state.forcedStatus ?? (quantity > 0 ? "in_stock" : "out"),
+          state.forcedStatus ??
+          (quantity <= 0
+            ? "out"
+            : state.lowThreshold !== null &&
+                thresholdUnitMatches &&
+                quantity <= state.lowThreshold
+              ? "low"
+              : "in_stock"),
+        low_threshold: state.lowThreshold,
+        low_threshold_unit: state.lowThresholdUnit,
         nearest_expiration_date: nearestExpirationDate,
         expiry_state: expiryState(nearestExpirationDate, today),
       };

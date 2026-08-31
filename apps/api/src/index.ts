@@ -41,7 +41,7 @@ interface Env {
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
-const parserVersion = "rules-v1";
+const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const annotationSchemaVersion = "annotation-v3";
@@ -473,14 +473,15 @@ async function handleCreateEvent(
     unit: submission.event.unit ?? null,
     location: submission.event.location ?? null,
     expiration_date: submission.event.expiration_date ?? null,
+    low_threshold: submission.event.low_threshold ?? null,
     created_at: new Date().toISOString(),
   };
 
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       event.id,
@@ -490,6 +491,7 @@ async function handleCreateEvent(
       event.unit,
       event.location,
       event.expiration_date,
+      event.low_threshold,
       event.raw_utterance,
       event.confidence,
       event.source,
@@ -505,6 +507,7 @@ async function handleCreateEvent(
       item_marked_out: "mark_out",
       item_thrown_away: "throw_away",
       item_added_to_buy: "add_to_buy",
+      item_low_threshold_set: "set_low_threshold",
     }).find(([eventType]) => eventType === event.event_type)?.[1],
     slots: {
       item_name: event.item_name,
@@ -513,6 +516,9 @@ async function handleCreateEvent(
       ...(event.location !== null ? { location: event.location } : {}),
       ...(event.expiration_date !== null
         ? { expiration_date: event.expiration_date }
+        : {}),
+      ...(event.low_threshold !== null
+        ? { low_threshold: event.low_threshold }
         : {}),
     },
   };
@@ -580,6 +586,7 @@ async function handleInventoryMutation(
     unit: values?.unit ?? null,
     location: values?.location ?? null,
     expiration_date: values?.expiration_date ?? null,
+    low_threshold: values?.low_threshold ?? null,
     raw_utterance: `Inventory editor ${action === "edit" ? "adjusted" : "removed"} ${itemName}`,
     confidence: 1,
     source: "web",
@@ -589,8 +596,8 @@ async function handleInventoryMutation(
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     event.id,
     event.event_type,
@@ -599,6 +606,7 @@ async function handleInventoryMutation(
     event.unit,
     event.location,
     event.expiration_date,
+    event.low_threshold,
     event.raw_utterance,
     event.confidence,
     event.source,

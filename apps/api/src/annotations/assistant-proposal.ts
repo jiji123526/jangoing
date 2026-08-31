@@ -245,7 +245,7 @@ async function requestOpenAiDraft(
   if (!apiKey) {
     return {
       provider: "parser-fallback",
-      model: "rules-v1",
+      model: "rules-v2",
       note: "OPENAI_API_KEY is not configured, so this draft uses the deterministic parser as a fallback.",
       actions: parserFallbackActions(context),
       usage: null,

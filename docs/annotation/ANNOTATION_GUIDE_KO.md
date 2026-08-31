@@ -197,7 +197,7 @@ action, entity 단계가 숨겨지고 빈 action list로 저장된다. 이 세 r
 ### Fallback과 한계
 
 - `OPENAI_API_KEY`가 없으면 Worker는 외부 AI API를 호출하지 않고
-  `provider = parser-fallback`, `model = rules-v1`로 proposal을 만든다.
+  `provider = parser-fallback`, `model = rules-v2`로 proposal을 만든다.
 - 이 fallback draft는 현재 parser intent를 그대로 시작점으로 쓰고 entity는 비워 둔다.
 - 즉, annotation 화면은 항상 동작하지만 초안 품질은 OpenAI 사용 여부에 따라 크게
   달라질 수 있다.

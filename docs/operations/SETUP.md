@@ -39,8 +39,8 @@ This adds deterministic local-only sample events for `home`, `inventory`, and
 To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.example`.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
-the event, correction, inference-log, and annotation schemas through migration
-0006. This keeps local development
+the required event, correction, inference-log, annotation, and inventory
+schema migrations through migration 0009. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
@@ -97,6 +97,16 @@ npm run db:migrate:remote
 npm run deploy:api
 
 # Deploy web changes
+git push origin main
+```
+
+For the quantity-based inventory status update, this order is required because
+the Worker writes `events.low_threshold`:
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run db:migrate:remote
+npm run deploy:api
 git push origin main
 ```
 

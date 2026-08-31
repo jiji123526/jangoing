@@ -32,6 +32,7 @@ import {
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
+  set_low_threshold: "item_low_threshold_set",
   consume_item: "item_consumed",
   mark_low: "item_marked_low",
   mark_out: "item_marked_out",
@@ -48,6 +49,7 @@ const examples = [
 
 const editableIntents: Intent[] = [
   "add_item",
+  "set_low_threshold",
   "consume_item",
   "mark_low",
   "mark_out",
@@ -60,6 +62,7 @@ type EditableInterpretation = {
   intent: Intent;
   itemName: string;
   quantity: string;
+  lowThreshold: string;
   unit: string;
   location: "" | "fridge" | "freezer" | "pantry";
   expirationDate: string;
@@ -70,6 +73,7 @@ function toEditable(interpretation: LoggedInterpretation): EditableInterpretatio
     intent: interpretation.intent,
     itemName: interpretation.slots.item_name ?? "",
     quantity: interpretation.slots.quantity?.toString() ?? "",
+    lowThreshold: interpretation.slots.low_threshold?.toString() ?? "",
     unit: interpretation.slots.unit ?? "",
     location: interpretation.slots.location ?? "",
     expirationDate: interpretation.slots.expiration_date ?? "",
@@ -169,7 +173,11 @@ function inventoryCategory(itemName: string): ItemCategory {
 }
 
 function quantityLabel(item: InventoryItem): string {
-  if (item.quantity <= 0) return "Quantity not recorded";
+  if (item.quantity <= 0) {
+    return item.status === "out"
+      ? `0${item.unit ? ` ${item.unit}` : ""}`
+      : "Quantity not recorded";
+  }
   return `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`;
 }
 
@@ -236,16 +244,20 @@ function InventoryItemRow({
     unit: string | null;
     location: InventoryItem["location"];
     expiration_date: string | null;
+    low_threshold: number | null;
   }) => Promise<void>;
   onRemove?: () => Promise<void>;
 }) {
   const category = inventoryCategory(item.item_name);
   const attention = attentionLabel(item);
-  const [quantity, setQuantity] = useState(String(item.quantity || 1));
+  const [quantity, setQuantity] = useState(String(item.quantity));
   const [unit, setUnit] = useState(item.unit ?? "");
   const [location, setLocation] = useState(item.location ?? "");
   const [expirationDate, setExpirationDate] = useState(
     item.nearest_expiration_date ?? "",
+  );
+  const [lowThreshold, setLowThreshold] = useState(
+    item.low_threshold?.toString() ?? "",
   );
   const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
@@ -254,6 +266,23 @@ function InventoryItemRow({
     attention ? null : expiryLabel(item),
   ].filter((value): value is string => Boolean(value));
 
+  useEffect(() => {
+    if (!editing) return;
+    setQuantity(String(item.quantity));
+    setUnit(item.unit ?? "");
+    setLocation(item.location ?? "");
+    setExpirationDate(item.nearest_expiration_date ?? "");
+    setLowThreshold(item.low_threshold?.toString() ?? "");
+    setValidationError(null);
+  }, [
+    editing,
+    item.location,
+    item.low_threshold,
+    item.nearest_expiration_date,
+    item.quantity,
+    item.unit,
+  ]);
+
   if (editing) {
     const hasCustomUnit =
       unit && !(inventoryUnitOptions as readonly string[]).includes(unit);
@@ -261,7 +290,7 @@ function InventoryItemRow({
     function adjustQuantity(delta: number) {
       const current = Number(quantity);
       const baseline = Number.isFinite(current) ? current : 1;
-      const next = Math.max(0.01, baseline + delta);
+      const next = Math.max(0, baseline + delta);
       setQuantity(String(Number(next.toFixed(2))));
       setValidationError(null);
     }
@@ -274,8 +303,18 @@ function InventoryItemRow({
           onSubmit={(event) => {
             event.preventDefault();
             const parsedQuantity = Number(quantity);
-            if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
-              setValidationError("Quantity must be greater than zero.");
+            const parsedLowThreshold = lowThreshold
+              ? Number(lowThreshold)
+              : null;
+            if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
+              setValidationError("Quantity cannot be negative.");
+              return;
+            }
+            if (
+              parsedLowThreshold !== null &&
+              (!Number.isFinite(parsedLowThreshold) || parsedLowThreshold <= 0)
+            ) {
+              setValidationError("Low threshold must be greater than zero.");
               return;
             }
             setValidationError(null);
@@ -284,6 +323,7 @@ function InventoryItemRow({
               unit: unit.trim() || null,
               location: location as InventoryItem["location"],
               expiration_date: expirationDate || null,
+              low_threshold: parsedLowThreshold,
             });
           }}
         >
@@ -318,7 +358,7 @@ function InventoryItemRow({
                 </button>
                 <input
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="any"
                   required
                   aria-label="Quantity"
@@ -338,6 +378,24 @@ function InventoryItemRow({
                 </button>
               </div>
             </div>
+
+            <label className="inventory-edit-field-row">
+              <span>Low at</span>
+              <input
+                className="inventory-edit-number-control"
+                type="number"
+                min="0.01"
+                step="any"
+                inputMode="decimal"
+                aria-label="Low quantity threshold"
+                placeholder="Not set"
+                value={lowThreshold}
+                onChange={(event) => {
+                  setLowThreshold(event.target.value);
+                  setValidationError(null);
+                }}
+              />
+            </label>
 
             <label className="inventory-edit-field-row">
               <span>Unit</span>
@@ -586,6 +644,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           ? { item_name: edited.itemName.trim().toLowerCase() }
           : {}),
         ...(edited.quantity ? { quantity: Number(edited.quantity) } : {}),
+        ...(edited.lowThreshold
+          ? { low_threshold: Number(edited.lowThreshold) }
+          : {}),
         ...(edited.unit.trim() ? { unit: edited.unit.trim().toLowerCase() } : {}),
         ...(edited.location ? { location: edited.location } : {}),
         ...(edited.expirationDate
@@ -621,18 +682,32 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     if (!eventType) return;
 
     const quantity = edited.quantity ? Number(edited.quantity) : null;
+    const lowThreshold = edited.lowThreshold
+      ? Number(edited.lowThreshold)
+      : null;
     if (quantity !== null && (!Number.isFinite(quantity) || quantity <= 0)) {
       setError("Quantity must be a number greater than zero.");
+      return;
+    }
+    if (
+      edited.intent === "set_low_threshold" &&
+      (lowThreshold === null ||
+        !Number.isFinite(lowThreshold) ||
+        lowThreshold <= 0)
+    ) {
+      setError("Low threshold must be a number greater than zero.");
       return;
     }
 
     const payload: CreateEventRequest = {
       event_type: eventType,
       item_name: edited.itemName.trim().toLowerCase(),
-      quantity,
+      quantity: edited.intent === "set_low_threshold" ? null : quantity,
       unit: edited.unit.trim().toLowerCase() || null,
       location: edited.location || null,
       expiration_date: edited.expirationDate || null,
+      low_threshold:
+        edited.intent === "set_low_threshold" ? lowThreshold : null,
       raw_utterance: interpretation.raw_utterance,
       confidence: interpretation.confidence,
       source: "web",
@@ -652,7 +727,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           requires_confirmation: interpretation.requires_confirmation,
           raw_utterance: interpretation.raw_utterance,
         },
-        parser_version: "rules-v1",
+        parser_version: "rules-v2",
       });
       setCommand("");
       setExpiryDate("");
@@ -688,7 +763,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     interpretation &&
     edited &&
     (edited.intent === "needs_clarification" ||
-      (edited.itemName.trim() && eventTypeByIntent[edited.intent]));
+      (edited.itemName.trim() &&
+        eventTypeByIntent[edited.intent] &&
+        (edited.intent !== "set_low_threshold" || edited.lowThreshold)));
 
   return (
     <main id={view}>
@@ -817,20 +894,39 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       }
                     />
                   </label>
-                  <label className="field">
-                    <span>
-                      Quantity <small>optional</small>
-                    </span>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="any"
-                      value={edited.quantity}
-                      onChange={(event) =>
-                        setEdited({ ...edited, quantity: event.target.value })
-                      }
-                    />
-                  </label>
+                  {edited.intent === "set_low_threshold" ? (
+                    <label className="field">
+                      <span>Low threshold</span>
+                      <input
+                        required
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={edited.lowThreshold}
+                        onChange={(event) =>
+                          setEdited({
+                            ...edited,
+                            lowThreshold: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                  ) : (
+                    <label className="field">
+                      <span>
+                        Quantity <small>optional</small>
+                      </span>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={edited.quantity}
+                        onChange={(event) =>
+                          setEdited({ ...edited, quantity: event.target.value })
+                        }
+                      />
+                    </label>
+                  )}
                   <label className="field">
                     <span>
                       Unit <small>optional</small>

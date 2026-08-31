@@ -182,6 +182,7 @@ Interpretation and mutation remain separate. Parser or model output never direct
 MVP intents:
 
 - `add_item`
+- `set_low_threshold`
 - `consume_item`
 - `mark_low`
 - `mark_out`
@@ -195,6 +196,7 @@ MVP slots:
 
 - `item_name`
 - `quantity`
+- `low_threshold`
 - `unit`
 - `location`
 - `expiration_date`
@@ -216,7 +218,7 @@ Example:
 }
 ```
 
-Later intents include `remove_from_buy`, `update_expiry`, `query_expiring`, and `correct_event`.
+Later intents include `remove_from_buy`, `query_expiring`, and `correct_event`.
 
 Annotation records use a structured action list rather than assuming one intent:
 

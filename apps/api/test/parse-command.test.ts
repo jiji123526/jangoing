@@ -27,6 +27,58 @@ describe("parseCommand", () => {
     });
   });
 
+  it("parses low-threshold policy commands", () => {
+    expect(
+      parseCommand({ text: "Tell me when milk reaches one carton" }),
+    ).toMatchObject({
+      intent: "set_low_threshold",
+      slots: {
+        item_name: "milk",
+        low_threshold: 1,
+        unit: "carton",
+      },
+      requires_confirmation: true,
+    });
+    expect(
+      parseCommand({ text: "Set the low threshold for eggs to six pieces" }),
+    ).toMatchObject({
+      intent: "set_low_threshold",
+      slots: {
+        item_name: "egg",
+        low_threshold: 6,
+        unit: "piece",
+      },
+    });
+    expect(parseCommand({ text: "Milk is low at two cartons" })).toMatchObject({
+      intent: "set_low_threshold",
+      slots: {
+        item_name: "milk",
+        low_threshold: 2,
+        unit: "carton",
+      },
+    });
+    expect(
+      parseCommand({ text: "Let me know when we have two cans of soda left" }),
+    ).toMatchObject({
+      intent: "set_low_threshold",
+      slots: {
+        item_name: "soda",
+        low_threshold: 2,
+        unit: "can",
+      },
+    });
+    expect(
+      parseCommand({ text: "Change milk's low point to two cartons" }),
+    ).toMatchObject({
+      intent: "set_low_threshold",
+      slots: {
+        item_name: "milk",
+        low_threshold: 2,
+        unit: "carton",
+      },
+    });
+  });
+
   it("parses out-of-stock statements as mark_out", () => {
     expect(parseCommand({ text: "We have no eggs" })).toMatchObject({
       intent: "mark_out",

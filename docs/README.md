@@ -29,6 +29,7 @@ operational guides, decisions, and learning references live in this directory.
 - [Implementation notes](./decisions/IMPLEMENTATION_NOTES_KO.md)
 - [Conversation data collection](./decisions/CONVERSATION_DATA_COLLECTION_DECISION.md)
 - [Temporal grounding and expiry](./decisions/TEMPORAL_GROUNDING_AND_EXPIRY_FIX.md)
+- [Inventory status and low threshold](./decisions/INVENTORY_STATUS_AND_LOW_THRESHOLD.md)
 
 ## Operations
 

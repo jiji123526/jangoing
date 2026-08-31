@@ -89,6 +89,7 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 |---|---|---|
 | `add_item` | 물건이 들어왔거나 재고에 추가하라는 요청 | `Add two cartons of milk.` |
 | `update_expiry` | 기존 item의 유통기한 정보를 추가·수정·명시하는 요청/보고 | `The milk expires next Friday.` |
+| `set_low_threshold` | item이 Low가 되는 수량 기준을 설정·수정하거나 해당 시점 알림을 요청 | `Tell me when milk reaches one carton.` |
 | `consume_item` | 먹거나 사용해서 재고가 줄었다는 보고 | `I used one egg.` |
 | `mark_low` | 아직 남아 있지만 부족하거나 거의 소진됨 | `We're low on eggs.` |
 | `mark_out` | 현재 재고가 0이라는 상태를 확정적으로 보고 | `We have no milk.` |
@@ -101,6 +102,11 @@ object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에�
 ### 부족함을 말하는 표현
 
 - `We're low on milk`처럼 조금 남았다는 의미이면 `mark_low`다.
+- `We only have two cartons left`처럼 **현재 남은 수량을 보고**하면 `mark_low`다.
+- `Tell me when two cartons are left`처럼 **미래의 Low 판정 기준을 설정**하면
+  `set_low_threshold`다.
+- `Milk is low at two cartons`처럼 지속적인 기준을 말하면 `set_low_threshold`지만,
+  단순히 현재 두 carton만 남았다는 문맥이면 `mark_low`다.
 - `We're out of milk`, `We have no milk`, `There is no yogurt left`처럼
   **현재 재고가 0이라고 직접 말하면** `mark_out`이다.
 - 쇼핑 목록 추가가 **명시되지 않았다면** `mark_out`을 `add_to_buy`로 바꾸지 않는다.
@@ -147,6 +153,11 @@ annotation이다.
 - 원문에 실제로 보이는 연속된 문자만 선택한다.
 - 의미 없는 앞뒤 공백, 관사, 소유격, 구두점은 제외한다.
 - 수량과 단위는 합치지 않고 따로 선택한다: `[two] [cartons] of [milk]`.
+- `set_low_threshold`에서는 threshold로 지정된 숫자를 `QUANTITY`로 선택한다.
+  예: `Tell me when [milk] reaches [one] [carton].`
+- `I have six eggs; alert me at two`처럼 현재 수량과 threshold가 함께 있으면
+  threshold action 실행에 필요한 `two`만 `QUANTITY`로 선택한다. 현재 수량도 별도
+  action으로 라벨링해야 하는 명시적 재고 보고가 함께 있을 때만 action을 분리한다.
 - 복합 상품명은 의미 단위 전체를 선택한다: `[peanut butter]`.
 - 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`,
   `[frozen blueberries]`. 보관·구매·검색·추천에서 별도 상품으로 구별해야 하는지가
@@ -416,6 +427,27 @@ Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화�
   이미 알고 있던 expiry 정보를 **정정**한다.
   예: `Actually, the yogurt expires tomorrow.`, `The earlier date was wrong; it's Friday.`
   단순 새 정보 보고인데 correction 맥락이 없으면 `expiry_metadata_report`를 쓴다.
+
+#### `set_low_threshold`
+
+- `explicit_set_low_threshold`
+  threshold나 Low 기준을 직접 설정하라는 요청이다.
+  예: `Set the low threshold for eggs to six.`, `Make milk low at one carton.`
+
+- `threshold_notification_request`
+  특정 수량에 도달했을 때 알려 달라는 요청이다.
+  예: `Tell me when milk reaches one carton.`, `Let me know when two eggs are left.`
+  지금 부족하다는 상태 보고가 아니므로 `mark_low`로 보내지 않는다.
+
+- `threshold_policy_statement`
+  사용자가 Low로 간주하는 지속적인 수량 기준을 진술한다.
+  예: `Eggs are low at six.`, `For me, two cans counts as low.`
+  `We only have six eggs left`처럼 현재 상태만 보고하면 `mark_low`다.
+
+- `threshold_correction`
+  기존 threshold를 정정하거나 대체한다.
+  예: `Actually, make the egg threshold four.`, `Change milk's low point to two cartons.`
+  correction 맥락이 없으면 앞의 세 family 중 의미에 맞는 것을 쓴다.
 
 #### `consume_item`
 

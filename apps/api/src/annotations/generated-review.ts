@@ -57,6 +57,10 @@ export function generatedReviewSlots(
     slots.quantity = normalized.quantity;
   }
 
+  if (typeof normalized.low_threshold === "number" && normalized.low_threshold > 0) {
+    slots.low_threshold = normalized.low_threshold;
+  }
+
   if (typeof normalized.unit === "string" && normalized.unit.trim().length > 0) {
     slots.unit = normalized.unit.trim();
   }

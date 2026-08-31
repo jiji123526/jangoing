@@ -9,6 +9,9 @@ completion gates.
 
 ## Current Status
 
+- [x] Add per-item low thresholds and quantity-derived Low/Out status.
+- [x] Add natural-language `set_low_threshold` parsing and annotation support.
+- [ ] Apply D1 migration 0009 and deploy the inventory threshold update.
 - [x] Store original `reference_date`, `timezone`, and inference timestamp.
 - [x] Normalize relative expiry language with deterministic shared code.
 - [x] Ground assistant expiry proposals to original inference context.
@@ -38,7 +41,8 @@ npm run deploy:api
 npm run annotation:seed-queues -- --remote
 ```
 
-No D1 schema migration is required for these changes.
+The temporal changes do not require a migration. The later inventory threshold
+update requires migration 0009 before its Worker deployment.
 
 ## 2. Annotation Milestones
 

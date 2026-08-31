@@ -35,6 +35,7 @@ import styles from "./page.module.css";
 const intents: Intent[] = [
   "add_item",
   "update_expiry",
+  "set_low_threshold",
   "consume_item",
   "mark_low",
   "mark_out",

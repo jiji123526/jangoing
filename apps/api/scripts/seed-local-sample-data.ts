@@ -12,6 +12,10 @@ const eventsMigrationPath = resolve(
   apiDirectory,
   "migrations/0001_create_events.sql",
 );
+const inventoryLowThresholdMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0009_add_inventory_low_threshold.sql",
+);
 const sampleIdPrefix = "local-ui-sample-";
 
 function migrationSql(path: string, tableName: string): string {
@@ -198,6 +202,10 @@ function main(): void {
 
   try {
     database.exec(migrationSql(eventsMigrationPath, "events"));
+    const eventColumns = database.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
+    if (!eventColumns.some((column) => column.name === "low_threshold")) {
+      database.exec(readFileSync(inventoryLowThresholdMigrationPath, "utf8"));
+    }
     const records = sampleEvents();
 
     database.exec("BEGIN");

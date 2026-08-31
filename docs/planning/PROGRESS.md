@@ -2,6 +2,60 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Quantity-based inventory status added
+
+### Completed
+
+- Added an item-specific nullable `low_threshold` to inventory adjustment
+  events and projected inventory records.
+- Allowed Quantity `0` in the inventory editor and mapped it to Out.
+- Mapped positive quantities at or below the configured threshold to Low.
+- Added the compact `Low at` field to the inline inventory editor.
+- Preserved zero when reopening Out items and reset unsaved editor values after
+  Cancel.
+- Preserved explicit Low/Out status when an edit changes only unit, location,
+  or expiry.
+- Added D1 migration `0009_add_inventory_low_threshold.sql`.
+- Added projection coverage for automatic Low, automatic Out, explicit-status
+  preservation, and status recalculation after quantity changes.
+- Added the `set_low_threshold` intent and `item_low_threshold_set` event.
+- Added deterministic `rules-v2` parsing for direct threshold settings,
+  notification requests, policy statements, and remaining-quantity triggers.
+- Connected threshold review and confirmation through the web command UI.
+- Added `set_low_threshold` to the annotation intent and controlled phrase
+  family lists without introducing action-word entities.
+- Preserved threshold policies set before an item is added without displaying
+  a ghost inventory row.
+- Preserved threshold units and skipped automatic comparison when the threshold
+  and current inventory units do not match.
+
+### Decisions
+
+- Keep thresholds item-specific rather than applying an unreliable global
+  quantity rule across different products and units.
+- Keep explicit `mark_low` support for utterances that do not include an exact
+  quantity.
+- Treat an empty threshold as automatic Low detection disabled.
+- Distinguish current-state reports (`We only have two left` -> `mark_low`) from
+  durable policy requests (`Tell me when two are left` ->
+  `set_low_threshold`).
+- Reuse `QUANTITY` and `UNIT` entity labels for threshold expressions; the
+  intent determines their semantic role.
+
+### Deployment
+
+1. `npm run db:migrate:remote`
+2. `npm run deploy:api`
+3. `git push origin main`
+
+### Validation
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api` (102 tests)
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+- Applied migrations 0001 and 0009 successfully to a temporary SQLite DB.
+
 ## 2026-08-31 - Inventory editing changed to single-row expansion
 
 ### Completed
@@ -32,8 +86,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 - Require the explicit navbar Edit mode before an item can be changed.
 - Preserve native select and date behavior through transparent full-row
   controls while presenting one consistent visual row format.
-- Keep the current API and event semantics unchanged; this update only changes
-  selection and presentation behavior.
+- Keep selection and presentation behavior separate from the later
+  quantity-based status semantics.
 
 ### Validation
 

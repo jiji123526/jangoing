@@ -10,6 +10,7 @@ export const IsoDateSchema = z.string().regex(
 export const IntentSchema = z.enum([
   "add_item",
   "update_expiry",
+  "set_low_threshold",
   "consume_item",
   "mark_low",
   "mark_out",
@@ -35,6 +36,7 @@ export const CommandSlotsSchema = z
   .object({
     item_name: z.string().min(1).optional(),
     quantity: z.number().positive().optional(),
+    low_threshold: z.number().positive().optional(),
     unit: z.string().min(1).optional(),
     location: LocationSchema.optional(),
     expiration_date: IsoDateSchema.optional(),
@@ -197,6 +199,12 @@ export const AnnotationPhraseFamilies = {
     "explicit_set_expiry",
     "expiry_metadata_report",
     "expiry_metadata_correction",
+  ],
+  set_low_threshold: [
+    "explicit_set_low_threshold",
+    "threshold_notification_request",
+    "threshold_policy_statement",
+    "threshold_correction",
   ],
   consume_item: [
     "consumed_item_report",
@@ -469,16 +477,18 @@ export const EventTypeSchema = z.enum([
   "item_marked_out",
   "item_thrown_away",
   "item_added_to_buy",
+  "item_low_threshold_set",
   "item_adjusted",
   "item_removed",
 ]);
 
 export const AdjustInventoryItemRequestSchema = z
   .object({
-    quantity: z.number().positive(),
+    quantity: z.number().min(0),
     unit: z.string().trim().min(1).max(40).nullable(),
     location: LocationSchema.nullable(),
     expiration_date: IsoDateSchema.nullable(),
+    low_threshold: z.number().positive().nullable(),
   })
   .strict();
 
@@ -490,6 +500,7 @@ export const CreateEventRequestSchema = z
     unit: z.string().trim().min(1).max(40).nullable().optional(),
     location: LocationSchema.nullable().optional(),
     expiration_date: IsoDateSchema.nullable().optional(),
+    low_threshold: z.number().positive().nullable().optional(),
     raw_utterance: z.string().trim().min(1).max(500),
     confidence: z.number().min(0).max(1),
     source: z.enum(["web", "voice"]).default("web"),
@@ -501,7 +512,7 @@ export const ConfirmActionRequestSchema = z
     inference_id: z.string().uuid(),
     event: CreateEventRequestSchema,
     original_interpretation: InterpretationSchema,
-    parser_version: z.string().trim().min(1).max(80).default("rules-v1"),
+    parser_version: z.string().trim().min(1).max(80).default("rules-v2"),
   })
   .strict();
 
@@ -529,6 +540,8 @@ export const InventoryItemSchema = z.object({
   unit: z.string().nullable(),
   location: LocationSchema.nullable(),
   status: InventoryStatusSchema,
+  low_threshold: z.number().positive().nullable().default(null),
+  low_threshold_unit: z.string().nullable().default(null),
   nearest_expiration_date: IsoDateSchema.nullable(),
   expiry_state: ExpiryStateSchema,
 });

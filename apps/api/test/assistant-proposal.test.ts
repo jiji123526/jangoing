@@ -30,7 +30,7 @@ describe("buildAnnotationAssistantProposal", () => {
     const proposal = await buildAnnotationAssistantProposal({}, context);
 
     expect(proposal.provider).toBe("parser-fallback");
-    expect(proposal.model).toBe("rules-v1");
+    expect(proposal.model).toBe("rules-v2");
     expect(proposal.actions).toEqual([{
       intent: "add_item",
       phrase_family: null,

@@ -76,6 +76,10 @@ const annotationRelevanceMigrationPath = resolve(
   apiDirectory,
   "migrations/0008_add_annotation_relevance.sql",
 );
+const inventoryLowThresholdMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0009_add_inventory_low_threshold.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -112,6 +116,10 @@ const migration = readFileSync(migrationPath, "utf8")
   .replace("CREATE TABLE events", "CREATE TABLE IF NOT EXISTS events")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
 database.exec(migration);
+const eventColumns = database.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
+if (!eventColumns.some((column) => column.name === "low_threshold")) {
+  database.exec(readFileSync(inventoryLowThresholdMigrationPath, "utf8"));
+}
 const correctionMigration = readFileSync(correctionMigrationPath, "utf8")
   .replace("CREATE TABLE corrections", "CREATE TABLE IF NOT EXISTS corrections")
   .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
@@ -141,7 +149,7 @@ const proposalColumns = database.prepare("PRAGMA table_info(annotation_proposals
 if (!proposalColumns.some((column) => column.name === "input_tokens")) {
   database.exec(readFileSync(annotationAiUsageMigrationPath, "utf8"));
 }
-const parserVersion = "rules-v1";
+const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const annotationSchemaVersion = "annotation-v3";
@@ -580,6 +588,7 @@ async function route(
       unit: submission.event.unit ?? null,
       location: submission.event.location ?? null,
       expiration_date: submission.event.expiration_date ?? null,
+      low_threshold: submission.event.low_threshold ?? null,
       created_at: new Date().toISOString(),
     };
 
@@ -587,8 +596,8 @@ async function route(
       .prepare(
         `INSERT INTO events (
           id, event_type, item_name, quantity, unit, location,
-          expiration_date, raw_utterance, confidence, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         event.id,
@@ -598,6 +607,7 @@ async function route(
         event.unit ?? null,
         event.location ?? null,
         event.expiration_date ?? null,
+        event.low_threshold ?? null,
         event.raw_utterance,
         event.confidence,
         event.source,
@@ -611,6 +621,7 @@ async function route(
       item_marked_out: "mark_out",
       item_thrown_away: "throw_away",
       item_added_to_buy: "add_to_buy",
+      item_low_threshold_set: "set_low_threshold",
     } as const;
     const predicted = {
       intent: submission.original_interpretation.intent,
@@ -627,6 +638,9 @@ async function route(
         ...(event.location !== null ? { location: event.location } : {}),
         ...(event.expiration_date !== null
           ? { expiration_date: event.expiration_date }
+          : {}),
+        ...(event.low_threshold !== null
+          ? { low_threshold: event.low_threshold }
           : {}),
       },
     };
@@ -700,6 +714,7 @@ async function route(
       unit: values?.unit ?? null,
       location: values?.location ?? null,
       expiration_date: values?.expiration_date ?? null,
+      low_threshold: values?.low_threshold ?? null,
       raw_utterance: `Inventory editor ${action === "edit" ? "adjusted" : "removed"} ${itemName}`,
       confidence: 1,
       source: "web",
@@ -708,8 +723,8 @@ async function route(
     database.prepare(
       `INSERT INTO events (
         id, event_type, item_name, quantity, unit, location,
-        expiration_date, raw_utterance, confidence, source, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        expiration_date, low_threshold, raw_utterance, confidence, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       event.id,
       event.event_type,
@@ -718,6 +733,7 @@ async function route(
       event.unit ?? null,
       event.location ?? null,
       event.expiration_date ?? null,
+      event.low_threshold ?? null,
       event.raw_utterance,
       event.confidence,
       event.source,
