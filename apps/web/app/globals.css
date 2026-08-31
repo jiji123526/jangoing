@@ -1167,8 +1167,12 @@ h1 {
 
 .shopping-add-fields input:focus-visible,
 .shopping-add-fields select:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: none;
+}
+
+.shopping-add-fields label:focus-within {
+  background: rgba(255, 255, 255, 0.52);
 }
 
 .shopping-add-dialog-form > p {

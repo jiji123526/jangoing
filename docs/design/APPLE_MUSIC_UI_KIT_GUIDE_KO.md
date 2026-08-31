@@ -281,6 +281,8 @@ Shopping add control의 구현 값:
 - `+ Add`를 누르면 native modal dialog를 연다. dialog는 `Add Item` 제목,
   `Cancel`/`Add` actions, item, quantity, unit, location, expiry fields를
   제공하고 성공한 뒤 닫힌다. Escape와 backdrop click도 취소 동작으로 처리한다.
+- dialog field focus는 파란 outline을 표시하지 않고 해당 48px row의 옅은
+  surface fill로만 구분한다.
 - `Done`은 저장된 구매 context를 가진 purchase event를 만들며 inventory에
   새 batch로 반영한다. `Undo`는 그 purchase batch만 제거하고 기존 inventory
   batch는 건드리지 않는다.

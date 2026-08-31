@@ -2,6 +2,14 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-08-31 - Shopping add field focus simplified
+
+### Completed
+
+- Removed the blue outline and box shadow from focused Add Item dialog fields.
+- Preserved a visible keyboard focus state through a subtle row-level surface
+  fill instead of a field boundary.
+
 ## 2026-08-31 - Shopping and Inventory page alignment fixed
 
 ### Problem
