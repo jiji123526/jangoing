@@ -2101,6 +2101,60 @@ h1 {
   background: #f8f8fa;
 }
 
+.inventory-item-row.is-selecting {
+  grid-template-columns: 28px 102px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.inventory-item-row.is-selected {
+  background: rgba(255, 45, 85, 0.04);
+}
+
+.inventory-selection-control {
+  width: 22px;
+  height: 22px;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(60, 60, 67, 0.3);
+  border-radius: 50%;
+  color: #fff;
+  background: #fff;
+}
+
+.inventory-item-row.is-selected .inventory-selection-control {
+  border-color: #ff2d55;
+  background: #ff2d55;
+}
+
+.inventory-selection-bar {
+  min-height: 44px;
+  margin: 0 16px 12px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 10px;
+  color: rgba(60, 60, 67, 0.6);
+  background: #f2f2f7;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.inventory-selection-bar button {
+  padding: 0;
+  border: 0;
+  color: #ff3b30;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+}
+
+.inventory-selection-bar button:disabled {
+  color: rgba(60, 60, 67, 0.3);
+}
+
 .inventory-row-hit-area {
   position: absolute;
   z-index: 1;
@@ -2191,28 +2245,6 @@ h1 {
   letter-spacing: -0.408px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.inventory-edit-remove {
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  color: #ff3b30;
-  background: transparent;
-}
-
-.inventory-edit-remove:disabled {
-  color: rgba(60, 60, 67, 0.33);
-}
-
-.inventory-edit-remove:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: 2px;
 }
 
 .inventory-edit-actions {
@@ -2890,8 +2922,8 @@ h1 {
 }
 
 .shopping-swipe-action {
-  width: 84px;
-  flex: 0 0 84px;
+  width: 74px;
+  flex: 0 0 74px;
   padding: 0;
   border: 0;
   color: #fff;
@@ -2907,9 +2939,8 @@ h1 {
   outline-offset: -4px;
 }
 
-.shopping-swipe-row.is-purchased,
 .shopping-swipe-action.is-undo {
-  background: #ff2d55;
+  background: #8e8e93;
 }
 
 .shopping-swipe-action.is-delete {

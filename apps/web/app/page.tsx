@@ -21,7 +21,6 @@ import {
   Mic,
   PackageOpen,
   Send,
-  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -270,7 +269,7 @@ function shoppingPurchaseContextLabel(item: ShoppingListItem): string {
   return parts.join(" · ");
 }
 
-const shoppingSwipeActionWidth = 84;
+const shoppingSwipeActionWidth = 74;
 
 function ShoppingArtwork({ itemName }: { itemName: string }) {
   const category = inventoryCategory(itemName);
@@ -486,16 +485,21 @@ function recentUpdateLabel(
 function InventoryItemRow({
   item,
   editing = false,
+  selecting = false,
+  selected = false,
   busy = false,
   onOpen,
+  onSelect,
   onCancel,
   onSave,
-  onRemove,
 }: {
   item: InventoryItem;
   editing?: boolean;
+  selecting?: boolean;
+  selected?: boolean;
   busy?: boolean;
   onOpen?: () => void;
+  onSelect?: () => void;
   onCancel?: () => void;
   onSave?: (update: {
     quantity: number;
@@ -504,7 +508,6 @@ function InventoryItemRow({
     expiration_date: string | null;
     low_threshold: number | null;
   }) => Promise<void>;
-  onRemove?: () => Promise<void>;
 }) {
   const category = inventoryCategory(item.item_name);
   const attention = attentionLabel(item);
@@ -587,19 +590,6 @@ function InventoryItemRow({
         >
           <div className="inventory-edit-header">
             <strong>{titleCase(item.item_name)}</strong>
-            <button
-              className="inventory-edit-remove"
-              type="button"
-              aria-label={`Remove ${titleCase(item.item_name)} from inventory`}
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm(`Remove ${titleCase(item.item_name)} from inventory?`)) {
-                  void onRemove?.();
-                }
-              }}
-            >
-              <Trash2 aria-hidden="true" size={18} />
-            </button>
           </div>
 
           <div className="inventory-edit-fields">
@@ -741,14 +731,26 @@ function InventoryItemRow({
   }
 
   return (
-    <article className={`inventory-item-row${onOpen ? " inventory-item-row-button" : ""}`}>
-      {onOpen && (
+    <article
+      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}`}
+    >
+      {(onOpen || onSelect) && (
         <button
           className="inventory-row-hit-area"
           type="button"
-          onClick={onOpen}
-          aria-label={`Edit ${titleCase(item.item_name)}`}
+          onClick={selecting ? onSelect : onOpen}
+          aria-label={
+            selecting
+              ? `${selected ? "Deselect" : "Select"} ${titleCase(item.item_name)}`
+              : `Edit ${titleCase(item.item_name)}`
+          }
+          aria-pressed={selecting ? selected : undefined}
         />
+      )}
+      {selecting && (
+        <span className="inventory-selection-control" aria-hidden="true">
+          {selected && <Check size={16} strokeWidth={3} />}
+        </span>
       )}
       <InventoryArtwork category={category} />
       <div className="inventory-item-copy">
@@ -786,6 +788,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [editingInventory, setEditingInventory] = useState(false);
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
     useState<string | null>(null);
+  const [selectedInventoryItems, setSelectedInventoryItems] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [inventorySaving, setInventorySaving] = useState<string | null>(null);
   const [shoppingSaving, setShoppingSaving] = useState<string | null>(null);
   const [shoppingAddOpen, setShoppingAddOpen] = useState(false);
@@ -1067,15 +1072,28 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     }
   }
 
-  async function handleRemoveInventoryItem(itemName: string) {
-    setInventorySaving(itemName);
+  async function handleRemoveSelectedInventoryItems() {
+    const itemNames = [...selectedInventoryItems];
+    if (itemNames.length === 0) return;
+    if (
+      !window.confirm(
+        `Delete ${itemNames.length} selected item${itemNames.length === 1 ? "" : "s"}?`,
+      )
+    ) {
+      return;
+    }
+
+    setInventorySaving("__selection__");
     setError(null);
     try {
-      await removeInventoryItem(itemName);
+      await Promise.all(
+        itemNames.map((itemName) => removeInventoryItem(itemName)),
+      );
       await loadDashboard();
-      setSelectedInventoryItemName(null);
+      setSelectedInventoryItems(new Set());
+      setEditingInventory(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not remove item.");
+      setError(caught instanceof Error ? caught.message : "Could not remove selected items.");
     } finally {
       setInventorySaving(null);
     }
@@ -1948,7 +1966,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               aria-pressed={editingInventory}
               disabled={inventorySaving !== null}
               onClick={() => {
-                setEditingInventory((current) => !current);
+                setEditingInventory((current) => {
+                  if (current) setSelectedInventoryItems(new Set());
+                  return !current;
+                });
                 setSelectedInventoryItemName(null);
               }}
             >
@@ -1957,6 +1978,19 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           </div>
 
           {error && <p className="message error inventory-message">{error}</p>}
+
+          {editingInventory && dashboard.inventory.length > 0 && (
+            <div className="inventory-selection-bar">
+              <span aria-live="polite">{selectedInventoryItems.size} Selected</span>
+              <button
+                type="button"
+                disabled={selectedInventoryItems.size === 0 || inventorySaving !== null}
+                onClick={() => void handleRemoveSelectedInventoryItems()}
+              >
+                {inventorySaving === "__selection__" ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <p className="empty-state inventory-empty">Loading inventory...</p>
@@ -2019,20 +2053,32 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           item={item}
                           key={item.item_name}
                           editing={
-                            editingInventory &&
+                            !editingInventory &&
                             selectedInventoryItemName === item.item_name
                           }
+                          selecting={editingInventory}
+                          selected={selectedInventoryItems.has(item.item_name)}
                           busy={inventorySaving === item.item_name}
-                          onOpen={
-                            editingInventory
-                              ? () => setSelectedInventoryItemName(item.item_name)
-                              : undefined
+                          onOpen={() =>
+                            setSelectedInventoryItemName((current) =>
+                              current === item.item_name ? null : item.item_name,
+                            )
+                          }
+                          onSelect={() =>
+                            setSelectedInventoryItems((current) => {
+                              const next = new Set(current);
+                              if (next.has(item.item_name)) {
+                                next.delete(item.item_name);
+                              } else {
+                                next.add(item.item_name);
+                              }
+                              return next;
+                            })
                           }
                           onCancel={() => setSelectedInventoryItemName(null)}
                           onSave={(update) =>
                             handleSaveInventoryItem(item.item_name, update)
                           }
-                          onRemove={() => handleRemoveInventoryItem(item.item_name)}
                         />
                       ))}
                     </div>
