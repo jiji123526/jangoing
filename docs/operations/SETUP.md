@@ -40,7 +40,7 @@ To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
 the required event, correction, inference-log, annotation, and inventory
-schema migrations through migration 0009. This keeps local development
+schema migrations through migration 0011. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
@@ -102,6 +102,17 @@ git push origin main
 
 For the quantity-based inventory status update, this order is required because
 the Worker writes `events.low_threshold`:
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run db:migrate:remote
+npm run deploy:api
+git push origin main
+```
+
+Inventory category overrides add `events.category` in migration `0011`. Apply
+the migration before deploying the Worker, then redeploy Web so its request
+contract matches the API:
 
 ```bash
 cd /home/jjiwoo/.workspace/jangoing
@@ -363,7 +374,7 @@ For preview deployments, allow each preview origin explicitly or use a controlle
 - [x] Wrangler authenticated
 - [x] Production D1 created
 - [x] D1 ID added to `wrangler.toml`
-- [ ] Production migrations through 0006 applied
+- [ ] Production migrations through 0011 applied
 - [x] Worker deployed and health endpoint verified
 - [x] Repository imported into Vercel and connected to `main`
 - [x] `NEXT_PUBLIC_API_BASE_URL` configured

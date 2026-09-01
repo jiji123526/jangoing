@@ -485,6 +485,21 @@ export const EventTypeSchema = z.enum([
   "item_removed",
 ]);
 
+export const InventoryCategorySchema = z.enum([
+  "leftovers",
+  "frozen",
+  "produce",
+  "dairy_eggs",
+  "meat_seafood",
+  "pantry",
+  "drinks",
+  "snacks",
+  "other",
+]);
+
+export const InventoryCategoryEventValueSchema =
+  InventoryCategorySchema.or(z.literal("automatic"));
+
 export const AdjustInventoryItemRequestSchema = z
   .object({
     quantity: z.number().min(0),
@@ -492,6 +507,7 @@ export const AdjustInventoryItemRequestSchema = z
     location: LocationSchema.nullable(),
     expiration_date: IsoDateSchema.nullable(),
     low_threshold: z.number().positive().nullable(),
+    category: InventoryCategorySchema.nullable(),
   })
   .strict();
 
@@ -531,6 +547,7 @@ export const ConfirmActionRequestSchema = z
 export const EventRecordSchema = CreateEventRequestSchema.extend({
   id: z.string(),
   created_at: z.string(),
+  category: InventoryCategoryEventValueSchema.nullable().optional(),
   // Historical out-of-stock and adjustment events may contain zero.
   // New user-created events still use CreateEventRequestSchema and require
   // a positive quantity.
@@ -552,6 +569,7 @@ export const InventoryStatusSchema = z.enum([
 
 export const InventoryItemSchema = z.object({
   item_name: z.string(),
+  category: InventoryCategorySchema.nullable(),
   quantity: z.number().min(0),
   unit: z.string().nullable(),
   location: LocationSchema.nullable(),
@@ -658,6 +676,7 @@ export type EventType = z.infer<typeof EventTypeSchema>;
 export type AdjustInventoryItemRequest = z.infer<
   typeof AdjustInventoryItemRequestSchema
 >;
+export type InventoryCategory = z.infer<typeof InventoryCategorySchema>;
 export type ShoppingItemContextRequest = z.infer<
   typeof ShoppingItemContextRequestSchema
 >;

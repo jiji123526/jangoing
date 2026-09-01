@@ -8,6 +8,7 @@ import { projectInventory } from "../src/domain/projections";
 
 const existingMilk: InventoryItem = {
   item_name: "milk",
+  category: null,
   quantity: 1,
   unit: "carton",
   location: "fridge",

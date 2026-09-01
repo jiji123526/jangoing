@@ -49,6 +49,7 @@ describe("projectInventory", () => {
 
     expect(inventory[0]).toMatchObject({
       item_name: "milk",
+      category: null,
       quantity: 3,
       nearest_expiration_date: "2026-09-02",
       expiry_state: "fresh",
@@ -111,6 +112,56 @@ describe("projectInventory", () => {
       location: "pantry",
       low_threshold: null,
       nearest_expiration_date: "2026-09-04",
+    });
+  });
+
+  it("persists and clears a category override through inventory edits", () => {
+    const categorizedEvents = [
+      event({
+        event_type: "item_added",
+        item_name: "coke_zero",
+        quantity: 2,
+      }),
+      event({
+        event_type: "item_adjusted",
+        item_name: "coke_zero",
+        quantity: 2,
+        category: "drinks",
+      }),
+    ];
+    const inventory = projectInventory(categorizedEvents);
+    const resetInventory = projectInventory([
+      ...categorizedEvents,
+      event({
+        event_type: "item_adjusted",
+        item_name: "coke_zero",
+        quantity: 2,
+        category: "automatic",
+      }),
+    ]);
+
+    expect(inventory[0].category).toBe("drinks");
+    expect(resetInventory[0].category).toBeNull();
+  });
+
+  it("keeps a category override when another adjustment has no category", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_adjusted",
+          item_name: "coke_zero",
+          quantity: 2,
+          category: "drinks",
+        }),
+        event({
+          event_type: "item_adjusted",
+          item_name: "coke_zero",
+          quantity: 3,
+        }),
+      ])[0],
+    ).toMatchObject({
+      category: "drinks",
+      quantity: 3,
     });
   });
 

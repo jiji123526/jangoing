@@ -606,6 +606,9 @@ async function handleInventoryMutation(
     location: adjustedValues?.location ?? null,
     expiration_date: adjustedValues?.expiration_date ?? null,
     low_threshold: adjustedValues?.low_threshold ?? null,
+    category: removesItem
+      ? null
+      : adjustedValues?.category ?? "automatic",
     raw_utterance: `Inventory editor ${removesItem ? "removed" : "adjusted"} ${itemName}`,
     confidence: 1,
     source: "web",
@@ -615,8 +618,8 @@ async function handleInventoryMutation(
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, category, raw_utterance, confidence, source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     event.id,
     event.event_type,
@@ -626,6 +629,7 @@ async function handleInventoryMutation(
     event.location ?? null,
     event.expiration_date ?? null,
     event.low_threshold ?? null,
+    event.category ?? null,
     event.raw_utterance,
     event.confidence,
     event.source,

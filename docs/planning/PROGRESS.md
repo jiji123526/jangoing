@@ -2,6 +2,96 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - Category override taxonomy role clarified
+
+### Completed
+
+- Clarified that inventory category overrides and annotation `CATEGORY`
+  entities are separate supervision sources rather than disconnected data.
+- Defined inventory overrides as provenance-bearing item-category relation
+  evidence that can feed the future `grocery-v2` catalog.
+- Documented why an inferred category must not be inserted as an annotation
+  span when the category phrase did not occur in the utterance.
+- Added follow-up items for catalog evidence ingestion and a household-scoped
+  category proposal flow for repeated `Other` selections.
+
+### Deployment
+
+- This clarification is documentation-only.
+
+## 2026-09-01 - Inventory category override added
+
+### Completed
+
+- Kept deterministic item-name category inference as the zero-input default.
+- Added an inventory edit `Category` row with `Automatic`, eight controlled
+  categories, and `Other`.
+- Added migration `0011_add_inventory_category.sql` and persisted overrides on
+  `item_adjusted` events so category choices follow the production database
+  across devices.
+- Updated inventory projection and grouping to prefer a stored override while
+  allowing `Automatic` to clear it and return to the heuristic fallback.
+- Used an explicit `automatic` event marker so unrelated or historical
+  adjustments with a null category do not erase a stored override.
+- Kept inventory display grouping separate from the annotation `CATEGORY`
+  entity ontology.
+- Added contract validation and projection coverage for setting, rejecting, and
+  clearing category overrides.
+
+### Verification
+
+- `npm run typecheck`
+- `npm run test --workspace @jangoing/api`: 124 tests passed
+- `npm run build --workspace @jangoing/web`
+- `npm run build --workspace @jangoing/api`
+- Local SQLite end-to-end edit verified category override persistence and the
+  explicit `automatic` reset marker projection.
+
+### Deployment
+
+1. Run `npm run db:migrate:remote`.
+2. Run `npm run deploy:api`.
+3. Push or redeploy the Vercel Web app.
+
+## 2026-09-01 - Korean-English code-switching ASR strategy added
+
+### Completed
+
+- Assessed single-user Korean-English code-switching as feasible with a
+  multilingual ASR request, personal language profile, and dynamic bilingual
+  keywords.
+- Separated mixed-language transcription from bilingual action and entity
+  normalization so original spans, brand spellings, and ASR errors remain
+  observable.
+- Defined automatic bilingual context sources from taxonomy aliases, current
+  household state, reviewed annotations, and confirmation corrections without
+  requiring manual vocabulary entry.
+- Added code-switch-specific evaluation slices and kept fine-tuning behind the
+  same evidence-based gate as English-only personalization.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-01 - Single-user personalized ASR strategy documented
+
+### Completed
+
+- Compared current runtime vocabulary and phrase adaptation options from
+  OpenAI, Google, Azure, AWS, Vosk, whisper.cpp, and faster-whisper.
+- Defined a training-free first path using push-to-talk, a fixed microphone,
+  English hints, dynamic inventory keywords, personal confusion correction,
+  and the existing editable confirmation flow.
+- Defined a personal frozen audio benchmark focused on entity, slot, action,
+  safety, and latency metrics rather than aggregate WER alone.
+- Added correction-data retention guidance, a provider-neutral adapter plan,
+  cloud/local comparison criteria, and explicit fine-tuning entry gates.
+- Linked the personalized strategy from the general voice plan and docs index.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-01 - Voice pipeline and alignment notes documented
 
 ### Completed
@@ -70,7 +160,7 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Next Gate
 
 - Stabilize the current MVP, then choose the upload authentication mechanism
-  before creating R2 and migration `0011`.
+  before creating R2 and migration `0012`.
 
 ## 2026-08-31 - Removed consumer list page bottom dividers
 

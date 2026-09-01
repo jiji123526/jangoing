@@ -15,6 +15,7 @@ interface Batch {
 
 interface ItemState {
   batches: Batch[];
+  category: InventoryItem["category"];
   forcedStatus: InventoryItem["status"] | null;
   lowThreshold: number | null;
   lowThresholdUnit: string | null;
@@ -92,6 +93,7 @@ export function projectInventory(
 
     const state = states.get(event.item_name) ?? {
       batches: [],
+      category: null,
       forcedStatus: null,
       lowThreshold: null,
       lowThresholdUnit: null,
@@ -160,6 +162,11 @@ export function projectInventory(
         sourcePurchaseId: null,
         forcedStatusBeforePurchase: null,
       }];
+      if (event.category === "automatic") {
+        state.category = null;
+      } else if (event.category) {
+        state.category = event.category;
+      }
       state.lowThreshold = nextLowThreshold;
       state.lowThresholdUnit =
         nextLowThreshold === null ? null : event.unit ?? null;
@@ -228,6 +235,7 @@ export function projectInventory(
 
       return {
         item_name: itemName,
+        category: state.category,
         quantity,
         unit: firstBatch?.unit ?? null,
         location: firstBatch?.location ?? null,

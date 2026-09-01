@@ -1,6 +1,6 @@
 # Jangoing Action Items
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 This document is the operational checklist for moving from annotation
 infrastructure to an English NLP MVP. [PLAN.md](./PLAN.md) describes the
@@ -13,8 +13,10 @@ completion gates.
 - [x] Add natural-language `set_low_threshold` parsing and annotation support.
 - [x] Apply D1 migration 0009 and deploy the inventory threshold update.
 - [x] Implement atomic guided initial-fridge setup in Worker, local API, and Home.
-- [ ] Apply D1 migration 0010 and deploy the fridge setup Worker before Vercel.
+- [x] Apply D1 migration 0010 and deploy the fridge setup Worker before Vercel.
 - [ ] Verify one production setup with a test household before wider use.
+- [x] Add optional controlled category overrides to inventory item editing.
+- [ ] Apply D1 migration 0011, deploy the category-aware Worker, and redeploy Web.
 - [x] Define the artwork-first, vision-later item media architecture.
 - [ ] Choose authentication or a constrained household upload token before
   exposing any production media upload endpoint.
@@ -190,6 +192,10 @@ the current annotation milestone to import a large external catalog.
   its official dataset documentation.
 - [ ] Define a versioned `grocery-v2` schema for category, product family,
   brand, item, aliases, provenance, and canonical lifecycle.
+- [ ] Convert inventory category override events into provenance-preserving
+  item-category relation evidence for the catalog.
+- [ ] Define a household-scoped `Suggest category` proposal flow for repeated
+  `Other` items without treating free text as immediate global ground truth.
 - [ ] Write migration decisions for current conflicts including `soda`,
   `milk`, and `whole_milk`.
 - [ ] Remove taxonomy knowledge duplication between the catalog and hardcoded

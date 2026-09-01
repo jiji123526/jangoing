@@ -1,4 +1,5 @@
 import {
+  AdjustInventoryItemRequestSchema,
   CreateEventRequestSchema,
   EventRecordSchema,
 } from "@jangoing/contracts";
@@ -12,6 +13,35 @@ describe("inventory mutation", () => {
 
   it("keeps positive-quantity edits as adjustments", () => {
     expect(inventoryMutationEventType("edit", 1)).toBe("item_adjusted");
+  });
+
+  it("accepts a controlled category override or automatic category", () => {
+    const baseAdjustment = {
+      quantity: 1,
+      unit: "carton",
+      location: "fridge",
+      expiration_date: null,
+      low_threshold: null,
+    } as const;
+
+    expect(
+      AdjustInventoryItemRequestSchema.safeParse({
+        ...baseAdjustment,
+        category: "dairy_eggs",
+      }).success,
+    ).toBe(true);
+    expect(
+      AdjustInventoryItemRequestSchema.safeParse({
+        ...baseAdjustment,
+        category: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      AdjustInventoryItemRequestSchema.safeParse({
+        ...baseAdjustment,
+        category: "beverages",
+      }).success,
+    ).toBe(false);
   });
 
   it("always treats an explicit removal as removal", () => {

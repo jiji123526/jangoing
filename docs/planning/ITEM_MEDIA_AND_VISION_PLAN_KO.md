@@ -127,7 +127,8 @@ Vision input을 위해 무제한 원본을 보존하지 않는다. 향후 모델
 
 ### D1 migration 초안
 
-예상 migration은 `0011_create_item_media.sql`이다.
+예상 migration은 `0012_create_item_media.sql`이다. `0011`은 inventory category
+override에 사용되었다.
 
 ```sql
 CREATE TABLE item_media (
@@ -360,7 +361,7 @@ expiry OCR은 일반 item recognition과 별도 task로 평가한다. 날짜를 
 ### Phase 1A: Storage
 
 - [ ] Cloudflare R2 bucket과 Worker binding 추가
-- [ ] migration `0011_create_item_media.sql` 작성
+- [ ] migration `0012_create_item_media.sql` 작성
 - [ ] upload/read/delete API 구현
 - [ ] MIME, decode, dimension, byte, hash 검증
 - [ ] D1/R2 partial failure cleanup 테스트

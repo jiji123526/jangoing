@@ -371,7 +371,23 @@ voice로 clarification question과 answer를 주고받을 수 있게 한다.
 9. wake word
 10. barge-in and full duplex refinement
 
-## 17. 최종 결론
+## 17. 단일 사용자 ASR 개인화
+
+현재 제품은 한 명의 사용자를 우선 대상으로 하므로, 일반적인 다중 speaker ASR
+training보다 다음 순서를 우선한다.
+
+- push-to-talk와 고정 microphone으로 입력 분산 축소
+- 현재 inventory와 shopping list로 request별 keyword 생성
+- confirmation correction을 개인 ASR feedback pair로 저장
+- item, quantity, unit, date 중심으로 slot 정확도 평가
+- 반복되는 개인 발음 오류만 confusion layer로 교정
+- 위 방식 이후에도 남는 acoustic error에만 fine-tuning 검토
+
+provider 비교, personal frozen set, 동적 vocabulary, fine-tuning gate의 상세 설계는
+[단일 사용자용 Personalized ASR 전략](./PERSONALIZED_ASR_STRATEGY_KO.md)을
+따른다.
+
+## 18. 최종 결론
 
 Jangoing에서 voice를 붙인다는 것은 단순히 STT와 TTS를 붙이는 것이 아니다.
 

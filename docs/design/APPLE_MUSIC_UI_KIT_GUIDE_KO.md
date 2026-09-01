@@ -302,6 +302,11 @@ page-level bottom divider를 표시하지 않는다. item 간 inset divider는 �
 6. row secondary: `1 bag · Freezer · expires in 3 days`처럼 수량, 위치, 핵심 특이사항 한 줄.
 7. trailing에는 하나의 주요 상태/chevron만 둔다. 여러 버튼은 detail 화면으로 보낸다.
 
+Inventory item 편집의 `Category` row는 기존 Unit/Location/Expiry와 같은 52px
+disclosure row를 사용한다. 기본값은 `Automatic (derived category)`이며 사용자가
+controlled category를 선택한 경우에만 DB override를 저장한다. 자유 텍스트
+category 입력은 UI grouping vocabulary가 분산되므로 제공하지 않는다.
+
 `blueberries`와 `frozen blueberries`는 UI에서도 서로 다른 표시명을 유지한다. canonical family가 같아도 preparation/condition specificity를 지우지 않는다.
 
 ### 7.3 Search

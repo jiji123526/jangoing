@@ -91,6 +91,10 @@ const appStateMigrationPath = resolve(
   apiDirectory,
   "migrations/0010_create_app_state.sql",
 );
+const inventoryCategoryMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0011_add_inventory_category.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -130,6 +134,9 @@ database.exec(migration);
 const eventColumns = database.prepare("PRAGMA table_info(events)").all() as Array<{ name: string }>;
 if (!eventColumns.some((column) => column.name === "low_threshold")) {
   database.exec(readFileSync(inventoryLowThresholdMigrationPath, "utf8"));
+}
+if (!eventColumns.some((column) => column.name === "category")) {
+  database.exec(readFileSync(inventoryCategoryMigrationPath, "utf8"));
 }
 const correctionMigration = readFileSync(correctionMigrationPath, "utf8")
   .replace("CREATE TABLE corrections", "CREATE TABLE IF NOT EXISTS corrections")
@@ -982,6 +989,9 @@ async function route(
       location: adjustedValues?.location ?? null,
       expiration_date: adjustedValues?.expiration_date ?? null,
       low_threshold: adjustedValues?.low_threshold ?? null,
+      category: removesItem
+        ? null
+        : adjustedValues?.category ?? "automatic",
       raw_utterance: `Inventory editor ${removesItem ? "removed" : "adjusted"} ${itemName}`,
       confidence: 1,
       source: "web",
@@ -990,8 +1000,8 @@ async function route(
     database.prepare(
       `INSERT INTO events (
         id, event_type, item_name, quantity, unit, location,
-        expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        expiration_date, low_threshold, category, raw_utterance, confidence, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       event.id,
       event.event_type,
@@ -1001,6 +1011,7 @@ async function route(
       event.location ?? null,
       event.expiration_date ?? null,
       event.low_threshold ?? null,
+      event.category ?? null,
       event.raw_utterance,
       event.confidence,
       event.source,

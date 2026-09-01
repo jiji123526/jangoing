@@ -11,6 +11,7 @@ operational guides, decisions, and learning references live in this directory.
 - [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
 - [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
 - [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
+- [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY_KO.md)
 
 ## Annotation
 

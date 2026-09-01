@@ -351,6 +351,82 @@ queue를 분리한 이유:
 현재는 `expiring`, `expires`, `expiry date`, `with expiry date` 같은 marker가
 있을 때만 파싱한다.
 
+### 4.15 Inventory category 자동 분류와 사용자 override
+
+Inventory 화면은 item name keyword로 display category를 자동 계산한다. 이
+자동값은 item 추가와 fridge setup에서 사용자가 category를 반드시 입력하지 않아도
+되는 기본값이다.
+
+자동 분류가 틀린 경우에는 item 편집 화면의 `Category` row에서 다음 중 하나를
+선택할 수 있다.
+
+- `Automatic (현재 자동값)`: 저장된 override를 제거하고 자동 분류 사용
+- `Produce`, `Dairy & Eggs`, `Drinks` 등 controlled category
+- `Other`: 현재 목록에 맞는 category가 없는 경우
+
+자유 텍스트 대신 enum을 사용하는 이유는 `Drink`, `Drinks`, `Beverage`처럼 UI
+grouping 값이 분산되는 것을 방지하기 위해서다. 새 category가 필요하면 taxonomy와
+enum을 함께 확장해야 한다.
+
+선택한 override는 local storage가 아니라 `item_adjusted` event의 `category`에
+저장된다. 따라서 여러 기기와 production DB에서 동일하게 보이며, 이후 quantity,
+unit, location, expiry를 편집해도 최신 category가 유지된다. `Automatic`을
+선택하면 event에 내부 marker `automatic`을 기록해 override를 명시적으로
+해제한다. category 값이 없는 기존 또는 fridge setup adjustment는 override를
+변경하지 않는다.
+
+projection 결과의 `InventoryItem.category`는 **사용자 override만** 나타낸다.
+값이 `null`이면 Web이 기존 deterministic fallback을 적용한다.
+
+이 category는 annotation의 `CATEGORY` entity와 목적이 다르다.
+
+- inventory category override: 제품 화면의 item grouping metadata
+- annotation `CATEGORY`: `drinks`, `fruit`처럼 발화에 실제 등장한 상위 개념
+
+분리한다고 해서 inventory override를 taxonomy 학습에서 버리는 것은 아니다.
+두 값은 서로 다른 supervision으로 보존한 뒤 catalog layer에서 연결해야 한다.
+
+예:
+
+```text
+Utterance: "We're out of Coke Zero."
+Annotation: ITEM("Coke Zero") -> coke_zero
+Inventory override: coke_zero -> drinks
+```
+
+이 문장에는 `drinks`라는 surface span이 없으므로 annotation에 `CATEGORY`를
+추가하면 잘못된 span label이 된다. 반면 사용자가 고른 `Drinks`는
+`coke_zero belongs_to drinks`라는 item-category relation의 유효한 evidence다.
+
+따라서 향후 `grocery-v2`에서는 다음처럼 사용한다.
+
+```text
+item_category_evidence
+  item_id: coke_zero
+  category_id: drinks
+  source: user_inventory_override
+  scope: household
+  event_id: ...
+  observed_at: ...
+```
+
+- household에서는 사용자의 선택을 즉시 grouping에 적용
+- global taxonomy에는 provenance가 있는 relation proposal로 축적
+- annotation `CATEGORY`에는 실제 category 표현이 발화에 있을 때만 반영
+- 같은 mapping이 annotation, catalog, external data에서도 확인되면 confidence 증가
+
+현재 controlled enum은 category **membership coverage**를 넓히지만 category
+종류 자체를 추가하지는 않는다. `Other` 선택은 taxonomy gap 신호다. 반복되는
+`Other`를 새 category로 만들려면 별도의 `Suggest category` proposal이 필요하며,
+자유 텍스트를 곧바로 global canonical category로 승격해서는 안 된다.
+
+관련 파일:
+
+- `apps/api/migrations/0011_add_inventory_category.sql`
+- `apps/api/src/domain/projections.ts`
+- `apps/web/app/page.tsx`
+- `packages/contracts/src/index.ts`
+
 ## 5. 검토한 다른 선택지
 
 ### 5.1 처음부터 DistilBERT 학습

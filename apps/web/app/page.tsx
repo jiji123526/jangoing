@@ -170,6 +170,24 @@ const inventoryUnitOptions = [
 
 type InventoryCategory = (typeof inventoryCategories)[number];
 type ItemCategory = Exclude<InventoryCategory, "All">;
+type StoredInventoryCategory = NonNullable<InventoryItem["category"]>;
+
+const storedCategoryLabels: Record<StoredInventoryCategory, ItemCategory> = {
+  leftovers: "Leftovers",
+  frozen: "Frozen",
+  produce: "Produce",
+  dairy_eggs: "Dairy & Eggs",
+  meat_seafood: "Meat & Seafood",
+  pantry: "Pantry",
+  drinks: "Drinks",
+  snacks: "Snacks",
+  other: "Other",
+};
+
+const storedCategoryOptions = Object.entries(storedCategoryLabels) as [
+  StoredInventoryCategory,
+  ItemCategory,
+][];
 
 const categoryTerms: Record<Exclude<ItemCategory, "Other">, string[]> = {
   Leftovers: [
@@ -211,6 +229,12 @@ function inventoryCategory(itemName: string): ItemCategory {
     if (terms.some((term) => normalized.includes(term))) return category;
   }
   return "Other";
+}
+
+function resolvedInventoryCategory(item: InventoryItem): ItemCategory {
+  return item.category
+    ? storedCategoryLabels[item.category]
+    : inventoryCategory(item.item_name);
 }
 
 function quantityLabel(item: InventoryItem): string {
@@ -563,6 +587,7 @@ function InventoryItemRow({
     location: InventoryItem["location"];
     expiration_date: string | null;
     low_threshold: number | null;
+    category: InventoryItem["category"];
   }) => Promise<void>;
   onRemove?: () => Promise<void>;
 }) {
@@ -576,6 +601,7 @@ function InventoryItemRow({
   const [lowThreshold, setLowThreshold] = useState(
     item.low_threshold?.toString() ?? "",
   );
+  const [category, setCategory] = useState(item.category ?? "");
   const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
     quantityLabel(item),
@@ -590,10 +616,12 @@ function InventoryItemRow({
     setLocation(item.location ?? "");
     setExpirationDate(item.nearest_expiration_date ?? "");
     setLowThreshold(item.low_threshold?.toString() ?? "");
+    setCategory(item.category ?? "");
     setValidationError(null);
   }, [
     editing,
     item.location,
+    item.category,
     item.low_threshold,
     item.nearest_expiration_date,
     item.quantity,
@@ -641,6 +669,9 @@ function InventoryItemRow({
               location: location as InventoryItem["location"],
               expiration_date: expirationDate || null,
               low_threshold: parsedLowThreshold,
+              category: category
+                ? category as StoredInventoryCategory
+                : null,
             });
           }}
         >
@@ -735,6 +766,33 @@ function InventoryItemRow({
                 {inventoryUnitOptions.map((option) => (
                   <option key={option} value={option}>
                     {titleCase(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="inventory-edit-field-row">
+              <span>Category</span>
+              <span className="inventory-edit-row-value" aria-hidden="true">
+                {category
+                  ? storedCategoryLabels[category as StoredInventoryCategory]
+                  : `Automatic (${inventoryCategory(item.item_name)})`}
+                <span className="inventory-edit-chevron">›</span>
+              </span>
+              <select
+                className="inventory-edit-native-control"
+                aria-label="Category"
+                value={category}
+                onChange={(event) =>
+                  setCategory(event.target.value as StoredInventoryCategory | "")
+                }
+              >
+                <option value="">
+                  Automatic ({inventoryCategory(item.item_name)})
+                </option>
+                {storedCategoryOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
                   </option>
                 ))}
               </select>
@@ -887,7 +945,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const inventoryGroups = useMemo(() => {
     const groups = new Map<ItemCategory, InventoryItem[]>();
     for (const item of dashboard.inventory) {
-      const category = inventoryCategory(item.item_name);
+      const category = resolvedInventoryCategory(item);
       if (inventoryFilter !== "All" && category !== inventoryFilter) continue;
       groups.set(category, [...(groups.get(category) ?? []), item]);
     }
