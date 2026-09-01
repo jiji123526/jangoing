@@ -276,6 +276,43 @@ function shoppingPurchaseContextLabel(item: ShoppingListItem): string {
 
 const shoppingSwipeActionWidth = 74;
 
+function artworkFontSize(itemName: string, compact: boolean): number {
+  const longestWordLength = Math.max(
+    ...titleCase(itemName).split(" ").map((word) => word.length),
+    1,
+  );
+  const availableWidth = compact ? 42 : 82;
+  const maximumSize = compact ? 10 : 20;
+  const minimumSize = compact ? 6 : 11;
+  const estimatedCharacterWidth = compact ? 0.62 : 0.58;
+
+  return Math.max(
+    minimumSize,
+    Math.min(
+      maximumSize,
+      Math.floor(availableWidth / (longestWordLength * estimatedCharacterWidth)),
+    ),
+  );
+}
+
+function ArtworkLabel({
+  itemName,
+  compact = false,
+}: {
+  itemName: string;
+  compact?: boolean;
+}) {
+  return (
+    <span style={{ fontSize: `${artworkFontSize(itemName, compact)}px` }}>
+      {titleCase(itemName).split(" ").map((word, index) => (
+        <span className="artwork-word" key={`${word}-${index}`}>
+          {word}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function ShoppingArtwork({ itemName }: { itemName: string }) {
   const category = inventoryCategory(itemName);
   const categoryClass = category
@@ -288,7 +325,7 @@ function ShoppingArtwork({ itemName }: { itemName: string }) {
       className={`shopping-artwork category-${categoryClass}`}
       aria-hidden="true"
     >
-      <span>{titleCase(itemName)}</span>
+      <ArtworkLabel compact itemName={itemName} />
     </div>
   );
 }
@@ -411,7 +448,7 @@ function attentionLabel(item: InventoryItem): string | null {
 function InventoryArtwork({ itemName }: { itemName: string }) {
   return (
     <div className="inventory-artwork" aria-hidden="true">
-      <span>{titleCase(itemName)}</span>
+      <ArtworkLabel itemName={itemName} />
     </div>
   );
 }

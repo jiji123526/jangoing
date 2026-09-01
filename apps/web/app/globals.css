@@ -2193,7 +2193,7 @@ h1 {
   background: #f2f2f7;
 }
 
-.inventory-artwork span {
+.inventory-artwork > span {
   width: 100%;
   overflow: hidden;
   display: -webkit-box;
@@ -2205,6 +2205,15 @@ h1 {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.inventory-artwork .artwork-word,
+.shopping-artwork .artwork-word {
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .inventory-item-copy {
@@ -2913,7 +2922,7 @@ h1 {
   letter-spacing: 0.06em;
 }
 
-.shopping-artwork span {
+.shopping-artwork > span {
   width: 100%;
   padding: 3px;
   overflow: hidden;
