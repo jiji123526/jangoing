@@ -493,6 +493,7 @@ function InventoryItemRow({
   onSelect,
   onCancel,
   onSave,
+  onRemove,
 }: {
   item: InventoryItem;
   editing?: boolean;
@@ -509,6 +510,7 @@ function InventoryItemRow({
     expiration_date: string | null;
     low_threshold: number | null;
   }) => Promise<void>;
+  onRemove?: () => Promise<void>;
 }) {
   const category = inventoryCategory(item.item_name);
   const attention = attentionLabel(item);
@@ -591,6 +593,23 @@ function InventoryItemRow({
         >
           <div className="inventory-edit-header">
             <strong>{titleCase(item.item_name)}</strong>
+            <button
+              className="inventory-edit-remove"
+              type="button"
+              aria-label={`Delete ${titleCase(item.item_name)} from inventory`}
+              disabled={busy}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Delete ${titleCase(item.item_name)} from inventory?`,
+                  )
+                ) {
+                  void onRemove?.();
+                }
+              }}
+            >
+              <Trash2 aria-hidden="true" size={18} strokeWidth={2} />
+            </button>
           </div>
 
           <div className="inventory-edit-fields">
@@ -1095,6 +1114,20 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setEditingInventory(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not remove selected items.");
+    } finally {
+      setInventorySaving(null);
+    }
+  }
+
+  async function handleRemoveInventoryItem(itemName: string) {
+    setInventorySaving(itemName);
+    setError(null);
+    try {
+      await removeInventoryItem(itemName);
+      await loadDashboard();
+      setSelectedInventoryItemName(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not remove item.");
     } finally {
       setInventorySaving(null);
     }
@@ -1989,11 +2022,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 disabled={selectedInventoryItems.size === 0 || inventorySaving !== null}
                 onClick={() => void handleRemoveSelectedInventoryItems()}
               >
-                {inventorySaving === "__selection__" ? (
-                  "Deleting…"
-                ) : (
-                  <Trash2 aria-hidden="true" size={20} strokeWidth={2} />
-                )}
+                {inventorySaving === "__selection__" ? "Deleting…" : "Delete"}
               </button>
             </div>
           )}
@@ -2085,6 +2114,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           onSave={(update) =>
                             handleSaveInventoryItem(item.item_name, update)
                           }
+                          onRemove={() => handleRemoveInventoryItem(item.item_name)}
                         />
                       ))}
                     </div>
