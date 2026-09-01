@@ -37,6 +37,7 @@ import {
   parseAnnotationQueueQuery,
 } from "./annotations/queue";
 import { projectInventory, projectShoppingList } from "./domain/projections";
+import { inventoryMutationEventType } from "./domain/inventory-mutation";
 import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
@@ -969,16 +970,19 @@ async function route(
     }
 
     const values = adjustment?.success ? adjustment.data : null;
+    const eventType = inventoryMutationEventType(action, values?.quantity ?? null);
+    const removesItem = eventType === "item_removed";
+    const adjustedValues = removesItem ? null : values;
     const event: EventRecord = {
       id: crypto.randomUUID(),
-      event_type: action === "edit" ? "item_adjusted" : "item_removed",
+      event_type: eventType,
       item_name: itemName,
-      quantity: values?.quantity ?? null,
-      unit: values?.unit ?? null,
-      location: values?.location ?? null,
-      expiration_date: values?.expiration_date ?? null,
-      low_threshold: values?.low_threshold ?? null,
-      raw_utterance: `Inventory editor ${action === "edit" ? "adjusted" : "removed"} ${itemName}`,
+      quantity: adjustedValues?.quantity ?? null,
+      unit: adjustedValues?.unit ?? null,
+      location: adjustedValues?.location ?? null,
+      expiration_date: adjustedValues?.expiration_date ?? null,
+      low_threshold: adjustedValues?.low_threshold ?? null,
+      raw_utterance: `Inventory editor ${removesItem ? "removed" : "adjusted"} ${itemName}`,
       confidence: 1,
       source: "web",
       created_at: new Date().toISOString(),
