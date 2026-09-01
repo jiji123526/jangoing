@@ -21,6 +21,7 @@ import {
   Mic,
   PackageOpen,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -1984,10 +1985,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <span aria-live="polite">{selectedInventoryItems.size} Selected</span>
               <button
                 type="button"
+                aria-label={`Delete ${selectedInventoryItems.size} selected item${selectedInventoryItems.size === 1 ? "" : "s"}`}
                 disabled={selectedInventoryItems.size === 0 || inventorySaving !== null}
                 onClick={() => void handleRemoveSelectedInventoryItems()}
               >
-                {inventorySaving === "__selection__" ? "Deleting…" : "Delete"}
+                {inventorySaving === "__selection__" ? (
+                  "Deleting…"
+                ) : (
+                  <Trash2 aria-hidden="true" size={20} strokeWidth={2} />
+                )}
               </button>
             </div>
           )}
