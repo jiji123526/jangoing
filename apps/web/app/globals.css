@@ -859,6 +859,10 @@ main#search {
   background: linear-gradient(145deg, #83c8cf, #4d6ca4);
 }
 
+.home-update-artwork.category-leftovers {
+  background: linear-gradient(145deg, #b79873, #76604c);
+}
+
 .home-update-artwork.category-drinks {
   background: linear-gradient(145deg, #5db6a6, #2d647b);
 }
@@ -2935,6 +2939,10 @@ h1 {
 
 .shopping-artwork.category-frozen {
   background-color: #d5e7ec;
+}
+
+.shopping-artwork.category-leftovers {
+  background-color: #e3d9ce;
 }
 
 .shopping-artwork.category-beverages {

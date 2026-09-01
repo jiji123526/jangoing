@@ -137,6 +137,7 @@ const inventoryCategories = [
   "Meat & Seafood",
   "Pantry",
   "Frozen",
+  "Leftovers",
   "Drinks",
   "Snacks",
   "Other",
@@ -164,6 +165,9 @@ type InventoryCategory = (typeof inventoryCategories)[number];
 type ItemCategory = Exclude<InventoryCategory, "All">;
 
 const categoryTerms: Record<Exclude<ItemCategory, "Other">, string[]> = {
+  Leftovers: [
+    "leftover", "left over", "meal prep", "prepared meal", "takeout",
+  ],
   Frozen: ["frozen", "ice cream", "dumpling"],
   Produce: [
     "apple", "avocado", "banana", "berry", "berries", "blueberry",
