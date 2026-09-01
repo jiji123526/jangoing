@@ -274,11 +274,6 @@ const shoppingSwipeActionWidth = 74;
 
 function ShoppingArtwork({ itemName }: { itemName: string }) {
   const category = inventoryCategory(itemName);
-  const shortLabel = category === "Dairy & Eggs"
-    ? "D&E"
-    : category === "Meat & Seafood"
-      ? "M&S"
-      : category.slice(0, 3).toUpperCase();
   const categoryClass = category
     .toLowerCase()
     .replaceAll(" & ", "-")
@@ -289,7 +284,7 @@ function ShoppingArtwork({ itemName }: { itemName: string }) {
       className={`shopping-artwork category-${categoryClass}`}
       aria-hidden="true"
     >
-      <span>{shortLabel}</span>
+      <span>{titleCase(itemName)}</span>
     </div>
   );
 }
@@ -409,15 +404,10 @@ function attentionLabel(item: InventoryItem): string | null {
   return null;
 }
 
-function InventoryArtwork({ category }: { category: ItemCategory }) {
-  const shortLabel = category === "Dairy & Eggs"
-    ? "D&E"
-    : category === "Meat & Seafood"
-      ? "M&S"
-      : category.slice(0, 3).toUpperCase();
+function InventoryArtwork({ itemName }: { itemName: string }) {
   return (
     <div className="inventory-artwork" aria-hidden="true">
-      <span>{shortLabel}</span>
+      <span>{titleCase(itemName)}</span>
     </div>
   );
 }
@@ -512,7 +502,6 @@ function InventoryItemRow({
   }) => Promise<void>;
   onRemove?: () => Promise<void>;
 }) {
-  const category = inventoryCategory(item.item_name);
   const attention = attentionLabel(item);
   const [quantity, setQuantity] = useState(String(item.quantity));
   const [unit, setUnit] = useState(item.unit ?? "");
@@ -561,7 +550,7 @@ function InventoryItemRow({
 
     return (
       <article className="inventory-item-row is-editing">
-        <InventoryArtwork category={category} />
+        <InventoryArtwork itemName={item.item_name} />
         <form
           className="inventory-edit-form"
           onSubmit={(event) => {
@@ -772,7 +761,7 @@ function InventoryItemRow({
           {selected && <Check size={16} strokeWidth={3} />}
         </span>
       )}
-      <InventoryArtwork category={category} />
+      <InventoryArtwork itemName={item.item_name} />
       <div className="inventory-item-copy">
         <strong>{titleCase(item.item_name)}</strong>
         <p>{metadata.join(" · ")}</p>
