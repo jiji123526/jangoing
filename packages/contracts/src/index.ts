@@ -531,6 +531,10 @@ export const ConfirmActionRequestSchema = z
 export const EventRecordSchema = CreateEventRequestSchema.extend({
   id: z.string(),
   created_at: z.string(),
+  // Historical out-of-stock and adjustment events may contain zero.
+  // New user-created events still use CreateEventRequestSchema and require
+  // a positive quantity.
+  quantity: z.number().min(0).nullable().optional(),
 });
 
 export const ExpiryStateSchema = z.enum([
