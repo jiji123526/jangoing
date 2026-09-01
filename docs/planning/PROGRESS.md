@@ -2,6 +2,56 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - Voice pipeline and alignment notes documented
+
+### Completed
+
+- Added a dedicated ML note describing `SFT`, `PPO`, `DPO`, and `GRPO`, with
+  explicit guidance on how each method would and would not fit Jangoing.
+- Documented why GRPO is more realistic for structured consistency and narrow
+  context-resolution subtasks than for full open-ended context understanding.
+- Added a dedicated voice architecture document covering the ASR/LLM/TTS
+  pipeline, latency budget, turn-taking, grounding, reliability, and a staged
+  Raspberry Pi strategy for audio input/output.
+- Documented a hybrid recommendation: cloud TTS for normal turns, local Pi
+  playback or short fallback prompts for resilience and lower perceived latency.
+- Linked both new documents from the docs index.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-01 - GRPO context-verifier boundary added to question doc
+
+### Completed
+
+- Extended the language engineer question document with a dedicated section on
+  where GRPO is and is not realistic for conversational context reading.
+- Distinguished full context understanding from verifier-friendly subtasks such
+  as pronoun resolution, temporal carryover, and prior-state consistency.
+- Added a reusable direct question on how to split context work across
+  SFT, DPO, and GRPO.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-01 - Language engineer question set documented
+
+### Completed
+
+- Added a focused question list for discussing Jangoing's annotation workflow,
+  ontology, queue design, dataset export, and model-feeding strategy with a
+  language engineer.
+- Included a short-share version, a top-five priority set, and deeper prompts
+  on normalization, multi-action data, hard negatives, temporal grounding, and
+  leakage risk.
+- Linked the new document from the docs index.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-08-31 - Item photo and vision roadmap documented
 
 ### Completed

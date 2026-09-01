@@ -9,6 +9,8 @@ operational guides, decisions, and learning references live in this directory.
 - [Current action items](./planning/ACTION_ITEMS.md)
 - [Progress log](./planning/PROGRESS.md)
 - [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
+- [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
+- [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
 
 ## Annotation
 
@@ -19,6 +21,7 @@ operational guides, decisions, and learning references live in this directory.
 ## ML and Data
 
 - [ML and NLP concepts](./ml/ML_NLP_CONCEPTS_KO.md)
+- [SFT, PPO, DPO, GRPO and verifier training notes](./ml/ALIGNMENT_AND_VERIFIER_TRAINING_KO.md)
 - [Model evaluation standard](./ml/MODEL_EVALUATION.md)
 - [Synthetic dataset design](./ml/SYNTHETIC_V1_KO.md)
 - [Open dataset research](./ml/OPEN_DATASETS_KO.md)
