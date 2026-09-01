@@ -24,7 +24,14 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   addShoppingItem,
   createEvent,
@@ -276,25 +283,6 @@ function shoppingPurchaseContextLabel(item: ShoppingListItem): string {
 
 const shoppingSwipeActionWidth = 74;
 
-function artworkFontSize(itemName: string, compact: boolean): number {
-  const longestWordLength = Math.max(
-    ...titleCase(itemName).split(" ").map((word) => word.length),
-    1,
-  );
-  const availableWidth = compact ? 42 : 82;
-  const maximumSize = compact ? 10 : 20;
-  const minimumSize = compact ? 6 : 11;
-  const estimatedCharacterWidth = compact ? 0.62 : 0.58;
-
-  return Math.max(
-    minimumSize,
-    Math.min(
-      maximumSize,
-      Math.floor(availableWidth / (longestWordLength * estimatedCharacterWidth)),
-    ),
-  );
-}
-
 function ArtworkLabel({
   itemName,
   compact = false,
@@ -302,8 +290,43 @@ function ArtworkLabel({
   itemName: string;
   compact?: boolean;
 }) {
+  const maximumSize = compact ? 10 : 20;
+  const minimumSize = compact ? 5 : 8;
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [fontSize, setFontSize] = useState(maximumSize);
+
+  useLayoutEffect(() => {
+    const label = labelRef.current;
+    if (!label) return;
+
+    function fitLabel() {
+      if (!label) return;
+      const renderedSize = Number.parseFloat(getComputedStyle(label).fontSize);
+      const words = [...label.querySelectorAll<HTMLElement>(".artwork-word")];
+      const widestWord = Math.max(...words.map((word) => word.scrollWidth), 1);
+      const labelStyle = getComputedStyle(label);
+      const availableWidth = label.clientWidth
+        - Number.parseFloat(labelStyle.paddingLeft)
+        - Number.parseFloat(labelStyle.paddingRight);
+      const fittedSize = Math.max(
+        minimumSize,
+        Math.min(
+          maximumSize,
+          Math.floor(renderedSize * (availableWidth / widestWord)),
+        ),
+      );
+      setFontSize(fittedSize);
+    }
+
+    fitLabel();
+    const resizeObserver = new ResizeObserver(fitLabel);
+    resizeObserver.observe(label.parentElement ?? label);
+    void document.fonts?.ready.then(fitLabel);
+    return () => resizeObserver.disconnect();
+  }, [compact, itemName, maximumSize, minimumSize]);
+
   return (
-    <span style={{ fontSize: `${artworkFontSize(itemName, compact)}px` }}>
+    <span ref={labelRef} style={{ fontSize: `${fontSize}px` }}>
       {titleCase(itemName).split(" ").map((word, index) => (
         <span className="artwork-word" key={`${word}-${index}`}>
           {word}
