@@ -2,6 +2,19 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - Documentation reading guide added
+
+### Completed
+
+- Added a four-phase recommended reading order to `docs/README.md`.
+- Included a one-line purpose for every core project document.
+- Marked Phase 2 as the stopping point for the current annotation milestone and
+  kept the existing category-based index for quick reference.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-01 - Category override taxonomy role clarified
 
 ### Completed
