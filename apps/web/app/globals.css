@@ -712,6 +712,7 @@ main#search {
 }
 
 .home-feature-scroll,
+.home-leftover-scroll,
 .home-update-scroll {
   display: flex;
   gap: 16px;
@@ -728,6 +729,7 @@ main#search {
 }
 
 .home-feature-scroll::after,
+.home-leftover-scroll::after,
 .home-update-scroll::after {
   width: 1px;
   flex: 0 0 1px;
@@ -735,6 +737,7 @@ main#search {
 }
 
 .home-feature-scroll::-webkit-scrollbar,
+.home-leftover-scroll::-webkit-scrollbar,
 .home-update-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -803,6 +806,59 @@ main#search {
 
 .home-update-scroll {
   padding: 0 16px 2px;
+}
+
+.home-leftover-scroll {
+  padding: 0 16px 2px;
+}
+
+.home-leftover-card {
+  width: 160px;
+  padding: 0 0 8px;
+  flex: 0 0 160px;
+  border: 0;
+  color: #000;
+  background: transparent;
+  scroll-snap-align: start;
+  text-align: left;
+}
+
+.home-leftover-card .home-update-artwork {
+  margin-bottom: 6px;
+}
+
+.home-leftover-card > strong,
+.home-leftover-card > p {
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-leftover-card > strong {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.408px;
+}
+
+.home-leftover-card > p {
+  margin: 0;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+
+.home-leftover-card > span {
+  margin-top: 6px;
+  display: inline-block;
+  color: #ff2d55;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.24px;
 }
 
 .home-update-card {

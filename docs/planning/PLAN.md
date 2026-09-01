@@ -157,7 +157,8 @@ These limitations are acceptable only while every state-changing action requires
 - Home account/profile placeholder reserved for later authentication and
   account routing
 - Projection-derived Today priorities, confirmable Suggested Actions, Inventory
-  Snapshot, and expiry-ordered Waste Prevention on Home
+  Snapshot, expiry-ordered Waste Prevention, and consume-first leftover
+  prioritization on Home
 - First-run `Set Up My Fridge` onboarding for entering multiple current items,
   reviewing quantity, unit, location, expiry, and low threshold, then saving
   the snapshot atomically

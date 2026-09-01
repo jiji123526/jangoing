@@ -271,19 +271,25 @@ Jangoing Home 구현은 다음 구조와 수치를 사용한다.
 12. `Waste Prevention`은 expiry가 기록된 재고를 날짜 오름차순으로 최대 3개
     표시한다. 자동 폐기나 소비 event는 만들지 않고 사용자가 Inventory에서
     검토하도록 한다.
-13. Weekly Summary는 Home에 추가하지 않는다. event history 기반 기간 분석은
+13. `Leftovers First`는 quantity가 남아 있고 resolved inventory category가
+    `Leftovers`인 항목을 `160px` vertical card의 horizontal scroll로 표시한다.
+    expired 항목은 먹도록 권하지 않고 Waste Prevention에서 다룬다. 정렬은
+    `expiring_soon`, 가까운 expiry date, 날짜 미상 순이다. `Log Used`는 재고를
+    즉시 변경하지 않고 Quick Update에 소비 문장을 채워 quantity review와
+    confirmation을 거친다.
+14. Weekly Summary는 Home에 추가하지 않는다. event history 기반 기간 분석은
     향후 별도 analytics tab에서 다룬다.
-14. 초기 설정이 완료되지 않은 household에는 large title 바로 아래, `Today`
+15. 초기 설정이 완료되지 않은 household에는 large title 바로 아래, `Today`
     이전에 `Set Up My Fridge` hero를 표시한다. hero는 `16px` inset,
     radius `10px`을 사용하고 card 전체를 하나의 접근 가능한 setup action으로
     만든다. 별도 `Start` button은 두지 않는다. inventory가 비었다는 사실만으로
     완료 여부를 추론하지 않고 서버의
     `fridge_setup_completed_at` 상태를 사용한다.
-15. setup은 item name 입력, quantity/unit/location/expiry/low threshold 상세
+16. setup은 item name 입력, quantity/unit/location/expiry/low threshold 상세
     입력, 최종 review의 3단계다. 작은 화면에서는 하단 sheet, 넓은 화면에서는
     중앙 dialog를 사용하며 header `68px`, grouped row `52px`, footer primary
     action `48px`을 기준으로 한다. 작업 중 draft는 local storage에 보존한다.
-16. setup 저장은 전체 성공 또는 전체 실패여야 한다. 기존 item은 adjust하고
+17. setup 저장은 전체 성공 또는 전체 실패여야 한다. 기존 item은 adjust하고
     새 item은 add하지만, 사용자가 적지 않은 기존 item을 out/remove 처리하지
     않는다. setup event는 일반 음성/텍스트 학습 로그와 구분한다.
 

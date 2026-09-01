@@ -2,6 +2,24 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - Consume-first leftovers added to Home
+
+### Completed
+
+- Added a horizontally swipeable `Leftovers First` section to Home.
+- Included positive-quantity inventory resolved to the `Leftovers` category,
+  including explicit household category overrides.
+- Prioritized expiring-soon leftovers, then dated leftovers by nearest expiry,
+  then leftovers without dates.
+- Excluded expired leftovers so the interface does not recommend unsafe
+  consumption.
+- Added `Log Used`, which prefills Quick Update for review and confirmation
+  rather than mutating inventory immediately.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
 ## 2026-09-01 - English text dataset v1 designed
 
 ### Completed

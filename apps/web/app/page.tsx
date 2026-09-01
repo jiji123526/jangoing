@@ -500,8 +500,14 @@ function InventoryArtwork({ itemName }: { itemName: string }) {
   );
 }
 
-function HomeArtwork({ itemName }: { itemName: string }) {
-  const category = inventoryCategory(itemName);
+function HomeArtwork({
+  itemName,
+  category: providedCategory,
+}: {
+  itemName: string;
+  category?: ItemCategory;
+}) {
+  const category = providedCategory ?? inventoryCategory(itemName);
   const categoryClass = category
     .toLowerCase()
     .replaceAll(" & ", "-")
@@ -1097,6 +1103,32 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         .slice(0, 3),
     [dashboard.inventory],
   );
+  const homeLeftoverItems = useMemo(
+    () =>
+      dashboard.inventory
+        .filter(
+          (item) =>
+            resolvedInventoryCategory(item) === "Leftovers" &&
+            item.quantity > 0 &&
+            item.expiry_state !== "expired",
+        )
+        .sort((left, right) => {
+          if (left.expiry_state !== right.expiry_state) {
+            if (left.expiry_state === "expiring_soon") return -1;
+            if (right.expiry_state === "expiring_soon") return 1;
+          }
+          if (left.nearest_expiration_date && right.nearest_expiration_date) {
+            return left.nearest_expiration_date.localeCompare(
+              right.nearest_expiration_date,
+            );
+          }
+          if (left.nearest_expiration_date) return -1;
+          if (right.nearest_expiration_date) return 1;
+          return left.item_name.localeCompare(right.item_name);
+        })
+        .slice(0, 6),
+    [dashboard.inventory],
+  );
   const homeSnapshot = useMemo(
     () => ({
       total: dashboard.inventory.length,
@@ -1600,6 +1632,57 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     <ChevronRight size={18} aria-hidden="true" />
                   </a>
                 ))}
+              </div>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="leftovers-heading">
+            <div className="home-section-heading">
+              <h2 id="leftovers-heading">Leftovers First</h2>
+            </div>
+            {loading ? (
+              <p className="home-loading">Checking what to finish first…</p>
+            ) : homeLeftoverItems.length === 0 ? (
+              <p className="home-empty">
+                Mark prepared meals as Leftovers to prioritize them here.
+              </p>
+            ) : (
+              <div className="home-leftover-scroll">
+                {homeLeftoverItems.map((item) => {
+                  const amount = Math.min(1, item.quantity);
+                  const consumeCommand = `I ate ${amount}${
+                    item.unit ? ` ${item.unit} of` : ""
+                  } ${titleCase(item.item_name)}`;
+                  return (
+                    <button
+                      className="home-leftover-card"
+                      type="button"
+                      key={item.item_name}
+                      aria-label={`Log ${titleCase(item.item_name)} as consumed`}
+                      onClick={() => {
+                        setCommand(consumeCommand);
+                        setExpiryDate("");
+                        setInterpretation(null);
+                        setEdited(null);
+                        setNotice(
+                          "Review the consumed quantity, then interpret and confirm the update.",
+                        );
+                        setHomeQuickUpdateOpen(true);
+                      }}
+                    >
+                      <HomeArtwork
+                        itemName={item.item_name}
+                        category="Leftovers"
+                      />
+                      <strong>{titleCase(item.item_name)}</strong>
+                      <p>
+                        {expiryLabel(item) ?? "No expiry date"} ·{" "}
+                        {quantityLabel(item)}
+                      </p>
+                      <span>Log Used</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
