@@ -1,6 +1,8 @@
 # jangoing ML quick start
 
 The first model is a CPU-friendly TF-IDF + logistic-regression single-intent baseline.
+The authoritative reviewed-corpus targets and split policy are documented in
+[Text Dataset Design v1](../docs/ml/TEXT_DATASET_DESIGN_V1_KO.md).
 
 Generate the reproducible 800-record English bootstrap dataset:
 

@@ -734,6 +734,9 @@ Dataset targets:
 
 The UI targets are the first checkpoint, not M5 completion. After that checkpoint,
 collection expands toward the per-intent and total coverage targets above.
+The first reviewed baseline composition, source policy, task exports, entity
+coverage, and freeze rules are specified in
+[TEXT_DATASET_DESIGN_V1_KO.md](../ml/TEXT_DATASET_DESIGN_V1_KO.md).
 
 Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
 

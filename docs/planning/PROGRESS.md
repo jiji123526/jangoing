@@ -2,6 +2,37 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - English text dataset v1 designed
+
+### Completed
+
+- Audited the two committed candidate corpora: 800 actionable-oriented
+  `synthetic-v1` records and 600 non-actionable relevance candidates.
+- Documented that candidates are not ground truth until a human saves a
+  reviewed annotation.
+- Defined separate relevance, intent, slot, normalization, and joint tasks from
+  one reviewed corpus.
+- Set the first baseline gate at 1,000 reviewed training and 200 independent
+  evaluation records with explicit relevance, intent, entity, and multi-action
+  coverage.
+- Identified current gaps: three missing intents, absent location/expiry spans,
+  legacy template families, no multi-action generation, and missing
+  source/freeze reporting tools.
+- Defined a gap-targeted `synthetic-v2` rather than indiscriminately expanding
+  the existing generated corpus.
+
+### Validation
+
+- Confirmed committed candidate counts and distributions directly from JSONL
+  and manifests.
+- Production reviewed counts could not be queried in this environment because
+  Wrangler has no `CLOUDFLARE_API_TOKEN`; an authenticated D1 snapshot remains
+  required.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-01 - Personalized-first generalization strategy documented
 
 ### Completed

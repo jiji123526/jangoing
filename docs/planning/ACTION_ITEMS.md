@@ -28,6 +28,9 @@ completion gates.
 - [x] Add non-overwriting, temporally explicit annotation queue seed v2.
 - [x] Add relevance queues and reviewed relevance export.
 - [x] Deploy the temporal changes and seed v2 to production.
+- [x] Define the first text dataset composition, source policy, and freeze gates.
+- [ ] Add reviewed distribution reporting and source-aware dataset export.
+- [ ] Generate gap-targeted `synthetic-v2` candidates.
 - [ ] Collect enough reviewed English data for the first human-data baseline.
 
 ## 1. Apply Current Changes
@@ -77,11 +80,15 @@ Target: 300 reviewed training candidates and 100 evaluation candidates.
 Target: 1,000 reviewed training candidates and 200 evaluation candidates.
 
 - [ ] Include all supported actionable intents.
-- [ ] Reach at least 50 reviewed training examples per supported intent.
-- [ ] Reach at least 100 reviewed examples for each relevance class.
+- [ ] Reach the reviewed relevance and intent distribution defined in
+  [TEXT_DATASET_DESIGN_V1_KO.md](../ml/TEXT_DATASET_DESIGN_V1_KO.md).
+- [ ] Reach at least 40 reviewed training examples per supported intent and
+  50-80 for common state-changing intents.
 - [ ] Keep `domain_non_actionable` larger than `unrelated`; it is the harder
   and more useful negative class.
-- [ ] Ensure evaluation records come from actual user data where possible.
+- [ ] Ensure evaluation records are independently written or come from actual
+  user data, not generated template variations.
+- [ ] Freeze 100 development and 100 final-test records by phrase family.
 - [ ] Train TF-IDF relevance and single-intent baselines.
 - [ ] Treat the resulting metrics as a baseline, not an MVP launch gate.
 
@@ -116,13 +123,15 @@ uniform synthetic expansion.
 
 Use this order until Gate B:
 
-1. `expiry`: validate temporal context and build `EXPIRY_DATE` coverage.
-2. `domain_non_actionable`: collect grocery-domain hard negatives.
-3. `preference_context`: separate persistent context from immediate actions.
-4. `generated_review`: broaden intent, item, and surface-form coverage.
-5. `low_confidence`: capture difficult or ambiguous examples.
-6. `correction` and `confirmed_unannotated`: reserve for actual user traffic.
-7. `evaluation_holdout`: use actual user records and avoid synthetic test data.
+1. Take a production distribution snapshot before deciding which queue is short.
+2. `expiry`: validate temporal context and build `EXPIRY_DATE` coverage.
+3. `domain_non_actionable`: collect grocery-domain hard negatives.
+4. `preference_context`: separate persistent context from immediate actions.
+5. `generated_review`: use v1 selectively, then prioritize targeted v2 gaps.
+6. `low_confidence`: capture difficult or ambiguous examples.
+7. `correction` and `confirmed_unannotated`: preserve actual user traffic.
+8. `evaluation_holdout`: use independent natural records and avoid synthetic
+   test data.
 
 AI drafts may prefill annotations, but the human-reviewed saved annotation is
 the only ground truth.
