@@ -51,6 +51,56 @@ slot을 정확히 복원하는 것**에 최적화할 수 있다.
 반대로 한 사람의 음성만으로 모델을 미세조정하면 특정 문장, 마이크 거리, 조용한
 환경에 과적합되기 쉽다. 개인화와 평가 환경을 분리해야 한다.
 
+## Personalized-first, generalizable architecture
+
+현재 한 명에게 최적화하는 것과 나중에 일반화 가능한 시스템을 만드는 것은
+서로 반대되는 선택이 아니다. 공통 기능과 개인 데이터를 분리하면 된다.
+
+```text
+Shared base
+  action ontology
+  general relevance / intent / slot behavior
+  temporal grounding
+  schema validation and safety policy
+  provider-neutral ASR interface
+
+Personal adapter
+  Korean-English usage profile
+  microphone/device calibration
+  current inventory and shopping keywords
+  personal pronunciation/confusion pairs
+  household aliases and category preferences
+  optional user-specific fine-tuned parameters
+```
+
+### 왜 personalized-first인가
+
+- 실제 사용자는 현재 한 명이므로 바로 측정 가능한 제품 가치를 만든다.
+- accent, microphone, code-switch 위치, household vocabulary를 제한할 수 있다.
+- 적은 데이터로 runtime adaptation과 correction 효과를 확인할 수 있다.
+- 광범위한 사용자 성능을 뒷받침할 데이터가 없는데 general model이라고 과장하는
+  것을 피할 수 있다.
+
+### 어떻게 일반화 가능성을 유지하나
+
+- personal audio와 correction은 user-scoped storage에 둔다.
+- action schema, temporal rules, safety policy는 shared base에만 둔다.
+- personal alias를 global canonical alias로 자동 승격하지 않는다.
+- base model version과 adapter version을 별도로 기록한다.
+- 새 사용자는 다른 사람의 adapter가 아니라 빈 adapter에서 시작한다.
+- 향후 사용자가 늘면 user-disjoint split으로 zero-shot base와 few-shot adapter를
+  각각 평가한다.
+
+따라서 현재의 타당한 연구 질문은 “한 사람의 adapter가 모두에게 통하는가”가
+아니다.
+
+```text
+general baseline 대비 personal adapter의 추가 효과는 얼마인가?
+같은 adapter protocol을 새 사용자에게 얼마나 적은 데이터로 적용할 수 있는가?
+```
+
+첫 질문은 현재 연구할 수 있다. 두 번째 질문은 추가 참여자가 생긴 뒤 검증한다.
+
 ## 2. 가장 효율이 높은 조치
 
 ### 2.1 Push-to-talk부터 사용
@@ -432,6 +482,12 @@ production 교체는 holdout의 action/slot exact match와 latency가 모두 기
 
 이 경로는 “한 명만 사용한다”는 장점을 vocabulary, 환경, correction loop에 먼저
 사용한다. 가장 비싼 모델 학습은 마지막 선택지로 남긴다.
+
+Architecture 원칙은 다음 한 줄로 요약한다.
+
+```text
+personalize the adapter, not the shared truth
+```
 
 ## 9. 참고 자료
 

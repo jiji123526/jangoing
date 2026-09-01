@@ -21,7 +21,9 @@ The central objective is:
 > To design and evaluate a human-in-the-loop situated language understanding
 > system that maps conversational utterances to structured household food
 > state changes while preserving temporal grounding, provenance,
-> interpretability, and safe user control under resource constraints.
+> interpretability, safe user control, and efficient single-user adaptation
+> across typed and spoken Korean-English interaction under resource
+> constraints.
 
 The target is not merely an intent classifier. The research object is the
 combined system:
@@ -33,6 +35,9 @@ conversational relevance detection
 + temporal grounding
 + household state tracking
 + interactive correction
++ personalized speech and language adaptation
++ Korean-English code-switch resolution
++ household-scoped taxonomy feedback
 + resource-constrained inference
 ```
 
@@ -47,6 +52,9 @@ and evaluation, but broad enough to expose difficult language phenomena:
 - preferences and conversational context;
 - unseen food items and surface forms;
 - ASR-like noise;
+- speaker-specific pronunciation and recurring ASR confusions;
+- Korean-English code-switching within and across utterances;
+- household-specific aliases, brands, and category preferences;
 - edge-device latency and memory constraints.
 
 ## Research Questions
@@ -136,34 +144,141 @@ Candidate comparisons include:
 - local inference versus remote inference;
 - model-only versus hybrid model-and-rule execution.
 
+### RQ7: Efficient single-user personalization
+
+How much can one user's ASR and language-understanding accuracy improve through
+runtime adaptation before speaker-specific model fine-tuning becomes necessary?
+
+The primary comparison is:
+
+```text
+general pretrained model
+-> fixed language/device profile
+-> dynamic household vocabulary
+-> personal confusion correction
+-> correction-derived supervised adaptation
+-> optional acoustic or NLU fine-tuning
+```
+
+The hypothesis is that dynamic vocabulary, household state, and reviewed
+corrections will produce most of the early item/brand/slot improvement at lower
+data and compute cost than immediate speaker-specific fine-tuning. Fine-tuning
+should target residual, repeatable errors rather than substitute for missing
+context or taxonomy.
+
+Personalization is not treated as the opposite of generalization. The system
+separates a reusable shared base from a detachable personal adapter:
+
+```text
+shared base
+  action ontology, temporal rules, safety policy, general ASR/NLU
+
+personal adapter
+  household vocabulary, aliases, confusion history, category preferences,
+  user/device calibration
+```
+
+The current study can validly measure within-user improvement. A later
+multi-user study can ask whether the same adaptation protocol transfers to a
+new user with little data, without claiming that the first user's adapter is
+itself general.
+
+### RQ8: Korean-English code-switching
+
+Can a mixed-language pipeline preserve entity identity, action meaning, and
+temporal expressions when a single speaker switches between Korean and English?
+
+Representative cases include:
+
+```text
+Coke Zero 다 떨어졌어.
+우유 두 개 add 해줘.
+Milk 유통기한을 next Friday로 update 해줘.
+```
+
+The central comparison is between:
+
+- preserving the original mixed-language transcript and resolving it with
+  bilingual aliases and phrase families;
+- translating the full transcript to English before semantic parsing;
+- using separate monolingual pipelines.
+
+The working hypothesis is that surface-preserving bilingual normalization will
+retain brand spelling, entity spans, and correction provenance better than
+translation-first processing.
+
+### RQ9: Household feedback and taxonomy adaptation
+
+How should user-provided item categories, aliases, and corrections improve a
+household taxonomy without being mistaken for utterance-level linguistic
+ground truth or universal catalog truth?
+
+The project separates:
+
+```text
+utterance annotation
+-> what was explicitly said and what it meant
+
+inventory category override
+-> how this household groups a known item
+
+catalog relation evidence
+-> a provenance-bearing proposal for item/category/brand relationships
+```
+
+This permits immediate household personalization while preserving a controlled
+path for promoting repeated evidence into a versioned global taxonomy.
+
 ## Research Scope
 
 ### In scope
 
-- English household food-management language;
+- English household food-management language as the primary baseline;
+- a single-user Korean-English code-switching pilot after the English baseline;
 - utterance-level relevance;
 - intent and multi-action representation;
 - entity span extraction;
 - canonical item, quantity, unit, location, and date normalization;
 - temporal interpretation grounded to the original interaction;
 - user correction as supervised evidence;
+- dynamic household vocabulary and personal ASR confusion evidence;
+- bilingual item/action/date aliases that preserve original surface spans;
+- household-scoped item-category overrides as catalog relation evidence;
 - offline, slice, latency, and eventual online evaluation;
 - Raspberry Pi feasibility.
 
 ### Deferred
 
-- multilingual transfer;
+- broad multilingual transfer beyond the Korean-English single-user pilot;
+- population-level claims about Korean-English code-switching;
 - unconstrained open-domain dialogue;
 - automatic execution without confirmation;
 - image and barcode understanding;
-- full ontology induction;
+- unrestricted automatic ontology induction;
 - learned recommendation ranking;
 - retrospective semantic event time beyond expiry grounding;
 - clinical or safety-critical dietary advice.
 
-These are deferred to prevent the first study from conflating language
-understanding, recommendation quality, multimodal perception, and multilingual
-transfer.
+These are deferred to prevent the study from conflating a controlled
+single-user personalization experiment with broad multilingual, multimodal, or
+population-level generalization.
+
+### Generalization strategy
+
+The project follows a **personalized-first, generalizable-architecture**
+strategy.
+
+- The current product and pilot optimize for one defined user, household, and
+  device.
+- Shared language representations, action schemas, temporal rules, and safety
+  constraints remain user-independent.
+- Personal audio, aliases, vocabulary weights, correction rules, and household
+  preferences remain isolated from the shared base.
+- Broad generalization is a later empirical question requiring additional
+  users, devices, and user-level train/evaluation separation.
+
+This scope creates a defensible bounded claim now while preserving a path to
+study zero-shot and few-shot adaptation for future users.
 
 ## Methodological Approach
 
@@ -262,18 +377,84 @@ structures from crossing train/evaluation boundaries.
 
 Evaluation also separates generated and actual-user performance.
 
+### 8. Layered personalization before fine-tuning
+
+Personalization is treated as a sequence of increasingly expensive
+interventions:
+
+```text
+device and language hints
+-> dynamic vocabulary from current household state
+-> personal alias/confusion rules
+-> retrieval of reviewed corrections
+-> parameter-efficient or full fine-tuning
+```
+
+Each layer must demonstrate incremental improvement on a frozen personal
+holdout. This distinguishes context adaptation from acoustic or model-parameter
+adaptation and prevents fine-tuning from hiding correctable data-modeling
+errors.
+
+The implementation boundary is:
+
+```text
+SharedBase
+  versioned ontology
+  general relevance/intent/slot model
+  temporal normalizer
+  schema and safety validation
+
+PersonalAdapter
+  user and device profile
+  dynamic household phrase set
+  reviewed ASR confusion pairs
+  household aliases and category overrides
+  optional user-specific model parameters
+```
+
+Personal evidence must not update shared parameters or global taxonomy
+relations without an explicit, provenance-preserving promotion process.
+
+### 9. Surface-preserving bilingual processing
+
+Mixed Korean-English transcripts retain their original text and character
+spans. Translation may be used as an auxiliary feature or comparison, but not
+as the canonical annotation record.
+
+```text
+speech
+-> mixed transcript
+-> bilingual entity/action resolution
+-> canonical structured action
+```
+
+This design permits separate measurement of ASR, code-switch interpretation,
+normalization, and downstream action errors.
+
+### 10. Evidence-separated taxonomy learning
+
+Linguistic annotations, product catalogs, and user grouping choices remain
+separate evidence sources with provenance. A category selected in the
+Inventory UI can immediately affect household display behavior, but it enters
+the future `grocery-v2` catalog as relationship evidence rather than an
+automatic global taxonomy mutation.
+
 ## Major Choices and Rationale
 
 | Choice | Decision | Reason |
 |---|---|---|
-| Initial language | English only | Reduces annotation and tokenization variables while the pipeline is still being validated. |
+| Initial language | English baseline, followed by a single-user Korean-English pilot | Preserves a controlled baseline while making code-switching a measured extension rather than an untracked production behavior. |
 | Initial modality | Text before voice | Separates NLU errors from ASR and microphone errors. |
+| Generalization strategy | Personalized-first with a reusable shared base and detachable personal adapter | Produces measurable value for the actual user without coupling general semantics or safety policy to one speaker. |
+| Personalization order | Runtime context and correction layers before model fine-tuning | Dynamic vocabulary and household state can solve lexical errors more cheaply and reversibly than parameter updates. |
+| Code-switch representation | Preserve the mixed-language transcript and normalize afterward | Translation-first processing can erase entity spans, brand spelling, and the location of ASR errors. |
 | Interaction style | Natural utterances without a mandatory NLU trigger token | Preserves the relevance-detection problem instead of assuming every input is a command. |
 | Relevance labels | Four classes | Separates immediate action, useful preference/context, grocery-domain hard negatives, and unrelated language. |
 | Action representation | Multiple action groups per utterance | Avoids collapsing compound requests to the first intent. |
 | Entity representation | Exact character spans plus normalized values | Supports independent span and normalization evaluation. |
 | Product conditions | Identity-changing modifiers remain in ITEM; temporary state wording usually remains contextual | Distinguishes products such as `frozen_blueberries` from transient states such as `spoiled`. |
 | Canonical vocabulary | Reviewed ITEM/CATEGORY/UNIT values may grow during annotation | A closed grocery list cannot cover real products, but reviewed growth preserves human oversight. |
+| Inventory category feedback | Apply immediately at household scope and retain as catalog relation evidence | A personal grouping choice is useful taxonomy evidence but is not automatically an utterance label or universal category fact. |
 | External product data | Use Open Food Facts as a curated catalog and entity-linking source, not utterance ground truth | Product records provide names, brands, and categories but do not provide household action intents or natural command labels. |
 | Brand representation | Keep branded product mentions as full ITEM spans for the MVP | A separate BRAND label adds cost without a current independent brand-level action or constraint. |
 | Relative dates | Original `reference_date + timezone` | Keeps meaning stable when annotation occurs later. |
@@ -285,6 +466,7 @@ Evaluation also separates generated and actual-user performance.
 | First learned baseline | TF-IDF + logistic regression | Fast, interpretable, CPU-friendly, and difficult to justify skipping. |
 | Transformer candidate | DistilBERT-class fine-tuning | Provides contextual representation with lower compute than full BERT. |
 | Model training | Fine-tune pretrained models, do not pretrain from scratch | Available reviewed data is appropriate for task adaptation, not language pretraining. |
+| Personalized training | Fine-tune only after runtime adaptation plateaus on a frozen personal set | Avoids overfitting one speaker, device, phrase list, or recording condition without measurable benefit. |
 | State mutation | Explicit user confirmation | Limits harm from false positive predictions and preserves correction evidence. |
 | Production annotation DB | Centralized Cloudflare D1 | Supports consistent multi-device annotation and one reviewed source of truth. |
 | Edge deployment | ONNX and quantization evaluated after offline accuracy | Deployment constraints should be measured without prematurely fixing the model architecture. |
@@ -335,6 +517,27 @@ Deferred until modular baselines exist. Without component baselines, an
 end-to-end result would not reveal whether failures come from relevance,
 intent, spans, normalization, or state application.
 
+### Immediate speaker-specific ASR fine-tuning
+
+Deferred because recurring item errors may come from missing vocabulary,
+microphone conditions, or household context rather than the acoustic model.
+Dynamic keywords, fixed device conditions, and correction-based confusion
+analysis are evaluated first. Fine-tuning is justified only when repeatable
+acoustic errors remain and a separate personal holdout exists.
+
+### Translating code-switched speech before annotation
+
+Rejected as the canonical data path because translation can rewrite brands,
+remove the original entity span, normalize ambiguity prematurely, and make ASR
+errors impossible to localize. Translation remains a valid experimental
+baseline.
+
+### Treating category overrides as CATEGORY annotations
+
+Rejected because an item can be grouped under `Drinks` even when the word
+`drinks` never occurred in the utterance. Overrides are item-category relation
+evidence; `CATEGORY` annotation requires an actual category mention.
+
 ## Experimental Design
 
 ### Dataset gates
@@ -349,6 +552,18 @@ The current collection gates are:
 These are readiness thresholds, not claims that sample size alone guarantees
 validity. Per-class, phrase-family, source, and entity coverage remain required.
 
+The initial personalized speech pilot uses a separate operational gate:
+
+- approximately 150-250 recorded utterances from the target user and device;
+- at least 50-80 utterances frozen for provider and adaptation comparison;
+- English-only, Korean-only, code-switched, item/brand, quantity, date, and
+  realistic noise coverage;
+- recording-session separation where possible.
+
+These ranges are experiment-starting heuristics, not a claim that this amount
+is sufficient for acoustic fine-tuning. Fine-tuning readiness is determined by
+repeatable residual errors and learning curves on the frozen personal set.
+
 ### Baseline comparisons
 
 Planned comparisons:
@@ -359,6 +574,65 @@ Planned comparisons:
 4. token-classification slot model;
 5. hybrid full pipeline;
 6. optional shared or structured model.
+
+### Personalized speech and language comparisons
+
+The personalized study adds staged ablations:
+
+1. general ASR with no household context;
+2. language/device hints;
+3. dynamic item and brand keywords;
+4. personal alias and confusion correction;
+5. correction-derived adaptation;
+6. optional fine-tuned multilingual checkpoint.
+
+Every stage is evaluated on the same frozen personal audio set. Training and
+evaluation recordings must be separated by utterance template and, where
+possible, recording session and noise condition.
+
+### Generalization ladder
+
+The claims and experiments expand in stages:
+
+1. **Within-user:** does the adapter improve the target user's frozen holdout?
+2. **Across sessions/devices:** does the gain survive new recording sessions,
+   noise conditions, and compatible microphones?
+3. **Zero-shot new user:** how well does the shared base work without another
+   user's adapter?
+4. **Few-shot new user:** how much reviewed data is needed to create a useful
+   new adapter?
+5. **Population-level:** how stable are gains and failure rates across users,
+   accents, households, and language habits?
+
+Only the first two stages are in the current single-user scope. Stages three
+through five require additional participants and user-disjoint evaluation.
+
+### Code-switching comparisons
+
+The code-switch study reports separate results for:
+
+- English-only;
+- Korean-only;
+- Korean syntax with English item or brand;
+- English syntax with a Korean item;
+- multiple switches in one utterance;
+- Korean counters, quantities, and relative dates.
+
+Natural personal usage distribution and deliberately difficult diagnostic
+slices are reported separately. Synthetic balance must not be presented as the
+user's natural code-switch distribution.
+
+### Taxonomy-feedback comparisons
+
+Inventory override evidence is evaluated through:
+
+- automatic category accuracy before and after household feedback;
+- correction and repeated-override rate;
+- existing-category membership coverage;
+- `Other` and catalog-unknown rate;
+- agreement among user overrides, reviewed language data, and external catalog
+  evidence;
+- seen-item versus unseen-item category resolution.
 
 ### Primary metrics
 
@@ -371,7 +645,12 @@ Planned comparisons:
 - calibration error;
 - correction and abandonment rates;
 - p50/p95 latency and memory;
-- multi-action exact match and action/entity assignment accuracy.
+- multi-action exact match and action/entity assignment accuracy;
+- ASR entity word error rate for item, brand, quantity, unit, and date;
+- code-switch action and slot exact match;
+- personal correction and clarification rate;
+- improvement per minute of collected personal audio;
+- household category override and taxonomy-proposal accuracy.
 
 ### Required slices
 
@@ -383,6 +662,13 @@ Planned comparisons:
 - single versus multi-action;
 - short versus long utterance;
 - clean text versus ASR-like noise;
+- typed versus spoken input;
+- English-only, Korean-only, and code-switched speech;
+- code-switch location and frequency;
+- baseline versus dynamic vocabulary versus personalized correction;
+- microphone distance, noise condition, and recording session;
+- automatic versus user-overridden category;
+- household relation evidence versus global catalog evidence;
 - activation mode;
 - context-dependent versus standalone utterance.
 
@@ -396,6 +682,10 @@ Full promotion requirements are defined in
 A single household, annotator, or device does not represent the broader
 population. Results must be described as domain- and population-specific until
 additional participants and environments are included.
+
+The personalized study intentionally optimizes for one speaker. Its valid claim
+is improvement for that defined user/device/household configuration, not
+speaker-independent ASR or bilingual population performance.
 
 ### Annotation bias
 
@@ -436,10 +726,35 @@ A development validation set and a separately frozen final test set are needed.
 Laptop latency does not predict Raspberry Pi performance. Final claims require
 measurement on the target hardware.
 
+### Personalization overfitting
+
+A model can memorize one speaker's scripted commands, microphone, or phrase
+inventory without improving natural interaction. Frozen utterances, separate
+recording sessions, noise slices, and staged learning curves are required.
+
+Personal adapter data must also remain isolated from shared-base evaluation.
+Otherwise a system may appear generally better because the target user's
+aliases or recordings leaked into the global model.
+
+### Code-switch distribution validity
+
+Generated mixed-language examples may exaggerate switch frequency or use
+unnatural switch points. Naturally occurring personal code-switch data and
+synthetic diagnostic cases must be reported separately.
+
+### Taxonomy feedback circularity
+
+If user overrides define the taxonomy and the same relations are used to
+evaluate it, accuracy becomes circular. Evaluation must hold out items or
+relations and distinguish household preference accuracy from global catalog
+correctness.
+
 ## Ethics, Privacy, and Safety
 
 - Raw household conversation may contain sensitive information and requires a
   defined retention and deletion policy.
+- Raw voice contains speaker-identifying biometric characteristics; audio
+  retention and training consent must be explicit and independently revocable.
 - Training exports should exclude secrets and unrelated personal content.
 - Source and provenance should be retained without exposing unnecessary
   identity information.
@@ -463,6 +778,12 @@ Potential academic contributions include:
    actions and correction outcomes.
 6. A measured accuracy-latency-memory analysis for resource-constrained
    deployment.
+7. An ablation study of runtime personalization versus speaker-specific
+   fine-tuning using a reusable shared-base/personal-adapter architecture.
+8. A surface-preserving Korean-English code-switch annotation and evaluation
+   protocol for grounded household actions.
+9. A provenance-aware method for turning household category corrections into
+   taxonomy relation evidence without contaminating linguistic labels.
 
 Claims should remain proportional to the data. A single-user personal project
 can establish a rigorous system and pilot study, but broad population claims
@@ -480,7 +801,10 @@ Implemented:
 - deterministic temporal grounding;
 - source-aware generated review queues;
 - split leakage checks;
-- TF-IDF single-intent baseline.
+- TF-IDF single-intent baseline;
+- inventory category overrides with household-scoped production persistence;
+- documented single-user ASR and Korean-English code-switching experiment
+  design.
 
 Open:
 
@@ -493,7 +817,16 @@ Open:
 - token alignment and slot-model training;
 - multi-action structured prediction;
 - calibration and shadow deployment;
+- personal frozen audio collection and ASR provider adapter;
+- dynamic bilingual ASR context-pack generation;
+- bilingual Korean-English action and entity normalization;
+- correction-derived personal ASR evidence storage;
+- runtime-personalization ablation and optional fine-tuning experiment;
+- shared-base and personal-adapter interfaces with separate versioning;
+- conversion of inventory overrides into `grocery-v2` relation evidence;
+- household-scoped new-category proposal workflow;
 - Raspberry Pi inference benchmark;
+- future user-disjoint zero-shot and few-shot adapter evaluation;
 - multi-annotator and multi-household validation.
 
 Immediate execution items are tracked in
@@ -501,6 +834,8 @@ Immediate execution items are tracked in
 The external product-catalog decision and implementation sequence are detailed
 in
 [OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md).
+The staged voice-personalization and code-switching protocol is detailed in
+[PERSONALIZED_ASR_STRATEGY_KO.md](../planning/PERSONALIZED_ASR_STRATEGY_KO.md).
 
 ## Selected Foundations
 
@@ -514,3 +849,5 @@ in
   [On Calibration of Modern Neural Networks](https://arxiv.org/abs/1706.04599).
 - Gebru, T. et al. (2021).
   [Datasheets for Datasets](https://arxiv.org/abs/1803.09010).
+- Radford, A. et al. (2023).
+  [Robust Speech Recognition via Large-Scale Weak Supervision](https://proceedings.mlr.press/v202/radford23a.html).

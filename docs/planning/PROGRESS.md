@@ -2,6 +2,44 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-01 - Personalized-first generalization strategy documented
+
+### Completed
+
+- Defined personalization as a bounded current study rather than a substitute
+  for unsupported population-level generalization claims.
+- Added a reusable shared-base and detachable personal-adapter architecture to
+  the academic goals, product plan, and personalized ASR strategy.
+- Isolated general semantics, temporal rules, and safety policy from personal
+  audio, aliases, confusion pairs, household vocabulary, and preferences.
+- Added a staged generalization ladder from within-user and cross-session tests
+  to future zero-shot and few-shot user adaptation.
+- Updated the Raspberry Pi milestone to start with push-to-talk and a
+  provider-neutral ASR baseline before wake-word and local-ASR expansion.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-01 - Academic goals expanded for personalization
+
+### Completed
+
+- Expanded the academic objective from an English text-only baseline toward a
+  controlled single-user Korean-English speech and code-switching study.
+- Added research questions for efficient runtime personalization,
+  code-switch-preserving semantic parsing, and household taxonomy feedback.
+- Added staged personalization, bilingual processing, taxonomy-evidence, and
+  fine-tuning methodology with corresponding ablations and evaluation slices.
+- Documented personalization overfitting, code-switch distribution,
+  taxonomy-feedback circularity, and voice-biometric privacy threats.
+- Updated expected contributions, current implementation status, and open work
+  to reflect category overrides and the personalized ASR roadmap.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-01 - Documentation reading guide added
 
 ### Completed

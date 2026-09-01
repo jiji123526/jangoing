@@ -379,8 +379,38 @@ Cloudflare D1 event store
 Future voice path:
 
 ```text
-Raspberry Pi -> wake word -> local ASR -> Worker API
+Initial:
+Raspberry Pi -> push-to-talk -> provider-neutral cloud ASR -> Worker API
+
+Measured extensions:
+Raspberry Pi -> optional wake word -> cloud ASR or local fallback -> Worker API
 ```
+
+### Personalization Boundary
+
+Voice and language personalization follow a shared-base/personal-adapter
+architecture.
+
+```text
+Shared base
+  action and entity schemas
+  general relevance / intent / slot behavior
+  temporal grounding
+  safety and confirmation policy
+
+Personal adapter
+  user/device/language profile
+  dynamic inventory and shopping vocabulary
+  reviewed pronunciation and ASR confusion evidence
+  household aliases and category preferences
+  optional user-specific model parameters
+```
+
+Personal data must not silently mutate shared model parameters, global aliases,
+or canonical taxonomy. Any promotion into shared data requires provenance,
+review, versioning, and user-disjoint evaluation. This permits a personalized
+single-user MVP without blocking later zero-shot and few-shot adaptation studies
+for additional users.
 
 ### Web Responsibilities
 
@@ -749,12 +779,17 @@ Completion: the deployed pipeline meets accuracy targets without bypassing confi
 
 ### M8: Raspberry Pi Voice Client
 
-- Wake-word detection
-- Local English speech-to-text
+- Push-to-talk audio capture before wake-word activation
+- Provider-neutral cloud ASR baseline
+- Optional local ASR fallback
+- Korean-English language hints and dynamic household vocabulary
+- Separately versioned shared base and personal adapter context
 - Worker API client
 - Confirmation feedback
 
-Completion: voice input follows the same confirmed event path as web text input.
+Completion: voice input follows the same confirmed event path as web text input,
+and personalized context improves the frozen personal evaluation set without
+changing shared truth or bypassing confirmation.
 
 ### M9: Contextual Conversation Understanding
 
