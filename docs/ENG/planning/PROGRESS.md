@@ -2,6 +2,20 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Inventory edit refresh scoped to one item
+
+### Completed
+
+- Removed the full dashboard loading cycle after an inventory edit.
+- Refresh the inventory projection after saving, then replace only the edited
+  item in client state while preserving the remaining item objects.
+- Remove the edited row directly if setting its quantity to zero causes the
+  projection to omit it.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
 ## 2026-09-02 - Account sheet stacking fixed
 
 ### Completed

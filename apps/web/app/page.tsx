@@ -1227,7 +1227,16 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setError(null);
     try {
       await updateInventoryItem(itemName, update);
-      await loadDashboard();
+      const inventory = await getInventoryData();
+      const updatedItem = inventory.find((item) => item.item_name === itemName);
+      setDashboard((current) => ({
+        ...current,
+        inventory: updatedItem
+          ? current.inventory.map((item) =>
+              item.item_name === itemName ? updatedItem : item,
+            )
+          : current.inventory.filter((item) => item.item_name !== itemName),
+      }));
       setSelectedInventoryItemName(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not update item.");
