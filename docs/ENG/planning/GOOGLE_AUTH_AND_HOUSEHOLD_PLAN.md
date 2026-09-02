@@ -293,6 +293,37 @@ Do not accept `user_id`, `household_id`, or email from request bodies or query
 parameters as authority. Those values must come from the verified token and D1
 membership lookup.
 
+### Worker Authentication Phase Status
+
+Implemented on 2026-09-02:
+
+- `apps/api/src/auth.ts` verifies Jangoing HS256 app JWTs with Web Crypto;
+- verification requires the configured algorithm, signature, issuer, audience,
+  Google `sub`, email, issued-at time, and expiry;
+- tokens may live for at most 15 minutes and future-issued or expired tokens
+  are rejected;
+- the stable Google `sub`, not email, is used to upsert the user;
+- profile changes update the existing user without replacing a stored name or
+  avatar with missing claims;
+- membership resolution rejects multiple memberships during the
+  single-household MVP;
+- consumer routes pass through the auth boundary while health and annotation
+  routes retain their current policy;
+- malformed supplied credentials are rejected even while rollout auth is
+  optional;
+- `Authorization` is included in CORS preflight responses;
+- `wrangler.toml` defines `AUTH_REQUIRED=false`, `jangoing-web` as issuer, and
+  `jangoing-api` as audience without storing the signing secret.
+
+When `AUTH_REQUIRED=true`, a missing credential returns
+`authentication_required`, an invalid credential returns `invalid_token`, and
+an authenticated user without membership returns `household_required`.
+
+This phase does not yet pass the resolved household into event queries.
+`AUTH_REQUIRED` must remain `false` until household create/join routes and
+household-scoped consumer reads and writes are implemented and tested. The app
+JWT signing secret has not been configured in Worker production.
+
 ## Route Policy
 
 Authenticated users without a household may access only:

@@ -288,6 +288,34 @@ Allowed CORS header에 `Authorization`을 추가한다.
 Request body 또는 query parameter의 `user_id`, `household_id`, email을 authority로
 받지 않는다. 이 값은 verified token과 D1 membership lookup에서만 가져온다.
 
+### Worker Authentication 단계 상태
+
+2026-09-02 구현 완료:
+
+- `apps/api/src/auth.ts`가 Web Crypto로 Jangoing HS256 app JWT를 검증한다.
+- 검증에는 configured algorithm, signature, issuer, audience, Google `sub`,
+  email, issued-at time, expiry가 필요하다.
+- Token lifetime은 최대 15분이며 future-issued 또는 expired token은 거부한다.
+- Email이 아니라 stable Google `sub`를 사용해 user를 upsert한다.
+- Profile 변경 시 기존 user를 update하며 claim이 없다는 이유로 저장된 name 또는
+  avatar를 삭제하지 않는다.
+- Single-household MVP에서 여러 membership이 발견되면 resolution을 거부한다.
+- Consumer route는 auth boundary를 통과하고 health와 annotation route는 현재
+  policy를 유지한다.
+- Rollout auth가 optional이어도 전달된 malformed credential은 거부한다.
+- CORS preflight response에 `Authorization`을 포함한다.
+- `wrangler.toml`은 signing secret을 저장하지 않고 `AUTH_REQUIRED=false`,
+  issuer `jangoing-web`, audience `jangoing-api`를 정의한다.
+
+`AUTH_REQUIRED=true`일 때 credential이 없으면 `authentication_required`, invalid
+credential이면 `invalid_token`, authenticated user에게 membership이 없으면
+`household_required`를 반환한다.
+
+이 단계에서는 resolved household를 아직 event query에 전달하지 않는다.
+Household create/join route와 household-scoped consumer read/write를 구현하고
+검증하기 전까지 `AUTH_REQUIRED`는 반드시 `false`로 유지해야 한다. App JWT
+signing secret도 Worker production에 아직 설정하지 않았다.
+
 ## Route Policy
 
 Household가 없는 authenticated user는 다음 route만 사용할 수 있다.

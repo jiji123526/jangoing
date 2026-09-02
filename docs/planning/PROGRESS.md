@@ -2,6 +2,35 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Worker app-JWT authentication boundary implemented
+
+### Completed
+
+- Added HS256 app-JWT verification using Worker Web Crypto with strict issuer,
+  audience, identity, issue-time, expiry, and maximum-lifetime checks.
+- Added Google-subject user upsert and single-household membership resolution.
+- Added stable authentication error codes for missing, malformed, invalid, and
+  household-less requests.
+- Added the optional consumer-route auth boundary while leaving health and
+  annotation routes on their current policy.
+- Added `Authorization` to CORS and safe non-secret rollout defaults to
+  `wrangler.toml`.
+- Added unit and SQLite-backed tests for token verification, route policy,
+  identity upsert, and membership resolution.
+
+### Verification
+
+- `npm run test --workspace @jangoing/api -- auth.test.ts`
+- `npm run typecheck --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/api`
+
+### Deployment
+
+- `AUTH_REQUIRED` remains `false`.
+- No Worker secret or remote configuration was changed.
+- Do not enable required auth until household create/join endpoints and
+  household-scoped event reads and writes are complete.
+
 ## 2026-09-02 - Household ownership schema implemented
 
 ### Completed

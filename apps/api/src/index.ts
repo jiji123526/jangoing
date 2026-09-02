@@ -39,9 +39,14 @@ import {
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
 } from "./nlp/temporal-grounding";
+import {
+  AuthError,
+  authenticateConsumerRequest,
+  isConsumerPath,
+  type AuthEnvironment,
+} from "./auth";
 
-interface Env {
-  DB: D1Database;
+interface Env extends AuthEnvironment {
   ALLOWED_ORIGINS?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
@@ -83,7 +88,7 @@ function configuredOrigins(env: Env): string[] {
 
 function corsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers({
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     Vary: "Origin",
   });
@@ -840,6 +845,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  if (isConsumerPath(url.pathname)) {
+    await authenticateConsumerRequest(request, env);
+  }
+
   const inventoryMutation = url.pathname.match(
     /^\/inventory\/([^/]+)\/(edit|remove)$/,
   );
@@ -985,6 +994,14 @@ export default {
     try {
       return await route(request, env);
     } catch (error) {
+      if (error instanceof AuthError) {
+        return json(
+          request,
+          env,
+          { error: error.message, code: error.code },
+          error.status,
+        );
+      }
       console.error(error);
       return json(request, env, { error: "Internal server error" }, 500);
     }

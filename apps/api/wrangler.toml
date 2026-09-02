@@ -2,6 +2,11 @@ name = "jangoing-api"
 main = "src/index.ts"
 compatibility_date = "2025-02-14"
 
+[vars]
+AUTH_REQUIRED = "false"
+APP_JWT_ISSUER = "jangoing-web"
+APP_JWT_AUDIENCE = "jangoing-api"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "jangoing-db"
