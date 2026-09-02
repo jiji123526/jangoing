@@ -48,6 +48,21 @@ function formatExpiration(value: string): string {
   }).format(new Date(value));
 }
 
+function buildHouseholdInvite(joinCode: HouseholdJoinCode, householdName: string) {
+  const inviteUrl = new URL("/", window.location.origin);
+  inviteUrl.searchParams.set("joinCode", joinCode.code);
+  const text = [
+    `Join ${householdName} on Jangoing.`,
+    `Household code: ${joinCode.code}`,
+    `Expires: ${formatExpiration(joinCode.expires_at)}`,
+    `Open: ${inviteUrl.toString()}`,
+  ].join("\n");
+  return {
+    text,
+    url: inviteUrl.toString(),
+  };
+}
+
 export function AccountButton() {
   const { user, household, setHousehold } = useCurrentHousehold();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -187,21 +202,24 @@ export function AccountButton() {
 
   async function shareCode(): Promise<void> {
     if (!joinCode || !household) return;
-    const text = [
-      `Join ${household.name} on Jangoing.`,
-      `Household code: ${joinCode.code}`,
-      `Expires: ${formatExpiration(joinCode.expires_at)}`,
-    ].join("\n");
+    const invite = buildHouseholdInvite(joinCode, household.name);
 
     if (!navigator.share) {
-      await copyCode();
+      try {
+        await navigator.clipboard.writeText(invite.text);
+        setNotice("Household invitation copied.");
+        setError(null);
+      } catch {
+        setError("Could not copy the household invitation.");
+      }
       return;
     }
 
     try {
       await navigator.share({
         title: `Join ${household.name}`,
-        text,
+        text: invite.text,
+        url: invite.url,
       });
       setNotice("Household invitation shared.");
       setError(null);

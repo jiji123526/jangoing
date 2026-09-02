@@ -19,6 +19,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   createHousehold,
   getCurrentHousehold,
@@ -56,6 +57,8 @@ function LoadingScreen(): ReactNode {
 }
 
 function Gate({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { status } = useSession();
   const [accessState, setAccessState] =
     useState<HouseholdAccessState>("checking");
@@ -71,6 +74,10 @@ function Gate({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const sharedJoinCode = formatJoinCode(searchParams.get("joinCode") ?? "");
+  const returnTo = searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -113,6 +120,14 @@ function Gate({ children }: { children: ReactNode }) {
     }
   }, [accessState, status, step]);
 
+  useEffect(() => {
+    if (accessState !== "needs_setup" || !sharedJoinCode) return;
+    setChoice("join");
+    setJoinCode(sharedJoinCode);
+    setStep("join");
+    setError(null);
+  }, [accessState, sharedJoinCode]);
+
   if (
     status === "loading" ||
     (status === "authenticated" && accessState === "checking")
@@ -140,7 +155,7 @@ function Gate({ children }: { children: ReactNode }) {
           <footer className="auth-onboarding-footer">
             <button
               type="button"
-              onClick={() => void signIn("google", { redirectTo: "/" })}
+              onClick={() => void signIn("google", { redirectTo: returnTo })}
             >
               Continue with Google
             </button>
@@ -251,7 +266,11 @@ function Gate({ children }: { children: ReactNode }) {
               <p>Join the kitchen you share, or start a new one.</p>
             )}
             {step === "join" && (
-              <p>Ask someone at home for their current household code.</p>
+              <p>
+                {sharedJoinCode
+                  ? "Your invite code is ready below."
+                  : "Ask someone at home for their current household code."}
+              </p>
             )}
             {step === "create" && (
               <p>This name will be visible to everyone who joins.</p>
