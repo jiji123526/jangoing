@@ -214,8 +214,8 @@ schema를 강화한다.
   household app-state isolation을 검증한다.
 
 Migration은 repository의 Node/SQLite local database에 적용했다. Remote D1에는
-아직 적용하지 않았다. 6단계와 7단계는 legacy-data ownership 결정과
-authentication middleware 구현 이후 진행한다.
+아직 적용하지 않았다. 7단계는 application code에 구현했으며 6단계는 legacy-data
+owner를 선택한 뒤 진행한다.
 
 ## Legacy Data 결정
 
@@ -312,9 +312,10 @@ credential이면 `invalid_token`, authenticated user에게 membership이 없으�
 `household_required`를 반환한다.
 
 이 단계에서는 resolved household를 아직 event query에 전달하지 않는다.
-Household-scoped consumer read/write를 구현하고 검증하기 전까지
-`AUTH_REQUIRED`는 반드시 `false`로 유지해야 한다. App JWT signing secret도
-Worker production에 아직 설정하지 않았다.
+Resolved identity와 household가 이제 consumer event, inference, fridge-state
+access를 scope한다. Remote schema migration, legacy-data backfill, Worker secret,
+web token issuer가 준비될 때까지 `AUTH_REQUIRED`는 `false`로 유지한다. App JWT
+signing secret도 Worker production에 아직 설정하지 않았다.
 
 ## Route Policy
 
@@ -388,8 +389,36 @@ generated-review import
 
 Consumer auth가 optional rollout mode여도 모든 household route에는 valid app
 JWT가 필요하다. `HOUSEHOLD_CODE_SECRET`은 remote에 아직 설정하지 않았다. Public
-deployment 전 per-user 및 per-IP join-attempt rate limit을 추가해야 한다. Consumer
-event read/write는 아직 global이며 다음 backend 단계에서 처리한다.
+deployment 전 per-user 및 per-IP join-attempt rate limit을 추가해야 한다.
+
+### Household Data-Scoping 단계 상태
+
+2026-09-02 구현 완료:
+
+- Event history, inventory, shopping-list projection은 authenticated membership의
+  `household_id`와 일치하는 event만 읽는다.
+- Inventory, shopping, confirmed-command, fridge-setup event write는
+  `household_id`와 `created_by_user_id`를 모두 저장한다.
+- Command interpretation은 inference log에 household와 user provenance를
+  저장한다.
+- Inference outcome과 confirmed event는 같은 household의 pending inference만
+  resolve할 수 있다.
+- Authenticated household의 fridge-setup completion은 `household_app_state`를
+  사용한다.
+- Rollout auth가 optional이어도 authenticated user에게 membership이 없으면
+  `household_required`를 반환한다.
+- Temporary anonymous rollout traffic은 `household_id IS NULL`인 legacy
+  record에만 접근하며 authenticated household record는 볼 수 없다.
+- Public event query는 explicit contract field만 선택하므로 internal ownership
+  column이 API response에 노출되지 않는다.
+
+SQLite 기반 request test가 inventory, mutation ownership, inference outcome,
+fridge-setup state에서 household A, household B, anonymous legacy data 간 isolation을
+검증한다.
+
+Application-level isolation은 완료했지만 production activation은 아직 아니다.
+`AUTH_REQUIRED=true` 전에 remote migration, explicit legacy-data ownership, secret
+configuration, web app-token issuer를 완료해야 한다.
 
 ## Frontend 변경
 

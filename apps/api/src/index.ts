@@ -65,11 +65,31 @@ interface Env extends AuthEnvironment {
   OPENAI_MONTHLY_BUDGET_USD?: string;
 }
 
+interface ConsumerScope {
+  householdId: string;
+  userId: string;
+}
+
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const annotationSchemaVersion = "annotation-v3";
+const publicEventColumns = [
+  "id",
+  "event_type",
+  "item_name",
+  "quantity",
+  "unit",
+  "location",
+  "expiration_date",
+  "low_threshold",
+  "category",
+  "raw_utterance",
+  "confidence",
+  "source",
+  "created_at",
+].join(", ");
 
 function normalizedFromEntities(entities: Array<{
   label: string;
@@ -135,26 +155,39 @@ function parseStoredInterpretation(payload: string): Interpretation {
 
 async function readEvents(
   env: Env,
+  scope: ConsumerScope | null,
   limit?: number,
   since?: string,
 ): Promise<EventRecord[]> {
-  const statement = since
-    ? env.DB.prepare(
-        "SELECT * FROM events WHERE created_at >= ? ORDER BY created_at DESC, id DESC",
-      ).bind(since)
-    : limit
-      ? env.DB.prepare(
-          "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?",
-        ).bind(limit)
-      : env.DB.prepare(
-          "SELECT * FROM events ORDER BY created_at ASC, id ASC",
-        );
+  const conditions = [
+    scope ? "household_id = ?" : "household_id IS NULL",
+  ];
+  const bindings: Array<string | number> = scope ? [scope.householdId] : [];
+  if (since) {
+    conditions.push("created_at >= ?");
+    bindings.push(since);
+  }
+  const descending = Boolean(since || limit);
+  let query = `SELECT ${publicEventColumns} FROM events
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY created_at ${descending ? "DESC" : "ASC"},
+      id ${descending ? "DESC" : "ASC"}`;
+  if (limit) {
+    query += " LIMIT ?";
+    bindings.push(limit);
+  }
+  const prepared = env.DB.prepare(query);
+  const statement = bindings.length ? prepared.bind(...bindings) : prepared;
   const result = await statement.all<Record<string, unknown>>();
 
   return result.results.map((row) => EventRecordSchema.parse(row));
 }
 
-async function handleInterpret(request: Request, env: Env): Promise<Response> {
+async function handleInterpret(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<Response> {
   const receivedAt = new Date();
   const startedAt = Date.now();
   const body = await request.json();
@@ -177,8 +210,8 @@ async function handleInterpret(request: Request, env: Env): Promise<Response> {
     `INSERT INTO inference_logs (
       id, raw_utterance, request_context, predicted_interpretation,
       parser_version, normalizer_version, schema_version, source,
-      outcome, latency_ms, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      outcome, latency_ms, created_at, household_id, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
   ).bind(
     inferenceId,
     result.raw_utterance,
@@ -198,6 +231,8 @@ async function handleInterpret(request: Request, env: Env): Promise<Response> {
     "web",
     latencyMs,
     new Date().toISOString(),
+    scope?.householdId ?? null,
+    scope?.userId ?? null,
   ).run();
   return json(request, env, {
     ...result,
@@ -207,14 +242,19 @@ async function handleInterpret(request: Request, env: Env): Promise<Response> {
   });
 }
 
-async function handleInferenceOutcome(request: Request, env: Env): Promise<Response> {
+async function handleInferenceOutcome(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<Response> {
   const parsed = UpdateInferenceOutcomeRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
     return json(request, env, { error: "Invalid inference outcome" }, 400);
   }
   const result = await env.DB.prepare(
     `UPDATE inference_logs SET outcome = ?, corrected_interpretation = ?, resolved_at = ?
-     WHERE id = ? AND outcome = 'pending'`,
+     WHERE id = ? AND outcome = 'pending'
+       AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
     parsed.data.outcome,
     parsed.data.reviewed_interpretation
@@ -222,6 +262,7 @@ async function handleInferenceOutcome(request: Request, env: Env): Promise<Respo
       : null,
     new Date().toISOString(),
     parsed.data.inference_id,
+    ...(scope ? [scope.householdId] : []),
   ).run();
   if (!result.meta.changes) {
     return json(request, env, { error: "Pending inference not found" }, 404);
@@ -479,6 +520,7 @@ async function handleCreateAnnotation(request: Request, env: Env): Promise<Respo
 async function handleCreateEvent(
   request: Request,
   env: Env,
+  scope: ConsumerScope | null,
 ): Promise<Response> {
   const body = await request.json();
   const parsed = ConfirmActionRequestSchema.safeParse(body);
@@ -494,8 +536,13 @@ async function handleCreateEvent(
 
   const submission = parsed.data;
   const pendingInference = await env.DB.prepare(
-    "SELECT id FROM inference_logs WHERE id = ? AND outcome = 'pending'",
-  ).bind(submission.inference_id).first();
+    `SELECT id FROM inference_logs
+     WHERE id = ? AND outcome = 'pending'
+       AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
+  ).bind(
+    submission.inference_id,
+    ...(scope ? [scope.householdId] : []),
+  ).first();
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
   }
@@ -513,8 +560,9 @@ async function handleCreateEvent(
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
+      household_id, created_by_user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       event.id,
@@ -529,6 +577,8 @@ async function handleCreateEvent(
       event.confidence,
       event.source,
       event.created_at,
+      scope?.householdId ?? null,
+      scope?.userId ?? null,
     )
     .run();
 
@@ -583,10 +633,12 @@ async function handleCreateEvent(
     : "corrected";
   await env.DB.prepare(
     `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
-      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'`,
+      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
+      AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
     JSON.stringify(correctedInterpretation), outcome, event.id,
     event.created_at, submission.inference_id,
+    ...(scope ? [scope.householdId] : []),
   ).run();
 
   return json(request, env, event, 201);
@@ -595,6 +647,7 @@ async function handleCreateEvent(
 async function handleInventoryMutation(
   request: Request,
   env: Env,
+  scope: ConsumerScope | null,
   itemName: string,
   action: "edit" | "remove",
 ): Promise<Response> {
@@ -635,8 +688,9 @@ async function handleInventoryMutation(
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, low_threshold, category, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, category, raw_utterance, confidence, source,
+      created_at, household_id, created_by_user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     event.id,
     event.event_type,
@@ -651,21 +705,35 @@ async function handleInventoryMutation(
     event.confidence,
     event.source,
     event.created_at,
+    scope?.householdId ?? null,
+    scope?.userId ?? null,
   ).run();
 
   return json(request, env, event, 201);
 }
 
-async function readFridgeSetupCompletedAt(env: Env): Promise<string | null> {
-  const row = await env.DB.prepare(
-    "SELECT value FROM app_state WHERE key = ?",
-  ).bind(fridgeSetupCompletedKey).first<{ value: string }>();
+async function readFridgeSetupCompletedAt(
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<string | null> {
+  const row = scope
+    ? await env.DB.prepare(
+        `SELECT value FROM household_app_state
+         WHERE household_id = ? AND key = ?`,
+      ).bind(
+        scope.householdId,
+        fridgeSetupCompletedKey,
+      ).first<{ value: string }>()
+    : await env.DB.prepare(
+        "SELECT value FROM app_state WHERE key = ?",
+      ).bind(fridgeSetupCompletedKey).first<{ value: string }>();
   return row?.value ?? null;
 }
 
 async function handleFridgeSetup(
   request: Request,
   env: Env,
+  scope: ConsumerScope | null,
 ): Promise<Response> {
   const parsed = FridgeSetupRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
@@ -677,11 +745,11 @@ async function handleFridgeSetup(
     );
   }
 
-  if (await readFridgeSetupCompletedAt(env)) {
+  if (await readFridgeSetupCompletedAt(env, scope)) {
     return json(request, env, { error: "Fridge setup is already complete" }, 409);
   }
 
-  const existingEvents = await readEvents(env);
+  const existingEvents = await readEvents(env, scope);
   const completedAt = new Date().toISOString();
   const setupEvents = buildFridgeSetupEvents(
     parsed.data.items,
@@ -692,8 +760,9 @@ async function handleFridgeSetup(
     env.DB.prepare(
       `INSERT INTO events (
         id, event_type, item_name, quantity, unit, location,
-        expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
+        household_id, created_by_user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       event.id,
       event.event_type,
@@ -707,12 +776,25 @@ async function handleFridgeSetup(
       event.confidence,
       event.source,
       event.created_at,
+      scope?.householdId ?? null,
+      scope?.userId ?? null,
     ),
   );
   statements.push(
-    env.DB.prepare(
-      "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
-    ).bind(fridgeSetupCompletedKey, completedAt, completedAt),
+    scope
+      ? env.DB.prepare(
+          `INSERT INTO household_app_state (
+            household_id, key, value, updated_at
+          ) VALUES (?, ?, ?, ?)`,
+        ).bind(
+          scope.householdId,
+          fridgeSetupCompletedKey,
+          completedAt,
+          completedAt,
+        )
+      : env.DB.prepare(
+          "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
+        ).bind(fridgeSetupCompletedKey, completedAt, completedAt),
   );
 
   await env.DB.batch(statements);
@@ -732,11 +814,12 @@ async function handleFridgeSetup(
 async function handleShoppingMutation(
   request: Request,
   env: Env,
+  scope: ConsumerScope | null,
   itemName: string,
   action: "add" | "purchase" | "restore" | "delete",
   requestedContext: ShoppingItemContextRequest,
 ): Promise<Response> {
-  const existingEvents = action === "add" ? [] : await readEvents(env);
+  const existingEvents = action === "add" ? [] : await readEvents(env, scope);
   const currentItem = action === "add"
     ? null
     : projectShoppingList(
@@ -811,8 +894,9 @@ async function handleShoppingMutation(
   await env.DB.prepare(
     `INSERT INTO events (
       id, event_type, item_name, quantity, unit, location,
-      expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
+      household_id, created_by_user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     event.id,
     event.event_type,
@@ -826,6 +910,8 @@ async function handleShoppingMutation(
     event.confidence,
     event.source,
     event.created_at,
+    scope?.householdId ?? null,
+    scope?.userId ?? null,
   ).run();
 
   const includeProjections =
@@ -929,8 +1015,22 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
   }
 
+  let consumerScope: ConsumerScope | null = null;
   if (isConsumerPath(url.pathname)) {
-    await authenticateConsumerRequest(request, env);
+    const identity = await authenticateConsumerRequest(request, env);
+    if (identity) {
+      if (!identity.householdId) {
+        throw new AuthError(
+          409,
+          "household_required",
+          "Household setup is required",
+        );
+      }
+      consumerScope = {
+        householdId: identity.householdId,
+        userId: identity.user.id,
+      };
+    }
   }
 
   const inventoryMutation = url.pathname.match(
@@ -971,6 +1071,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return handleShoppingMutation(
       request,
       env,
+      consumerScope,
       itemName,
       shoppingMutation[2] as "add" | "purchase" | "restore" | "delete",
       parsedContext.data,
@@ -988,6 +1089,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return handleInventoryMutation(
       request,
       env,
+      consumerScope,
       itemName,
       inventoryMutation[2] as "edit" | "remove",
     );
@@ -1001,15 +1103,15 @@ async function route(request: Request, env: Env): Promise<Response> {
     request.method === "POST" &&
     url.pathname === "/commands/interpret"
   ) {
-    return handleInterpret(request, env);
+    return handleInterpret(request, env, consumerScope);
   }
 
   if (request.method === "POST" && url.pathname === "/events") {
-    return handleCreateEvent(request, env);
+    return handleCreateEvent(request, env, consumerScope);
   }
 
   if (request.method === "GET" && url.pathname === "/fridge-setup/status") {
-    const completedAt = await readFridgeSetupCompletedAt(env);
+    const completedAt = await readFridgeSetupCompletedAt(env, consumerScope);
     return json(request, env, {
       completed: completedAt !== null,
       completed_at: completedAt,
@@ -1017,11 +1119,11 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "POST" && url.pathname === "/fridge-setup") {
-    return handleFridgeSetup(request, env);
+    return handleFridgeSetup(request, env, consumerScope);
   }
 
   if (request.method === "POST" && url.pathname === "/inferences/outcome") {
-    return handleInferenceOutcome(request, env);
+    return handleInferenceOutcome(request, env, consumerScope);
   }
 
   if (request.method === "GET" && url.pathname === "/annotations/stats") {
@@ -1052,6 +1154,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json(request, env, {
       events: await readEvents(
         env,
+        consumerScope,
         since ? undefined : 50,
         since ? new Date(since).toISOString() : undefined,
       ),
@@ -1060,13 +1163,13 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/inventory") {
     return json(request, env, {
-      inventory: projectInventory(await readEvents(env)),
+      inventory: projectInventory(await readEvents(env, consumerScope)),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/shopping-list") {
     return json(request, env, {
-      items: projectShoppingList(await readEvents(env)),
+      items: projectShoppingList(await readEvents(env, consumerScope)),
     });
   }
 

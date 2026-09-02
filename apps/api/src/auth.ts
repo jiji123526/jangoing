@@ -359,6 +359,8 @@ export async function authenticateConsumerRequest(
   const required = isAuthRequired(env);
   return authenticateRequest(request, env, {
     required,
-    requireHousehold: required,
+    // Anonymous legacy traffic is allowed during rollout, but an authenticated
+    // user must finish household setup before accessing consumer data.
+    requireHousehold: true,
   });
 }

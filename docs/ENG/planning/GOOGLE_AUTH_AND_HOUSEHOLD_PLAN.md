@@ -218,8 +218,8 @@ Implemented on 2026-09-02:
   constraints, and household app-state isolation.
 
 The migration has been applied to the repository's Node/SQLite local database.
-It has not been applied to remote D1. Steps 6 and 7 remain blocked on the
-legacy-data ownership decision and authentication middleware.
+It has not been applied to remote D1. Step 7 is implemented in application
+code; step 6 remains pending until the legacy-data owner is selected.
 
 ## Legacy Data Decision
 
@@ -319,10 +319,10 @@ When `AUTH_REQUIRED=true`, a missing credential returns
 `authentication_required`, an invalid credential returns `invalid_token`, and
 an authenticated user without membership returns `household_required`.
 
-This phase does not yet pass the resolved household into event queries.
-`AUTH_REQUIRED` must remain `false` until household-scoped consumer reads and
-writes are implemented and tested. The app JWT signing secret has not been
-configured in Worker production.
+The resolved identity and household now scope consumer event, inference, and
+fridge-state access. `AUTH_REQUIRED` remains `false` until remote schema
+migration, legacy-data backfill, Worker secrets, and the web token issuer are
+ready. The app JWT signing secret has not been configured in Worker production.
 
 ## Route Policy
 
@@ -397,8 +397,36 @@ Implemented on 2026-09-02:
 All household routes require a valid app JWT even while consumer auth is in
 optional rollout mode. `HOUSEHOLD_CODE_SECRET` is not yet configured remotely.
 Per-user and per-IP join-attempt rate limiting remains required before public
-deployment. Consumer event reads and writes are still global and are the next
-backend phase.
+deployment.
+
+### Household Data-Scoping Phase Status
+
+Implemented on 2026-09-02:
+
+- event history, inventory, and shopping-list projections read only events
+  whose `household_id` matches the authenticated membership;
+- inventory, shopping, confirmed-command, and fridge-setup event writes store
+  both `household_id` and `created_by_user_id`;
+- command interpretation stores household and user provenance on inference
+  logs;
+- inference outcomes and confirmed events can resolve only pending inferences
+  from the same household;
+- fridge-setup completion uses `household_app_state` for authenticated
+  households;
+- an authenticated user without membership receives `household_required` even
+  while rollout auth is optional;
+- temporary anonymous rollout traffic can access only legacy records where
+  `household_id IS NULL`, never authenticated household records;
+- public event queries select explicit contract fields so internal ownership
+  columns are not exposed in API responses.
+
+SQLite-backed request tests verify isolation between household A, household B,
+and anonymous legacy data for inventory, mutation ownership, inference
+outcomes, and fridge-setup state.
+
+Application-level isolation is complete, but production activation is not.
+Remote migrations, explicit legacy-data ownership, secret configuration, and
+the web app-token issuer must be completed before `AUTH_REQUIRED=true`.
 
 ## Frontend Changes
 

@@ -4,6 +4,7 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import {
   AuthError,
+  authenticateRequest,
   authenticateConsumerRequest,
   isAuthRequired,
   isConsumerPath,
@@ -211,7 +212,10 @@ describe("consumer auth boundary", () => {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const firstIdentity = await authenticateConsumerRequest(request, env);
+    const firstIdentity = await authenticateRequest(request, env, {
+      required: true,
+      requireHousehold: false,
+    });
     expect(firstIdentity).toMatchObject({
       householdId: null,
       role: null,
@@ -219,6 +223,13 @@ describe("consumer auth boundary", () => {
         googleSubject: "google-subject-1",
         email: "user@example.com",
       },
+    });
+
+    await expect(
+      authenticateConsumerRequest(request, env),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "household_required",
     });
 
     const userId = firstIdentity?.user.id;
@@ -234,10 +245,10 @@ describe("consumer auth boundary", () => {
       ) VALUES (?, ?, ?, ?)`,
     ).run("household-1", userId, "owner", createdAt);
 
-    const resolvedIdentity = await authenticateConsumerRequest(
-      request,
-      { ...env, AUTH_REQUIRED: "true" },
-    );
+    const resolvedIdentity = await authenticateConsumerRequest(request, {
+      ...env,
+      AUTH_REQUIRED: "true",
+    });
     expect(resolvedIdentity).toMatchObject({
       householdId: "household-1",
       role: "owner",

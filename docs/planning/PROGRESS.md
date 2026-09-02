@@ -2,6 +2,38 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Consumer data scoped by household
+
+### Completed
+
+- Scoped event history, inventory, and shopping projections by authenticated
+  household.
+- Added household and user ownership to all authenticated consumer event
+  writes and inference logs.
+- Scoped pending-inference confirmation and outcome updates to the originating
+  household.
+- Moved authenticated fridge-setup completion to household app state.
+- Restricted temporary anonymous rollout traffic to null-household legacy rows.
+- Replaced event `SELECT *` with explicit public columns so ownership metadata
+  remains internal.
+- Added request-level SQLite tests covering two households and anonymous legacy
+  behavior.
+
+### Verification
+
+- `npm run test --workspace @jangoing/api`
+- `npm run typecheck`
+- `npm run build --workspace @jangoing/api`
+- `git diff --check`
+
+### Deployment
+
+- Application-level household isolation is implemented.
+- Remote migrations, legacy-data backfill, Worker secrets, and production
+  configuration were not changed.
+- Keep `AUTH_REQUIRED=false` until those rollout prerequisites and the web token
+  issuer are complete.
+
 ## 2026-09-02 - Household lifecycle API implemented
 
 ### Completed
@@ -30,7 +62,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 ### Deployment
 
 - Remote D1, Worker secrets, and production Worker were not changed.
-- `AUTH_REQUIRED` must remain `false` until consumer data is household-scoped.
+- `AUTH_REQUIRED` must remain `false` until migration, backfill, secrets, and
+  the web token issuer are ready.
 - Join-attempt rate limiting remains required before public deployment.
 
 ## 2026-09-02 - Worker app-JWT authentication boundary implemented
@@ -59,8 +92,8 @@ Add new entries at the top of the log so the latest state is easy to find.
 
 - `AUTH_REQUIRED` remains `false`.
 - No Worker secret or remote configuration was changed.
-- Do not enable required auth until household create/join endpoints and
-  household-scoped event reads and writes are complete.
+- Do not enable required auth until migration, backfill, secrets, and the web
+  token issuer are ready.
 
 ## 2026-09-02 - Household ownership schema implemented
 
