@@ -1,6 +1,9 @@
 "use client";
 
-import type { HouseholdSummary } from "@jangoing/contracts";
+import type {
+  CurrentHouseholdResponse,
+  HouseholdSummary,
+} from "@jangoing/contracts";
 import {
   Check,
   ChevronLeft,
@@ -21,6 +24,7 @@ import {
   getCurrentHousehold,
   joinHousehold,
 } from "../lib/api";
+import { HouseholdProvider } from "./HouseholdContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
 type OnboardingStep = "choice" | "join" | "create" | "complete";
@@ -55,6 +59,8 @@ function Gate({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const [accessState, setAccessState] =
     useState<HouseholdAccessState>("checking");
+  const [householdAccess, setHouseholdAccess] =
+    useState<CurrentHouseholdResponse | null>(null);
   const [step, setStep] = useState<OnboardingStep>("choice");
   const [choice, setChoice] = useState<HouseholdChoice | null>(null);
   const [householdName, setHouseholdName] = useState("");
@@ -69,6 +75,7 @@ function Gate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== "authenticated") {
       setAccessState("checking");
+      setHouseholdAccess(null);
       return;
     }
 
@@ -77,6 +84,7 @@ function Gate({ children }: { children: ReactNode }) {
     void getCurrentHousehold()
       .then((result) => {
         if (cancelled) return;
+        setHouseholdAccess(result);
         if (result.household) {
           setAccessState("ready");
         } else {
@@ -143,7 +151,13 @@ function Gate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (accessState === "ready") return children;
+  if (accessState === "ready" && householdAccess?.household) {
+    return (
+      <HouseholdProvider value={householdAccess}>
+        {children}
+      </HouseholdProvider>
+    );
+  }
 
   async function submitJoin(): Promise<void> {
     setSubmitting(true);
@@ -151,6 +165,9 @@ function Gate({ children }: { children: ReactNode }) {
     try {
       const result = await joinHousehold(joinCode);
       setCompletedHousehold(result.household);
+      setHouseholdAccess((current) =>
+        current ? { ...current, household: result.household } : current,
+      );
       setCreatedJoinCode(null);
       setStep("complete");
     } catch (caught) {
@@ -168,6 +185,9 @@ function Gate({ children }: { children: ReactNode }) {
     try {
       const result = await createHousehold(householdName);
       setCompletedHousehold(result.household);
+      setHouseholdAccess((current) =>
+        current ? { ...current, household: result.household } : current,
+      );
       setCreatedJoinCode(result.join_code.code);
       setStep("complete");
     } catch (caught) {

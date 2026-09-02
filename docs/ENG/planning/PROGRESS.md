@@ -2,6 +2,29 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Household profile and sharing implemented
+
+### Completed
+
+- Replaced the compact account sheet with a native full-screen account dialog
+  based on the grouped account-page reference.
+- Added shared authenticated user and household context for profile surfaces.
+- Added Google identity, household name, role, and owner-aware account rows.
+- Connected owner-only seven-day invite generation, copy, native sharing,
+  rotation, and revocation to the existing Worker endpoints.
+- Kept plaintext join codes in component memory only and clear them when the
+  account dialog closes.
+- Kept members read-only by omitting owner invite controls.
+
+### Validation
+
+- Added Web client tests for join-code generation and revocation.
+
+### Deployment
+
+- Redeploy the Web app; the existing Worker endpoints require no migration or
+  Worker code change.
+
 ## 2026-09-02 - Inventory edit refresh scoped to one item
 
 ### Completed

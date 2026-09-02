@@ -663,11 +663,21 @@ account surface가 담당하며, onboarding에는 household에 들어가기 위�
 - Household resolution 전에는 app page와 bottom navigation을 render하지 않는다.
 - Join-code formatting, disabled submission, pending state, inline error, back
   navigation, title focus, safe area, reduced motion을 포함한다.
-- Home profile control은 profile identity와 sign-out을 제공하는 minimal account
-  sheet를 연다.
+- Home profile control은 Google identity, household name, role, sign-out을
+  제공하는 native full-screen account dialog를 연다.
+- 인증된 user와 household data는 profile을 열 때 다시 fetch하지 않고 shared
+  client context에 유지한다.
+- Owner는 전용 invite screen에서 7일 household code를 생성하고, copy, native
+  share, rotate 또는 revoke할 수 있다.
+- Code를 생성하면 이전 active code가 revoke되며 plaintext code는 component
+  memory에만 유지되고 dialog를 닫으면 제거된다.
+- Owner는 dialog를 다시 연 뒤 plaintext code를 다시 표시하지 않고도 이전에
+  공유한 code를 revoke할 수 있다.
+- Member는 household와 role을 볼 수 있지만 owner code control은 표시되지
+  않는다.
 
-Owner code management, member management, account deletion, privacy control은
-이후 account-sheet 작업으로 남아 있다.
+Member 목록 및 제거, ownership transfer, household 나가기, account 삭제,
+privacy control은 이후 account 작업으로 남아 있다.
 
 ## Local Development
 

@@ -8,6 +8,7 @@ import {
   EventRecordSchema,
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
+  HouseholdJoinCodeSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   JoinedHouseholdResponseSchema,
@@ -32,6 +33,7 @@ import {
   type AdjustInventoryItemRequest,
   type CreatedHouseholdResponse,
   type CurrentHouseholdResponse,
+  type HouseholdJoinCode,
   type JoinedHouseholdResponse,
   type SpeakerRole,
 } from "@jangoing/contracts";
@@ -311,6 +313,12 @@ const ShoppingMutationResponseSchema = z.object({
   inventory: z.array(InventoryItemSchema),
   items: z.array(ShoppingListItemSchema),
 });
+const HouseholdJoinCodeResponseSchema = z.object({
+  join_code: HouseholdJoinCodeSchema,
+});
+const HouseholdJoinCodeRevokeResponseSchema = z.object({
+  success: z.literal(true),
+});
 
 export interface DashboardData {
   inventory: InventoryItem[];
@@ -349,6 +357,20 @@ export async function joinHousehold(
     body: JSON.stringify({ code }),
   });
   return JoinedHouseholdResponseSchema.parse(body);
+}
+
+export async function createHouseholdJoinCode(): Promise<HouseholdJoinCode> {
+  const body = await apiRequest("/households/join-code", {
+    method: "POST",
+  });
+  return HouseholdJoinCodeResponseSchema.parse(body).join_code;
+}
+
+export async function revokeHouseholdJoinCode(): Promise<void> {
+  const body = await apiRequest("/households/join-code/revoke", {
+    method: "POST",
+  });
+  HouseholdJoinCodeRevokeResponseSchema.parse(body);
 }
 
 export async function getFridgeSetupStatus(): Promise<FridgeSetupStatus> {

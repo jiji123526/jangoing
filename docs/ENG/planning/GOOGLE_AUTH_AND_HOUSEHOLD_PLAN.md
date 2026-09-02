@@ -677,11 +677,21 @@ Implemented on 2026-09-02:
 - app pages and bottom navigation do not render before household resolution;
 - join-code formatting, disabled submission, pending state, inline errors,
   back navigation, title focus, safe areas, and reduced motion are included;
-- the Home profile control now opens a minimal account sheet with profile
-  identity and sign-out.
+- the Home profile control opens a native full-screen account dialog with
+  Google identity, household name, role, and sign-out;
+- authenticated user and household data are retained in a shared client
+  context instead of being fetched again when the profile opens;
+- owners can open a dedicated invite screen, generate a seven-day household
+  code, copy it, invoke the native share surface, rotate it, or revoke it;
+- generating a code revokes any prior active code, and plaintext codes remain
+  only in component memory and are cleared when the dialog closes;
+- owners can revoke previously shared codes after reopening the dialog without
+  requiring the plaintext code to be displayed again;
+- members can view their household and role but do not receive owner code
+  controls.
 
-Owner code management, member management, account deletion, and privacy
-controls remain later account-sheet work.
+Member listing and removal, ownership transfer, leaving a household, account
+deletion, and privacy controls remain later account work.
 
 ## Local Development
 
