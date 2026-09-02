@@ -99,6 +99,10 @@ const householdOwnershipMigrationPath = resolve(
   apiDirectory,
   "migrations/0012_add_household_ownership.sql",
 );
+const singleHouseholdMembershipMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0013_enforce_single_household_membership.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -182,6 +186,13 @@ const usersTable = database.prepare(
 ).get() as { name?: string } | undefined;
 if (!usersTable?.name) {
   database.exec(readFileSync(householdOwnershipMigrationPath, "utf8"));
+}
+const singleHouseholdMembershipIndex = database.prepare(
+  `SELECT name FROM sqlite_master
+   WHERE type = 'index' AND name = 'idx_household_memberships_one_per_user'`,
+).get() as { name?: string } | undefined;
+if (!singleHouseholdMembershipIndex?.name) {
+  database.exec(readFileSync(singleHouseholdMembershipMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";

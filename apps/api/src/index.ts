@@ -4,11 +4,13 @@ import {
   AnnotationNormalizedValuesResponseSchema,
   AdjustInventoryItemRequestSchema,
   ConfirmActionRequestSchema,
+  CreateHouseholdRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
   FridgeSetupRequestSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
+  JoinHouseholdRequestSchema,
   ShoppingItemContextRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
@@ -41,13 +43,23 @@ import {
 } from "./nlp/temporal-grounding";
 import {
   AuthError,
+  authenticateRequest,
   authenticateConsumerRequest,
   isConsumerPath,
   type AuthEnvironment,
 } from "./auth";
+import {
+  HouseholdError,
+  createHousehold,
+  getCurrentHousehold,
+  joinHousehold,
+  revokeHouseholdJoinCodes,
+  rotateHouseholdJoinCode,
+} from "./households";
 
 interface Env extends AuthEnvironment {
   ALLOWED_ORIGINS?: string;
+  HOUSEHOLD_CODE_SECRET?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_MONTHLY_BUDGET_USD?: string;
@@ -845,6 +857,78 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  if (url.pathname.startsWith("/households/")) {
+    const identity = await authenticateRequest(request, env, {
+      required: true,
+      requireHousehold: false,
+    });
+    if (!identity) {
+      throw new AuthError(401, "authentication_required", "Authentication required");
+    }
+
+    if (request.method === "GET" && url.pathname === "/households/current") {
+      return json(request, env, await getCurrentHousehold(env, identity));
+    }
+
+    if (request.method === "POST" && url.pathname === "/households/create") {
+      const body = await request.json().catch(() => null);
+      const parsed = CreateHouseholdRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        return json(
+          request,
+          env,
+          { error: "Invalid household", details: parsed.error.flatten() },
+          400,
+        );
+      }
+      return json(
+        request,
+        env,
+        await createHousehold(env, identity, parsed.data),
+        201,
+      );
+    }
+
+    if (request.method === "POST" && url.pathname === "/households/join") {
+      const body = await request.json().catch(() => null);
+      const parsed = JoinHouseholdRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        return json(
+          request,
+          env,
+          { error: "Invalid household code request", details: parsed.error.flatten() },
+          400,
+        );
+      }
+      return json(
+        request,
+        env,
+        await joinHousehold(env, identity, parsed.data),
+        201,
+      );
+    }
+
+    if (request.method === "POST" && url.pathname === "/households/join-code") {
+      return json(
+        request,
+        env,
+        await rotateHouseholdJoinCode(env, identity),
+        201,
+      );
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/households/join-code/revoke"
+    ) {
+      return json(
+        request,
+        env,
+        await revokeHouseholdJoinCodes(env, identity),
+      );
+    }
+  }
+
   if (isConsumerPath(url.pathname)) {
     await authenticateConsumerRequest(request, env);
   }
@@ -995,6 +1079,14 @@ export default {
       return await route(request, env);
     } catch (error) {
       if (error instanceof AuthError) {
+        return json(
+          request,
+          env,
+          { error: error.message, code: error.code },
+          error.status,
+        );
+      }
+      if (error instanceof HouseholdError) {
         return json(
           request,
           env,

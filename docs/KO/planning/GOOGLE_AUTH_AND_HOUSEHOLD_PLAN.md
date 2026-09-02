@@ -312,9 +312,9 @@ credential이면 `invalid_token`, authenticated user에게 membership이 없으�
 `household_required`를 반환한다.
 
 이 단계에서는 resolved household를 아직 event query에 전달하지 않는다.
-Household create/join route와 household-scoped consumer read/write를 구현하고
-검증하기 전까지 `AUTH_REQUIRED`는 반드시 `false`로 유지해야 한다. App JWT
-signing secret도 Worker production에 아직 설정하지 않았다.
+Household-scoped consumer read/write를 구현하고 검증하기 전까지
+`AUTH_REQUIRED`는 반드시 `false`로 유지해야 한다. App JWT signing secret도
+Worker production에 아직 설정하지 않았다.
 
 ## Route Policy
 
@@ -362,6 +362,34 @@ dataset export
 queue seeding
 generated-review import
 ```
+
+### Household API 단계 상태
+
+2026-09-02 구현 완료:
+
+- `GET /households/current`는 Google `sub`를 노출하지 않고 application profile과
+  current household를 반환한다.
+- `POST /households/create`는 household, owner membership, 최초 7일 유효 join
+  code를 atomically 생성한다.
+- `POST /households/join`은 전달된 code가 active 및 unexpired 상태일 때만
+  membership을 atomically 추가한다.
+- `POST /households/join-code`는 owner가 기존 active code를 revoke하고 replacement
+  code를 발급하게 한다.
+- `POST /households/join-code/revoke`는 owner가 replacement 없이 active code를
+  무효화하게 한다.
+- Join code는 50 bit cryptographic randomness와 읽기 쉬운 `ABCD-EFGH-JK`
+  format을 사용하며 HMAC-SHA256 hash만 저장한다.
+- Invalid, expired, revoked code는 모두 동일한 `invalid_household_code`
+  response를 반환한다.
+- `0013_enforce_single_household_membership.sql` migration은 concurrent
+  request가 한 user를 여러 household에 할당하지 못하게 한다.
+- Shared contract가 household name, join-code input, household role, profile
+  response, household summary를 검증한다.
+
+Consumer auth가 optional rollout mode여도 모든 household route에는 valid app
+JWT가 필요하다. `HOUSEHOLD_CODE_SECRET`은 remote에 아직 설정하지 않았다. Public
+deployment 전 per-user 및 per-IP join-attempt rate limit을 추가해야 한다. Consumer
+event read/write는 아직 global이며 다음 backend 단계에서 처리한다.
 
 ## Frontend 변경
 

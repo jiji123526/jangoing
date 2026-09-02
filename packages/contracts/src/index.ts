@@ -639,6 +639,44 @@ export const FridgeSetupResponseSchema = FridgeSetupStatusSchema.extend({
   inventory: z.array(InventoryItemSchema),
 });
 
+export const HouseholdRoleSchema = z.enum(["owner", "member"]);
+
+export const CreateHouseholdRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+  })
+  .strict();
+
+export const JoinHouseholdRequestSchema = z
+  .object({
+    code: z.string().trim().min(1).max(32),
+  })
+  .strict();
+
+export const HouseholdSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  role: HouseholdRoleSchema,
+  created_at: z.string().datetime(),
+});
+
+export const HouseholdJoinCodeSchema = z.object({
+  code: z.string(),
+  expires_at: z.string().datetime(),
+});
+
+export const HouseholdUserProfileSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().url().nullable(),
+});
+
+export const CurrentHouseholdResponseSchema = z.object({
+  user: HouseholdUserProfileSchema,
+  household: HouseholdSummarySchema.nullable(),
+});
+
 export type Intent = z.infer<typeof IntentSchema>;
 export type SpeakerRole = z.infer<typeof SpeakerRoleSchema>;
 export type ActivationMode = z.infer<typeof ActivationModeSchema>;
@@ -689,3 +727,14 @@ export type FridgeSetupItem = z.infer<typeof FridgeSetupItemSchema>;
 export type FridgeSetupRequest = z.infer<typeof FridgeSetupRequestSchema>;
 export type FridgeSetupStatus = z.infer<typeof FridgeSetupStatusSchema>;
 export type FridgeSetupResponse = z.infer<typeof FridgeSetupResponseSchema>;
+export type HouseholdRole = z.infer<typeof HouseholdRoleSchema>;
+export type CreateHouseholdRequest = z.infer<
+  typeof CreateHouseholdRequestSchema
+>;
+export type JoinHouseholdRequest = z.infer<typeof JoinHouseholdRequestSchema>;
+export type HouseholdSummary = z.infer<typeof HouseholdSummarySchema>;
+export type HouseholdJoinCode = z.infer<typeof HouseholdJoinCodeSchema>;
+export type HouseholdUserProfile = z.infer<typeof HouseholdUserProfileSchema>;
+export type CurrentHouseholdResponse = z.infer<
+  typeof CurrentHouseholdResponseSchema
+>;

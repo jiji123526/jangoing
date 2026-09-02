@@ -2,6 +2,37 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Household lifecycle API implemented
+
+### Completed
+
+- Added authenticated current-household, create, join, join-code rotation, and
+  join-code revocation routes.
+- Added 50-bit readable join codes stored only as keyed HMAC-SHA256 hashes with
+  seven-day expiry.
+- Added generic invalid-code behavior for malformed, expired, and revoked
+  credentials.
+- Added owner-only code management and omitted Google provider identity from
+  API profile responses.
+- Added migration `0013` to enforce one household membership per user at the
+  database layer.
+- Added shared household request/response contracts and SQLite-backed lifecycle
+  tests.
+- Applied migration `0013` to the repository's Node/SQLite local database.
+
+### Verification
+
+- `npm run test --workspace @jangoing/api`
+- `npm run typecheck`
+- `npm run build --workspace @jangoing/api`
+- `git diff --check`
+
+### Deployment
+
+- Remote D1, Worker secrets, and production Worker were not changed.
+- `AUTH_REQUIRED` must remain `false` until consumer data is household-scoped.
+- Join-attempt rate limiting remains required before public deployment.
+
 ## 2026-09-02 - Worker app-JWT authentication boundary implemented
 
 ### Completed

@@ -31,6 +31,11 @@ export interface RequestIdentity {
   role: "owner" | "member" | null;
 }
 
+export interface AuthenticationOptions {
+  required: boolean;
+  requireHousehold: boolean;
+}
+
 interface UserRow {
   id: string;
   google_subject: string;
@@ -314,15 +319,15 @@ async function resolveMembership(
   return result.results[0] ?? null;
 }
 
-export async function authenticateConsumerRequest(
+export async function authenticateRequest(
   request: Request,
   env: AuthEnvironment,
+  options: AuthenticationOptions,
 ): Promise<RequestIdentity | null> {
-  const required = isAuthRequired(env);
   const token = bearerToken(request);
 
   if (!token) {
-    if (required) {
+    if (options.required) {
       throw new AuthError(401, "authentication_required", "Authentication required");
     }
     return null;
@@ -332,7 +337,7 @@ export async function authenticateConsumerRequest(
   const user = await upsertUser(env, claims);
   const membership = await resolveMembership(env, user.id);
 
-  if (required && !membership) {
+  if (options.requireHousehold && !membership) {
     throw new AuthError(
       409,
       "household_required",
@@ -345,4 +350,15 @@ export async function authenticateConsumerRequest(
     householdId: membership?.household_id ?? null,
     role: membership?.role ?? null,
   };
+}
+
+export async function authenticateConsumerRequest(
+  request: Request,
+  env: AuthEnvironment,
+): Promise<RequestIdentity | null> {
+  const required = isAuthRequired(env);
+  return authenticateRequest(request, env, {
+    required,
+    requireHousehold: required,
+  });
 }

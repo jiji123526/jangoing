@@ -320,9 +320,9 @@ When `AUTH_REQUIRED=true`, a missing credential returns
 an authenticated user without membership returns `household_required`.
 
 This phase does not yet pass the resolved household into event queries.
-`AUTH_REQUIRED` must remain `false` until household create/join routes and
-household-scoped consumer reads and writes are implemented and tested. The app
-JWT signing secret has not been configured in Worker production.
+`AUTH_REQUIRED` must remain `false` until household-scoped consumer reads and
+writes are implemented and tested. The app JWT signing secret has not been
+configured in Worker production.
 
 ## Route Policy
 
@@ -370,6 +370,35 @@ dataset export
 queue seeding
 generated-review import
 ```
+
+### Household API Phase Status
+
+Implemented on 2026-09-02:
+
+- `GET /households/current` returns the application profile and current
+  household without exposing the Google `sub`;
+- `POST /households/create` atomically creates the household, owner membership,
+  and initial seven-day join code;
+- `POST /households/join` atomically inserts membership only when the supplied
+  code is active and unexpired;
+- `POST /households/join-code` lets owners revoke existing active codes and
+  issue a replacement;
+- `POST /households/join-code/revoke` lets owners invalidate active codes
+  without issuing another;
+- join codes contain 50 bits of cryptographic randomness, use a readable
+  `ABCD-EFGH-JK` format, and are stored only as HMAC-SHA256 hashes;
+- invalid, expired, and revoked codes return the same
+  `invalid_household_code` response;
+- migration `0013_enforce_single_household_membership.sql` prevents concurrent
+  requests from assigning one user to multiple households;
+- shared contracts validate household names, join-code input, household roles,
+  profile responses, and household summaries.
+
+All household routes require a valid app JWT even while consumer auth is in
+optional rollout mode. `HOUSEHOLD_CODE_SECRET` is not yet configured remotely.
+Per-user and per-IP join-attempt rate limiting remains required before public
+deployment. Consumer event reads and writes are still global and are the next
+backend phase.
 
 ## Frontend Changes
 
