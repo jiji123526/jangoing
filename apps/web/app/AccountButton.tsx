@@ -391,6 +391,7 @@ export function AccountButton() {
   );
   const modalBusy =
     busy !== null || removingMemberId !== null || profileSaving;
+  const inviteLoading = screen === "invite" && busy === "load" && !joinCode;
 
   return (
     <>
@@ -588,7 +589,13 @@ export function AccountButton() {
                 </p>
               </div>
 
-              {joinCode ? (
+              {inviteLoading ? (
+                <LoadingSkeleton
+                  variant="rows"
+                  rows={3}
+                  label="Loading household invite"
+                />
+              ) : joinCode ? (
                 <>
                   <section className="account-code-card">
                     <small>HOUSEHOLD CODE</small>
@@ -658,9 +665,7 @@ export function AccountButton() {
                     disabled={busy !== null}
                     onClick={() => void generateCode()}
                   >
-                    {busy === "load"
-                      ? "Loading Code…"
-                      : busy === "generate"
+                    {busy === "generate"
                       ? "Generating Code…"
                       : "Generate Invite Code"}
                   </button>
