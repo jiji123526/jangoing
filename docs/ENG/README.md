@@ -86,7 +86,10 @@ For the current annotation milestone, reading through this phase is sufficient.
 25. [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
     — Artwork-first item photos, storage, privacy, and eventual vision
     recognition.
-26. [Apple Music UI kit design guide](../../docs/design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md) —
+26. [Temporary Google authentication and household data plan](./planning/GOOGLE_AUTH_AND_HOUSEHOLD_PLAN.md)
+    — Google identity, join-or-create household onboarding, D1 migration,
+    Worker authorization, rollout, and isolation test plan.
+27. [Apple Music UI kit design guide](../../docs/design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md) —
     Screen structure, component dimensions, and visual rules for consumer
     pages.
 
@@ -101,6 +104,7 @@ For the current annotation milestone, reading through this phase is sufficient.
 - [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
 - [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
 - [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY.md)
+- [Temporary Google authentication and household data plan](./planning/GOOGLE_AUTH_AND_HOUSEHOLD_PLAN.md)
 
 ### Annotation
 

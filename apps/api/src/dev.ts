@@ -95,6 +95,10 @@ const inventoryCategoryMigrationPath = resolve(
   apiDirectory,
   "migrations/0011_add_inventory_category.sql",
 );
+const householdOwnershipMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0012_add_household_ownership.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -172,6 +176,12 @@ const appStateTable = database.prepare(
 ).get() as { name?: string } | undefined;
 if (!appStateTable?.name) {
   database.exec(readFileSync(appStateMigrationPath, "utf8"));
+}
+const usersTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'",
+).get() as { name?: string } | undefined;
+if (!usersTable?.name) {
+  database.exec(readFileSync(householdOwnershipMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";

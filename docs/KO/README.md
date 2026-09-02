@@ -81,7 +81,10 @@ Repository root의 `README.md`는 프로젝트 진입점이다. 자세한 계획
     fine-tuning gate
 25. [Item Media와 Vision Recognition 계획](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
     artwork-first item photo, storage, privacy, eventual vision recognition 계획
-26. [Apple Music UI kit design guide](../design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md)
+26. [임시 Google 인증 및 Household 데이터 구현 계획](./planning/GOOGLE_AUTH_AND_HOUSEHOLD_PLAN.md)
+    Google identity, household code 기반 join-or-create onboarding, D1 migration,
+    Worker authorization, rollout, isolation test 계획
+27. [Apple Music UI kit design guide](../design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md)
     consumer page용 screen structure, component dimension, visual rule
 
 ## 참조 인덱스
@@ -95,6 +98,7 @@ Repository root의 `README.md`는 프로젝트 진입점이다. 자세한 계획
 - [Language Engineer에게 물어볼 질문](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
 - [Voice Agent Pipeline과 Raspberry Pi 계획](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
 - [단일 사용자용 Personalized ASR 전략](./planning/PERSONALIZED_ASR_STRATEGY.md)
+- [임시 Google 인증 및 Household 데이터 구현 계획](./planning/GOOGLE_AUTH_AND_HOUSEHOLD_PLAN.md)
 
 ### Annotation
 

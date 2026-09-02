@@ -2,6 +2,69 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Household ownership schema implemented
+
+### Completed
+
+- Added additive D1 migration `0012_add_household_ownership.sql` for users,
+  households, memberships, join codes, and household-scoped app state.
+- Added nullable household/user provenance to legacy events and inference logs
+  without assigning existing records to an arbitrary account.
+- Added ownership and lookup indexes plus foreign-key and membership-role
+  constraints.
+- Updated the Node-based local API bootstrap to apply the household migration.
+- Added migration tests for legacy compatibility, relational constraints, and
+  app-state isolation.
+- Applied and inspected the migration in the repository's Node/SQLite local
+  database with no foreign-key violations.
+
+### Verification
+
+- `npm run test --workspace @jangoing/api -- household-migration.test.ts`
+- `npm run typecheck --workspace @jangoing/api`
+- `git diff --check`
+
+### Deployment
+
+- Remote D1 was not changed.
+- Wrangler local D1 could not run on this host because its bundled `workerd`
+  requires GLIBC 2.35; the same migration passed Node/SQLite execution and
+  schema tests.
+- Do not apply the remote migration until the production bootstrap household
+  owner and legacy-data backfill policy are confirmed.
+
+## 2026-09-02 - Join-first household onboarding planned
+
+### Completed
+
+- Changed Google-login onboarding so authentication creates only user identity,
+  not an automatic household.
+- Defined the `Do you have your household code?` flow: join an existing
+  household by code or create a new household and become its owner.
+- Added revocable, expiring, rate-limited join-code storage and security rules.
+- Added household onboarding routes, UI states, deployment steps, and tests to
+  both temporary locale plans.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-02 - Google authentication and household rollout planned
+
+### Completed
+
+- Added matching temporary English and Korean implementation plans for Google
+  authentication and household-scoped consumer data.
+- Defined the recommended Auth.js, short-lived app JWT, Worker verification,
+  and D1 membership architecture.
+- Documented schema migrations, legacy-data ownership, protected routes,
+  deployment order, privacy decisions, and cross-household isolation tests.
+- Added the plan to both locale documentation indexes.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-02 - Legacy root docs removed after bilingual migration
 
 ### Completed
