@@ -9,7 +9,7 @@ reasons behind those choices.
 
 The product roadmap is maintained in [PLAN.md](../planning/PLAN.md). Annotation
 rules are maintained in
-[ANNOTATION_CONVENTIONS_KO.md](../annotation/ANNOTATION_CONVENTIONS_KO.md).
+[ANNOTATION_CONVENTIONS.md](../annotation/ANNOTATION_CONVENTIONS.md).
 
 ## Academic Objective
 
@@ -833,9 +833,9 @@ Immediate execution items are tracked in
 [ACTION_ITEMS.md](../planning/ACTION_ITEMS.md).
 The external product-catalog decision and implementation sequence are detailed
 in
-[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md).
+[OPEN_FOOD_FACTS_BRAND_STRATEGY.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md).
 The staged voice-personalization and code-switching protocol is detailed in
-[PERSONALIZED_ASR_STRATEGY_KO.md](../planning/PERSONALIZED_ASR_STRATEGY_KO.md).
+[PERSONALIZED_ASR_STRATEGY.md](../planning/PERSONALIZED_ASR_STRATEGY.md).
 
 ## Selected Foundations
 

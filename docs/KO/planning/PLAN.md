@@ -190,7 +190,7 @@ natural-language understanding을 표현하지는 못한다.
 - barcode 또는 camera input
 - user-photo artwork와 vision recognition. 단계적 security, R2/D1, confirmation,
   evaluation plan은
-  [ITEM_MEDIA_AND_VISION_PLAN_KO.md](./ITEM_MEDIA_AND_VISION_PLAN_KO.md)에 정의되어 있다
+  [ITEM_MEDIA_AND_VISION_PLAN.md](./ITEM_MEDIA_AND_VISION_PLAN.md)에 정의되어 있다
 - native mobile app
 - automatic shelf-life prediction
 - MVP 단계에서의 multi-turn conversational context와 recommendation ranking.
@@ -743,7 +743,7 @@ dataset 목표:
 UI target은 M5 완료가 아니라 첫 checkpoint다. 그 이후 collection은 위의
 per-intent 및 total coverage 목표로 확장된다. 첫 reviewed baseline 구성,
 source policy, task export, entity coverage, freeze rule은
-[TEXT_DATASET_DESIGN_V1_KO.md](../ml/TEXT_DATASET_DESIGN_V1_KO.md)에 정의되어 있다.
+[TEXT_DATASET_DESIGN_V1.md](../ml/TEXT_DATASET_DESIGN_V1.md)에 정의되어 있다.
 
 완료 기준: 모든 supported intent에 reviewed example이 있고, test set에는 training에
 없던 phrasing pattern이 포함된다.

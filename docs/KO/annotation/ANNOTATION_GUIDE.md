@@ -8,7 +8,7 @@
 
 이 문서는 화면 사용법과 운영 결정을 설명한다. 실제 intent/entity/normalization을
 어떻게 결정할지는
-[ANNOTATION_CONVENTIONS_KO.md](./ANNOTATION_CONVENTIONS_KO.md)를 기준으로 한다.
+[ANNOTATION_CONVENTIONS.md](./ANNOTATION_CONVENTIONS.md)를 기준으로 한다.
 
 ## 접근 위치
 
@@ -302,7 +302,7 @@ npm run annotation:import-generated -- --remote \
 구성은 preference/context 200, domain non-actionable 300, unrelated 100이다.
 처음에는 각각 40, 60, 20개만 pilot으로 검수한 뒤 family ambiguity와 문장 품질을
 확인한다. 상세 생성 기준은
-[RELEVANCE_CANDIDATES_V1_KO.md](./RELEVANCE_CANDIDATES_V1_KO.md)를 따른다.
+[RELEVANCE_CANDIDATES_V1.md](./RELEVANCE_CANDIDATES_V1.md)를 따른다.
 
 ### D1에서 queue data 확인하는 방법
 

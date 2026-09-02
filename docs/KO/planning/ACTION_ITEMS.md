@@ -65,7 +65,7 @@ Generated label과 AI draft는 annotator가 검토 후 저장하기 전까지 co
 
 - [ ] 현재 사용하는 각 queue에서 최소 30개씩 검토
 - [ ] 반복되는 ambiguity를
-  [ANNOTATION_CONVENTIONS_KO.md](../../annotation/ANNOTATION_CONVENTIONS_KO.md)에 기록
+  [ANNOTATION_CONVENTIONS.md](../annotation/ANNOTATION_CONVENTIONS.md)에 기록
 - [ ] Expiry, normalized item value, multi-action record, relevance label이 모두 수동 DB repair 없이 저장되는지 확인
 - [ ] Random annotation 50개를 audit해 span boundary와 normalized value 검토
 - [ ] 이 gate에서는 production candidate를 학습하지 말고 collection workflow를 고친다
@@ -76,7 +76,7 @@ Generated label과 AI draft는 annotator가 검토 후 저장하기 전까지 co
 
 - [ ] 지원하는 모든 actionable intent 포함
 - [ ] Reviewed relevance와 intent distribution이
-  [TEXT_DATASET_DESIGN_V1_KO.md](../../ml/TEXT_DATASET_DESIGN_V1_KO.md) 정의와 맞도록 수집
+  [TEXT_DATASET_DESIGN_V1.md](../ml/TEXT_DATASET_DESIGN_V1.md) 정의와 맞도록 수집
 - [ ] 각 supported intent마다 reviewed training 예시 최소 40개, 흔한 state-changing intent는 50-80개 확보
 - [ ] `domain_non_actionable`을 `unrelated`보다 크게 유지
 - [ ] Evaluation record가 generated template variation이 아니라 independent writing 또는 actual user data에서 오도록 보장
@@ -195,5 +195,5 @@ Production expiry annotation을 end to end로 하나 검증한 뒤, aggressive�
 - [ ] Seen-product, unseen-alias, unseen-product, catalog-unknown evaluation slice 추가
 
 근거와 safeguard는
-[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)에
+[OPEN_FOOD_FACTS_BRAND_STRATEGY.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)에
 있다.

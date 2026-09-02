@@ -275,7 +275,7 @@ data/external/grocery_ner/mapped/
 Open Food Facts는 같은 원칙으로 다루되 규모와 product-record 중복을 고려해 별도
 catalog track으로 관리한다. 브랜드, alias, category 후보로 사용하는 방법과
 `grocery-v2` 선행 조건은
-[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](./OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)에
+[OPEN_FOOD_FACTS_BRAND_STRATEGY.md](./OPEN_FOOD_FACTS_BRAND_STRATEGY.md)에
 정리되어 있다.
 
 ## synthetic-v1 확장과의 관계

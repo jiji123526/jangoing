@@ -384,7 +384,7 @@ training보다 다음 순서를 우선한다.
 - 위 방식 이후에도 남는 acoustic error에만 fine-tuning 검토
 
 provider 비교, personal frozen set, 동적 vocabulary, fine-tuning gate의 상세 설계는
-[단일 사용자용 Personalized ASR 전략](./PERSONALIZED_ASR_STRATEGY_KO.md)을
+[단일 사용자용 Personalized ASR 전략](./PERSONALIZED_ASR_STRATEGY.md)을
 따른다.
 
 ## 18. 최종 결론

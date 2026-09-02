@@ -68,7 +68,7 @@ Target: 300 reviewed training candidates and 100 evaluation candidates.
 
 - [ ] Review at least 30 examples from every queue currently in use.
 - [ ] Record recurring ambiguity in
-  [ANNOTATION_CONVENTIONS_KO.md](../annotation/ANNOTATION_CONVENTIONS_KO.md).
+  [ANNOTATION_CONVENTIONS.md](../annotation/ANNOTATION_CONVENTIONS.md).
 - [ ] Check that expiry, normalized item values, multi-action records, and
   relevance labels can all be saved without manual database repair.
 - [ ] Audit 50 random annotations for span boundaries and normalized values.
@@ -81,7 +81,7 @@ Target: 1,000 reviewed training candidates and 200 evaluation candidates.
 
 - [ ] Include all supported actionable intents.
 - [ ] Reach the reviewed relevance and intent distribution defined in
-  [TEXT_DATASET_DESIGN_V1_KO.md](../ml/TEXT_DATASET_DESIGN_V1_KO.md).
+  [TEXT_DATASET_DESIGN_V1.md](../ml/TEXT_DATASET_DESIGN_V1.md).
 - [ ] Reach at least 40 reviewed training examples per supported intent and
   50-80 for common state-changing intents.
 - [ ] Keep `domain_non_actionable` larger than `unrelated`; it is the harder
@@ -216,4 +216,4 @@ the current annotation milestone to import a large external catalog.
   evaluation slices.
 
 The rationale and safeguards are in
-[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md).
+[OPEN_FOOD_FACTS_BRAND_STRATEGY.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md).

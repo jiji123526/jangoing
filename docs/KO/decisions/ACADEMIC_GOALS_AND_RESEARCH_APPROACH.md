@@ -7,7 +7,7 @@
 이유를 기록한다.
 
 제품 로드맵은 [PLAN.md](../planning/PLAN.md)에서 관리한다. Annotation 규칙은
-[ANNOTATION_CONVENTIONS_KO.md](../annotation/ANNOTATION_CONVENTIONS_KO.md)에서
+[ANNOTATION_CONVENTIONS.md](../annotation/ANNOTATION_CONVENTIONS.md)에서
 관리한다.
 
 ## 학술적 목표
@@ -812,9 +812,9 @@ annotator, device, household가 필요하다.
 
 즉시 실행 항목은 [ACTION_ITEMS.md](../planning/ACTION_ITEMS.md)에 정리되어 있다.
 외부 product catalog 결정과 구현 순서는
-[OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)에
+[OPEN_FOOD_FACTS_BRAND_STRATEGY.md](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)에
 정리되어 있다. 단계별 voice personalization 및 code-switching protocol은
-[PERSONALIZED_ASR_STRATEGY_KO.md](../planning/PERSONALIZED_ASR_STRATEGY_KO.md)에
+[PERSONALIZED_ASR_STRATEGY.md](../planning/PERSONALIZED_ASR_STRATEGY.md)에
 정리되어 있다.
 
 ## 참고 기반 문헌

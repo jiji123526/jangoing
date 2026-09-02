@@ -10,7 +10,7 @@ recommendations.
 
 The academic objective, research questions, methodological choices, and threats
 to validity are defined in
-[ACADEMIC_GOALS_AND_RESEARCH_APPROACH_KO.md](../decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH_KO.md).
+[ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md](../decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md).
 
 The project begins as a text-based product. Raspberry Pi audio and a trained language-understanding model will be added only after the command, confirmation, storage, and correction workflow has been validated.
 
@@ -189,7 +189,7 @@ These limitations are acceptable only while every state-changing action requires
 - Barcode or camera input
 - User-photo artwork and vision recognition; the staged security, R2/D1,
   confirmation, and evaluation plan is defined in
-  [ITEM_MEDIA_AND_VISION_PLAN_KO.md](./ITEM_MEDIA_AND_VISION_PLAN_KO.md)
+  [ITEM_MEDIA_AND_VISION_PLAN.md](./ITEM_MEDIA_AND_VISION_PLAN.md)
 - Native mobile apps
 - Automatic shelf-life prediction
 - Multi-turn conversational context and recommendation ranking in the MVP only;
@@ -737,7 +737,7 @@ The UI targets are the first checkpoint, not M5 completion. After that checkpoin
 collection expands toward the per-intent and total coverage targets above.
 The first reviewed baseline composition, source policy, task exports, entity
 coverage, and freeze rules are specified in
-[TEXT_DATASET_DESIGN_V1_KO.md](../ml/TEXT_DATASET_DESIGN_V1_KO.md).
+[TEXT_DATASET_DESIGN_V1.md](../ml/TEXT_DATASET_DESIGN_V1.md).
 
 Completion: every supported intent has reviewed examples and the test set contains phrasing patterns absent from training.
 

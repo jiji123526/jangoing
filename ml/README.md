@@ -2,7 +2,7 @@
 
 The first model is a CPU-friendly TF-IDF + logistic-regression single-intent baseline.
 The authoritative reviewed-corpus targets and split policy are documented in
-[Text Dataset Design v1](../docs/ml/TEXT_DATASET_DESIGN_V1_KO.md).
+[Text Dataset Design v1](../docs/ENG/ml/TEXT_DATASET_DESIGN_V1.md).
 
 Generate the reproducible 800-record English bootstrap dataset:
 
@@ -27,7 +27,7 @@ npm run annotation:import-generated -- --remote \
   --label relevance-candidates-v1
 ```
 
-See [the Korean candidate dataset record](../docs/annotation/RELEVANCE_CANDIDATES_V1_KO.md).
+See [the English candidate dataset record](../docs/ENG/annotation/RELEVANCE_CANDIDATES_V1.md).
 
 The current `synthetic-v1` keeps the same 800 balanced records but now draws
 from a broader 34-item grocery taxonomy and rotates English aliases for more
@@ -97,7 +97,7 @@ Recommended sequence:
 The committed `ml/datasets/synthetic-v1.jsonl` is safe synthetic bootstrap data,
 not production conversation data and not a valid final human test set. Its design
 and limitations are recorded in
-[the synthetic dataset record](../docs/ml/SYNTHETIC_V1_KO.md).
+[the synthetic dataset record](../docs/ENG/ml/SYNTHETIC_V1.md).
 
 To export reviewed production interactions from Cloudflare D1 instead:
 

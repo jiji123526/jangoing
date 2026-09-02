@@ -2,6 +2,23 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Legacy root docs removed after bilingual migration
+
+### Completed
+
+- Repointed repository and ML guide links away from legacy root `docs/...`
+  mirrors and into `docs/ENG/...` or `docs/KO/...`.
+- Updated bilingual planning and decision docs so internal cross-links no
+  longer depend on the legacy root copies.
+- Kept only the intentional root-level exceptions: `docs/README.md`,
+  `docs/planning/PROGRESS.md`, and the root-only design guide.
+- Removed duplicated legacy docs from root `docs/annotation/`,
+  `docs/decisions/`, `docs/ml/`, `docs/operations/`, and `docs/planning/`.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-02 - Korean docs index labels aligned to actual titles
 
 ### Completed

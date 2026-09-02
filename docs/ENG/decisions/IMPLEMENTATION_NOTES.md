@@ -238,7 +238,7 @@ An 800-example English bootstrap dataset, multilingual-ready taxonomy, entity
 spans, manifest, and automatic validator were added. The web review flow was
 also extended so `needs_clarification` can be stored as a separate intent.
 Detailed decisions and results are documented in
-[SYNTHETIC_V1_KO.md](../ml/SYNTHETIC_V1_KO.md).
+[SYNTHETIC_V1.md](../ml/SYNTHETIC_V1.md).
 
 ### 4.8 Phrase-Family-Based Data Split
 
