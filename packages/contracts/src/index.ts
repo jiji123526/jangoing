@@ -570,6 +570,7 @@ export const InventoryStatusSchema = z.enum([
 export const InventoryItemSchema = z.object({
   item_name: z.string(),
   category: InventoryCategorySchema.nullable(),
+  added_at: z.string().nullable().default(null),
   quantity: z.number().min(0),
   unit: z.string().nullable(),
   location: LocationSchema.nullable(),

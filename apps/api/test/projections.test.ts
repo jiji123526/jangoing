@@ -50,6 +50,7 @@ describe("projectInventory", () => {
     expect(inventory[0]).toMatchObject({
       item_name: "milk",
       category: null,
+      added_at: "2026-08-26T10:00:00.000Z",
       quantity: 3,
       nearest_expiration_date: "2026-09-02",
       expiry_state: "fresh",
@@ -104,15 +105,43 @@ describe("projectInventory", () => {
           unit: "bottle",
           location: "pantry",
           expiration_date: "2026-09-04",
+          created_at: "2026-08-28T09:00:00.000Z",
         }),
       ], new Date("2026-08-30T12:00:00Z"))[0],
     ).toMatchObject({
+      added_at: "2026-08-26T10:00:00.000Z",
       quantity: 1,
       unit: "bottle",
       location: "pantry",
       low_threshold: null,
       nearest_expiration_date: "2026-09-04",
     });
+  });
+
+  it("uses the purchase time as the added date for shopping purchases", () => {
+    expect(
+      projectInventory([
+        event({
+          event_type: "item_added_to_buy",
+          item_name: "milk",
+          created_at: "2026-08-25T10:00:00.000Z",
+        }),
+        event({
+          event_type: "shopping_item_purchased",
+          item_name: "milk",
+          quantity: 2,
+          unit: "carton",
+          created_at: "2026-08-29T10:00:00.000Z",
+        }),
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        item_name: "milk",
+        added_at: "2026-08-29T10:00:00.000Z",
+        quantity: 2,
+        unit: "carton",
+      }),
+    ]);
   });
 
   it("persists and clears a category override through inventory edits", () => {

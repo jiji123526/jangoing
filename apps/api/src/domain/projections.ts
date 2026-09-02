@@ -5,6 +5,7 @@ import type {
 } from "@jangoing/contracts";
 
 interface Batch {
+  addedAt: string;
   quantity: number;
   unit: string | null;
   location: InventoryItem["location"];
@@ -72,6 +73,14 @@ function consumeBatches(batches: Batch[], requestedQuantity: number): void {
   }
 }
 
+function earliestBatchAddedAt(batches: Batch[]): string | null {
+  const timestamps = batches
+    .map((batch) => batch.addedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return timestamps[0] ?? null;
+}
+
 export function projectInventory(
   events: EventRecord[],
   today = new Date(),
@@ -106,6 +115,7 @@ export function projectInventory(
         continue;
       }
       state.batches.push({
+        addedAt: event.created_at,
         quantity: event.quantity,
         unit: event.unit ?? null,
         location: event.location ?? "fridge",
@@ -155,6 +165,7 @@ export function projectInventory(
         state.lowThreshold !== nextLowThreshold;
 
       state.batches = [{
+        addedAt: earliestBatchAddedAt(state.batches) ?? event.created_at,
         quantity: nextQuantity,
         unit: event.unit ?? null,
         location: event.location ?? null,
@@ -177,6 +188,7 @@ export function projectInventory(
 
     if (event.event_type === "item_added") {
       state.batches.push({
+        addedAt: event.created_at,
         quantity: event.quantity ?? 1,
         unit: event.unit ?? null,
         location: event.location ?? "fridge",
@@ -229,6 +241,7 @@ export function projectInventory(
         .sort();
       const nearestExpirationDate = expirations[0] ?? null;
       const firstBatch = state.batches[0];
+      const addedAt = earliestBatchAddedAt(state.batches);
       const thresholdUnitMatches =
         state.lowThresholdUnit === null ||
         state.lowThresholdUnit === firstBatch?.unit;
@@ -236,6 +249,7 @@ export function projectInventory(
       return {
         item_name: itemName,
         category: state.category,
+        added_at: addedAt,
         quantity,
         unit: firstBatch?.unit ?? null,
         location: firstBatch?.location ?? null,

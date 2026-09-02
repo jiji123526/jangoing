@@ -2475,9 +2475,16 @@ main#search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-content: space-between;
+  border: 1px solid transparent;
   border-radius: 10px;
   color: #000;
   background: rgba(118, 118, 128, 0.12);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
 }
 
 .analytics-metric svg {
@@ -2501,6 +2508,21 @@ main#search {
   font-size: 15px;
   line-height: 20px;
   letter-spacing: -0.24px;
+}
+
+.analytics-metric:hover {
+  background: rgba(118, 118, 128, 0.18);
+}
+
+.analytics-metric.is-active {
+  border-color: rgba(255, 45, 85, 0.28);
+  background: rgba(255, 45, 85, 0.1);
+  transform: translateY(-1px);
+}
+
+.analytics-metric:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
 }
 
 .analytics-metric.tone-discarded svg {
@@ -3860,8 +3882,26 @@ h1 {
   white-space: nowrap;
 }
 
-.inventory-attention {
+.inventory-item-footer {
+  width: 100%;
   margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inventory-item-added-at {
+  flex: 0 0 auto;
+  color: rgba(60, 60, 67, 0.52);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: -0.08px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.inventory-attention {
   color: #8a5b00;
   font-size: 13px;
   font-weight: 600;

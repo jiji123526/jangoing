@@ -67,6 +67,7 @@ const examples = [
   "We have no milk",
   "Put yogurt on the shopping list",
 ];
+const oldInventoryThresholdDays = 14;
 
 const editableIntents: Intent[] = [
   "add_item",
@@ -275,6 +276,33 @@ function shoppingPurchaseDateLabel(value: string): string {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value))}`;
+}
+
+function inventoryAddedDateLabel(value: string): string {
+  return `Added ${new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value))}`;
+}
+
+function inventoryAgeDays(value: string): number {
+  return Math.max(
+    0,
+    Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000),
+  );
+}
+
+function oldInventoryLabel(value: string): string {
+  const ageDays = inventoryAgeDays(value);
+  if (ageDays === 0) return "Added today";
+  if (ageDays === 1) return "Added yesterday";
+  if (ageDays < 14) return `Added ${ageDays} days ago`;
+  if (ageDays < 60) {
+    const weeks = Math.floor(ageDays / 7);
+    return `Added ${weeks} week${weeks === 1 ? "" : "s"} ago`;
+  }
+  const months = Math.floor(ageDays / 30);
+  return `Added ${months} month${months === 1 ? "" : "s"} ago`;
 }
 
 function shoppingInventoryStatusLabel(item: InventoryItem | undefined): string {
@@ -894,11 +922,20 @@ function InventoryItemRow({
       <div className="inventory-item-copy">
         <strong>{titleCase(item.item_name)}</strong>
         <p>{metadata.join(" · ")}</p>
-        {attention && (
-          <span className={`inventory-attention attention-${item.expiry_state === "expired" ? "urgent" : item.status}`}>
-            {attention}
-          </span>
-        )}
+        <div className="inventory-item-footer">
+          {attention ? (
+            <span className={`inventory-attention attention-${item.expiry_state === "expired" ? "urgent" : item.status}`}>
+              {attention}
+            </span>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          {item.added_at && (
+            <small className="inventory-item-added-at">
+              {inventoryAddedDateLabel(item.added_at)}
+            </small>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -1101,6 +1138,25 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             right.nearest_expiration_date ?? "",
           ),
         )
+        .slice(0, 3),
+    [dashboard.inventory],
+  );
+  const homeOldItems = useMemo(
+    () =>
+      dashboard.inventory
+        .filter(
+          (item) =>
+            item.quantity > 0 &&
+            item.status !== "out" &&
+            item.added_at !== null &&
+            inventoryAgeDays(item.added_at) >= oldInventoryThresholdDays,
+        )
+        .sort((left, right) => {
+          const leftAge = inventoryAgeDays(left.added_at ?? "");
+          const rightAge = inventoryAgeDays(right.added_at ?? "");
+          if (leftAge !== rightAge) return rightAge - leftAge;
+          return left.item_name.localeCompare(right.item_name);
+        })
         .slice(0, 3),
     [dashboard.inventory],
   );
@@ -1850,6 +1906,38 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <strong>{titleCase(item.item_name)}</strong>
                       <small>
                         {expiryLabel(item)} · {quantityLabel(item)}
+                      </small>
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="home-section" aria-labelledby="older-stock-heading">
+            <div className="home-section-heading">
+              <h2 id="older-stock-heading">Older Stock</h2>
+            </div>
+            {loading ? (
+              <LoadingSkeleton
+                variant="rows"
+                rows={2}
+                label="Loading older inventory"
+              />
+            ) : homeOldItems.length === 0 ? (
+              <p className="home-empty">
+                Items that have been here for more than two weeks will appear here.
+              </p>
+            ) : (
+              <div className="home-waste-list">
+                {homeOldItems.map((item) => (
+                  <a href="/inventory" key={item.item_name}>
+                    <HomeArtwork itemName={item.item_name} />
+                    <span className="home-row-copy">
+                      <strong>{titleCase(item.item_name)}</strong>
+                      <small>
+                        {item.added_at ? oldInventoryLabel(item.added_at) : "Added date unavailable"} · {quantityLabel(item)}
                       </small>
                     </span>
                     <ChevronRight size={18} aria-hidden="true" />

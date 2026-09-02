@@ -94,7 +94,15 @@ function inventorySearchValues(item: InventoryItem): string[] {
     item.location ?? "",
     item.unit ?? "",
     item.nearest_expiration_date ?? "",
+    item.added_at ?? "",
   ];
+}
+
+function inventoryAddedDateLabel(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function shoppingSearchValues(item: ShoppingListItem): string[] {
@@ -116,6 +124,7 @@ function inventoryMetadata(item: InventoryItem): string {
     item.status === "out" ? "Out of stock" : titleCase(item.status),
     amount,
     item.location ? titleCase(item.location) : null,
+    item.added_at ? `Added ${inventoryAddedDateLabel(item.added_at)}` : null,
   ]
     .filter((part): part is string => part !== null)
     .join(" · ");
