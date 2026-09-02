@@ -240,6 +240,32 @@ code. Preserve annotation and inference research data separately.
 The migration must never assign global data to whichever user happens to sign
 in first without an explicit configured email or Google subject.
 
+### Selected Legacy Policy and Tooling
+
+Selected on 2026-09-02:
+
+- create the bootstrap household as `Jiwoo's Home`;
+- assign every null-household consumer event to that household;
+- leave legacy event `created_by_user_id` null because the original actor is
+  not provable;
+- assign only null-household inference logs whose source is exactly `web` to
+  the household and owner;
+- leave generated, annotation-review, and every non-`web` inference source
+  unassigned;
+- copy legacy global app-state values into the household app-state table
+  without deleting the original rollback copy.
+
+`apps/api/scripts/backfill-bootstrap-household.ts` implements this policy. It is
+remote-only and dry-run by default. Before applying, it requires all household
+tables, exactly one signed-in user matching the supplied email, no existing
+membership for that user, and no existing household named `Jiwoo's Home`.
+Application requires both `--apply` and an exact
+`--confirm "Jiwoo's Home"`. It verifies assigned row counts after the D1 file
+transaction.
+
+The tool has not been run. The owner must first complete Google login so the
+Worker creates a user linked to the stable Google `sub`.
+
 ## Web Authentication
 
 Add Auth.js to `apps/web` with the Google provider.
@@ -270,6 +296,25 @@ The app-token route should:
 
 The browser may cache the app token in memory and refresh it through the
 same-origin endpoint before expiration.
+
+### Web Authentication Phase Status
+
+Implemented on 2026-09-02:
+
+- Auth.js v5 uses Google OAuth with encrypted JWT sessions;
+- the Google `sub` is retained in the server-readable Auth.js token and is not
+  added to the public browser session object;
+- `/api/app-token` requires the Auth.js session and issues a ten-minute HS256
+  Jangoing token with the Worker issuer and audience;
+- the API client caches the app token only in module memory, refreshes before
+  expiry, and retries one Worker `401`;
+- signed-out requests retain temporary anonymous compatibility while
+  `AUTH_REQUIRED=false`;
+- token signing has a test for HS256 signature, claim shape, and ten-minute
+  expiry.
+
+Google OAuth credentials, production secrets, login UI, route gating, and the
+optional private-MVP allowlist are not configured or implemented yet.
 
 ## Worker Authentication
 
@@ -632,9 +677,9 @@ Production needs the equivalent Vercel origin and callback.
 Expected web secrets:
 
 ```text
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
 AUTH_SECRET
+AUTH_GOOGLE_ID
+AUTH_GOOGLE_SECRET
 APP_JWT_SECRET
 APP_JWT_ISSUER
 APP_JWT_AUDIENCE

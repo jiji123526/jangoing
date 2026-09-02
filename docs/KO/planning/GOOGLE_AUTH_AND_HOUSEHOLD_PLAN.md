@@ -236,6 +236,31 @@ research data는 별도로 보존한다.
 명시적으로 설정한 email 또는 Google subject 없이, 우연히 처음 login한 user에게
 global data를 자동 할당하면 안 된다.
 
+### 선택한 Legacy Policy 및 Tooling
+
+2026-09-02 선택:
+
+- Bootstrap household를 `Jiwoo's Home`으로 생성한다.
+- `household_id`가 null인 모든 consumer event를 해당 household에 할당한다.
+- Original actor를 증명할 수 없으므로 legacy event의 `created_by_user_id`는 null로
+  유지한다.
+- `household_id`가 null이고 source가 정확히 `web`인 inference log만 household와
+  owner에게 할당한다.
+- Generated, annotation-review 및 모든 non-`web` inference source는 할당하지
+  않는다.
+- 기존 global app-state value를 삭제하지 않고 rollback copy로 유지하면서
+  household app-state table에 복사한다.
+
+`apps/api/scripts/backfill-bootstrap-household.ts`가 이 policy를 구현한다. 이
+command는 remote-only이며 기본 동작은 dry-run이다. Apply 전 모든 household
+table, supplied email과 일치하는 signed-in user 정확히 한 명, 해당 user의 기존
+membership 없음, `Jiwoo's Home`이라는 기존 household 없음 조건을 확인한다.
+실제 적용에는 `--apply`와 정확한 `--confirm "Jiwoo's Home"`이 모두 필요하다.
+D1 file transaction 이후 할당한 row count도 검증한다.
+
+Tool은 아직 실행하지 않았다. 먼저 owner가 Google login을 완료해 Worker가 stable
+Google `sub`와 연결된 user를 생성해야 한다.
+
 ## Web Authentication
 
 `apps/web`에 Google provider를 사용하는 Auth.js를 추가한다.
@@ -266,6 +291,24 @@ App-token route는 다음을 수행한다.
 
 Browser는 app token을 memory에 cache하고 expiration 전에 same-origin endpoint를
 통해 갱신할 수 있다.
+
+### Web Authentication 단계 상태
+
+2026-09-02 구현 완료:
+
+- Auth.js v5가 encrypted JWT session과 Google OAuth를 사용한다.
+- Google `sub`는 server가 읽는 Auth.js token에 유지하며 public browser session
+  object에는 추가하지 않는다.
+- `/api/app-token`은 Auth.js session을 요구하고 Worker issuer와 audience를 가진
+  10분 lifetime HS256 Jangoing token을 발급한다.
+- API client는 app token을 module memory에만 cache하고 expiry 전에 refresh하며
+  Worker `401`을 한 번 retry한다.
+- `AUTH_REQUIRED=false` 동안 signed-out request는 temporary anonymous
+  compatibility를 유지한다.
+- Token signing test가 HS256 signature, claim shape, 10분 expiry를 검증한다.
+
+Google OAuth credential, production secret, login UI, route gating, optional
+private-MVP allowlist는 아직 configure 또는 구현하지 않았다.
 
 ## Worker Authentication
 
@@ -311,7 +354,6 @@ Request body 또는 query parameter의 `user_id`, `household_id`, email을 autho
 credential이면 `invalid_token`, authenticated user에게 membership이 없으면
 `household_required`를 반환한다.
 
-이 단계에서는 resolved household를 아직 event query에 전달하지 않는다.
 Resolved identity와 household가 이제 consumer event, inference, fridge-state
 access를 scope한다. Remote schema migration, legacy-data backfill, Worker secret,
 web token issuer가 준비될 때까지 `AUTH_REQUIRED`는 `false`로 유지한다. App JWT
@@ -621,9 +663,9 @@ Production에는 대응되는 Vercel origin과 callback을 추가한다.
 예상 web secret:
 
 ```text
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
 AUTH_SECRET
+AUTH_GOOGLE_ID
+AUTH_GOOGLE_SECRET
 APP_JWT_SECRET
 APP_JWT_ISSUER
 APP_JWT_AUDIENCE

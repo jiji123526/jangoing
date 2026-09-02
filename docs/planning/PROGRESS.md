@@ -2,6 +2,39 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Google session and bootstrap backfill tooling implemented
+
+### Completed
+
+- Added Auth.js v5 Google OAuth with encrypted JWT sessions.
+- Kept the stable Google subject in the server-readable Auth.js token instead
+  of exposing it in the browser session response.
+- Added a same-origin endpoint that issues ten-minute Worker-compatible app
+  JWTs.
+- Added in-memory browser token caching, pre-expiry refresh, and one-time
+  authentication retry to the Worker API client.
+- Added web token signature and claim tests.
+- Recorded `Jiwoo's Home` as the selected bootstrap household.
+- Added a remote-only, dry-run-first legacy backfill command that assigns all
+  legacy events and only `web` inference logs while preserving research data.
+- Added exact owner, membership, household-name, schema, confirmation, and
+  post-transaction count safeguards to the backfill.
+
+### Verification
+
+- `npm run test`
+- `npm run typecheck`
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+- `git diff --check`
+
+### Deployment
+
+- Google credentials and production secrets were not configured.
+- Remote migrations, Worker deployment, first login, and the backfill were not
+  executed.
+- Login/onboarding UI and `AUTH_REQUIRED=true` remain future phases.
+
 ## 2026-09-02 - Consumer data scoped by household
 
 ### Completed

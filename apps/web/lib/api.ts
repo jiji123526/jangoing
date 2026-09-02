@@ -71,18 +71,124 @@ function localTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
-async function apiRequest(path: string, init?: RequestInit): Promise<unknown> {
+interface CachedAppToken {
+  token: string;
+  expiresAtMs: number;
+}
+
+let cachedAppToken: CachedAppToken | null = null;
+let pendingAppToken: Promise<string | null> | null = null;
+let signedOutRetryAfterMs = 0;
+
+function pathUsesAppToken(path: string): boolean {
+  return (
+    path.startsWith("/households/") ||
+    path === "/commands/interpret" ||
+    path === "/inferences/outcome" ||
+    path === "/events" ||
+    path.startsWith("/events?") ||
+    path === "/inventory" ||
+    path.startsWith("/inventory/") ||
+    path === "/shopping-list" ||
+    path.startsWith("/shopping-list/") ||
+    path === "/fridge-setup" ||
+    path.startsWith("/fridge-setup/")
+  );
+}
+
+function invalidateAppToken(): void {
+  cachedAppToken = null;
+  signedOutRetryAfterMs = 0;
+}
+
+async function requestAppToken(forceRefresh = false): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const now = Date.now();
+
+  if (
+    !forceRefresh &&
+    cachedAppToken &&
+    cachedAppToken.expiresAtMs - 30_000 > now
+  ) {
+    return cachedAppToken.token;
+  }
+  if (!forceRefresh && signedOutRetryAfterMs > now) return null;
+  if (!forceRefresh && pendingAppToken) return pendingAppToken;
+
+  const request = (async () => {
+    const response = await fetch("/api/app-token", {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (response.status === 401) {
+      cachedAppToken = null;
+      signedOutRetryAfterMs = Date.now() + 10_000;
+      return null;
+    }
+
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message =
+        typeof body === "object" &&
+        body !== null &&
+        "error" in body &&
+        typeof body.error === "string"
+          ? body.error
+          : "Could not issue app token";
+      throw new Error(message);
+    }
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("token" in body) ||
+      typeof body.token !== "string" ||
+      !("expires_at" in body) ||
+      typeof body.expires_at !== "string"
+    ) {
+      throw new Error("Invalid app token response");
+    }
+
+    const expiresAtMs = Date.parse(body.expires_at);
+    if (!Number.isFinite(expiresAtMs)) {
+      throw new Error("Invalid app token expiration");
+    }
+    cachedAppToken = { token: body.token, expiresAtMs };
+    signedOutRetryAfterMs = 0;
+    return body.token;
+  })();
+
+  pendingAppToken = request;
+  try {
+    return await request;
+  } finally {
+    if (pendingAppToken === request) pendingAppToken = null;
+  }
+}
+
+async function apiRequest(
+  path: string,
+  init?: RequestInit,
+  retryAuthentication = true,
+): Promise<unknown> {
+  const token = pathUsesAppToken(path)
+    ? await requestAppToken(!retryAuthentication)
+    : null;
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
 
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401 && token && retryAuthentication) {
+      invalidateAppToken();
+      return apiRequest(path, init, false);
+    }
     const message =
       typeof body === "object" &&
       body !== null &&
