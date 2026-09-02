@@ -31,12 +31,12 @@ Repository root의 `README.md`는 프로젝트 진입점이다. 자세한 계획
 
 ### Phase 2: Annotation 수행
 
-8. [Production annotation guide](../annotation/ANNOTATION_GUIDE_KO.md)
+8. [Production annotation guide](./annotation/ANNOTATION_GUIDE.md)
    queue 목적, annotation UI 사용법, end-to-end review workflow
-9. [Annotation conventions v4](../annotation/ANNOTATION_CONVENTIONS_KO.md)
+9. [Annotation conventions v4](./annotation/ANNOTATION_CONVENTIONS.md)
    authoritative intent, phrase family, entity span, normalized value,
    ambiguity rule. Annotation 중 계속 열어 두는 기준 문서
-10. [Relevance candidate dataset](../annotation/RELEVANCE_CANDIDATES_V1_KO.md)
+10. [Relevance candidate dataset](./annotation/RELEVANCE_CANDIDATES_V1.md)
     actionable, contextual preference, domain non-actionable, unrelated
     candidate를 어떻게 만들고 검수해야 하는지 설명
 11. [Conversation data collection](./decisions/CONVERSATION_DATA_COLLECTION_DECISION.md)
@@ -51,35 +51,35 @@ Repository root의 `README.md`는 프로젝트 진입점이다. 자세한 계획
 
 ### Phase 3: 모델 구축과 평가
 
-14. [ML and NLP concepts](../ml/ML_NLP_CONCEPTS_KO.md)
+14. [ML and NLP concepts](./ml/ML_NLP_CONCEPTS.md)
     intent, slot, split, leakage, baseline, evaluation, ASR에 대한 입문 설명
-15. [Text dataset design v1](../ml/TEXT_DATASET_DESIGN_V1_KO.md)
+15. [Text dataset design v1](./ml/TEXT_DATASET_DESIGN_V1.md)
     현재 candidate inventory, task 분해, reviewed-data 목표, source policy,
     split rule, English text baseline용 구현 gap
-16. [Synthetic dataset design](../ml/SYNTHETIC_V1_KO.md)
+16. [Synthetic dataset design](./ml/SYNTHETIC_V1.md)
     `synthetic-v1`의 구조, 생성 방식, variation 전략, validation, 한계
-17. [Open dataset research](../ml/OPEN_DATASETS_KO.md)
+17. [Open dataset research](./ml/OPEN_DATASETS.md)
     검토 가능한 public dataset과 안전하게 도입할 수 있는 범위
-18. [Open Food Facts and brand normalization strategy](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)
+18. [Open Food Facts and brand normalization strategy](./ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)
     `grocery-v2` catalog, brand/item/category relation, external catalog
     safeguard 계획
-19. [Model evaluation standard](../../docs/ml/MODEL_EVALUATION.md)
+19. [Model evaluation standard](./ml/MODEL_EVALUATION.md)
     frozen split, exact-match metric, leakage check, slice, production gate
 20. [ML quick start](../../ml/README.md)
     dataset 검증, baseline 학습, 평가 실행 명령
-21. [Alignment and verifier training](../ml/ALIGNMENT_AND_VERIFIER_TRAINING_KO.md)
+21. [Alignment and verifier training](./ml/ALIGNMENT_AND_VERIFIER_TRAINING.md)
     SFT, PPO, DPO, GRPO, context verifier 한계에 대한 고급 노트
 
 ### Phase 4: 이후 확장 검토
 
-22. [Questions for a language engineer](../planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
+22. [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
     annotation, ontology, queue, model feeding 결정에 대해 외부 리뷰를 요청할 질문
-23. [Voice agent pipeline and Raspberry Pi plan](../planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
+23. [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
     ASR/NLU/TTS 아키텍처, latency, reliability, Raspberry Pi 역할
-24. [Single-user personalized ASR strategy](../planning/PERSONALIZED_ASR_STRATEGY_KO.md)
+24. [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY.md)
     personal vocabulary, Korean-English code-switching, correction feedback,
     fine-tuning gate
-25. [Item media and vision recognition plan](../planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
+25. [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
     artwork-first item photo, storage, privacy, eventual vision recognition 계획
 26. [Apple Music UI kit design guide](../design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md)
     consumer page용 screen structure, component dimension, visual rule
@@ -91,26 +91,26 @@ Repository root의 `README.md`는 프로젝트 진입점이다. 자세한 계획
 - [Product and model plan](./planning/PLAN.md)
 - [Current action items](./planning/ACTION_ITEMS.md)
 - [Progress log](../planning/PROGRESS.md)
-- [Item media and vision recognition plan](../planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
-- [Questions for a language engineer](../planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
-- [Voice agent pipeline and Raspberry Pi plan](../planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
-- [Single-user personalized ASR strategy](../planning/PERSONALIZED_ASR_STRATEGY_KO.md)
+- [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
+- [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
+- [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
+- [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY.md)
 
 ### Annotation
 
-- [Production annotation guide](../annotation/ANNOTATION_GUIDE_KO.md)
-- [Annotation conventions v4](../annotation/ANNOTATION_CONVENTIONS_KO.md)
-- [Relevance candidate dataset](../annotation/RELEVANCE_CANDIDATES_V1_KO.md)
+- [Production annotation guide](./annotation/ANNOTATION_GUIDE.md)
+- [Annotation conventions v4](./annotation/ANNOTATION_CONVENTIONS.md)
+- [Relevance candidate dataset](./annotation/RELEVANCE_CANDIDATES_V1.md)
 
 ### ML and Data
 
-- [ML and NLP concepts](../ml/ML_NLP_CONCEPTS_KO.md)
-- [Text dataset design v1](../ml/TEXT_DATASET_DESIGN_V1_KO.md)
-- [SFT, PPO, DPO, GRPO and verifier training notes](../ml/ALIGNMENT_AND_VERIFIER_TRAINING_KO.md)
-- [Model evaluation standard](../../docs/ml/MODEL_EVALUATION.md)
-- [Synthetic dataset design](../ml/SYNTHETIC_V1_KO.md)
-- [Open dataset research](../ml/OPEN_DATASETS_KO.md)
-- [Open Food Facts and brand normalization strategy](../ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)
+- [ML and NLP concepts](./ml/ML_NLP_CONCEPTS.md)
+- [Text dataset design v1](./ml/TEXT_DATASET_DESIGN_V1.md)
+- [SFT, PPO, DPO, GRPO and verifier training notes](./ml/ALIGNMENT_AND_VERIFIER_TRAINING.md)
+- [Model evaluation standard](./ml/MODEL_EVALUATION.md)
+- [Synthetic dataset design](./ml/SYNTHETIC_V1.md)
+- [Open dataset research](./ml/OPEN_DATASETS.md)
+- [Open Food Facts and brand normalization strategy](./ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)
 
 ### Decisions
 

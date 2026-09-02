@@ -34,12 +34,12 @@ phases below and stop after Phase 2 if the immediate task is annotation.
 
 ### Phase 2: Perform Annotation
 
-8. [Production annotation guide](../../docs/annotation/ANNOTATION_GUIDE_KO.md) — Queue
+8. [Production annotation guide](./annotation/ANNOTATION_GUIDE.md) — Queue
    purposes, annotation UI usage, and the end-to-end review workflow.
-9. [Annotation conventions v4](../../docs/annotation/ANNOTATION_CONVENTIONS_KO.md) —
+9. [Annotation conventions v4](./annotation/ANNOTATION_CONVENTIONS.md) —
    Authoritative intent, phrase-family, entity-span, normalized-value, and
    ambiguity rules. Keep this open while annotating.
-10. [Relevance candidate dataset](../../docs/annotation/RELEVANCE_CANDIDATES_V1_KO.md) —
+10. [Relevance candidate dataset](./annotation/RELEVANCE_CANDIDATES_V1.md) —
     How actionable, contextual preference, domain non-actionable, and unrelated
     candidates were generated and should be reviewed.
 11. [Conversation data collection](./decisions/CONVERSATION_DATA_COLLECTION_DECISION.md)
@@ -54,38 +54,38 @@ For the current annotation milestone, reading through this phase is sufficient.
 
 ### Phase 3: Build and Evaluate Models
 
-14. [ML and NLP concepts](../../docs/ml/ML_NLP_CONCEPTS_KO.md) — Beginner-oriented
+14. [ML and NLP concepts](./ml/ML_NLP_CONCEPTS.md) — Beginner-oriented
     explanation of intents, slots, splits, leakage, baselines, evaluation, and
     ASR.
-15. [Text dataset design v1](../../docs/ml/TEXT_DATASET_DESIGN_V1_KO.md) — Current
+15. [Text dataset design v1](./ml/TEXT_DATASET_DESIGN_V1.md) — Current
     candidate inventory, task decomposition, reviewed-data targets, source
     policy, split rules, and implementation gaps for the English text baseline.
-16. [Synthetic dataset design](../../docs/ml/SYNTHETIC_V1_KO.md) — Structure,
+16. [Synthetic dataset design](./ml/SYNTHETIC_V1.md) — Structure,
     generation, variation strategy, validation, and limitations of
     `synthetic-v1`.
-17. [Open dataset research](../../docs/ml/OPEN_DATASETS_KO.md) — Candidate public
+17. [Open dataset research](./ml/OPEN_DATASETS.md) — Candidate public
     datasets and which portions can be adopted safely.
-18. [Open Food Facts and brand normalization strategy](../../docs/ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)
+18. [Open Food Facts and brand normalization strategy](./ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)
     — Planned `grocery-v2` catalog, brand/item/category relationships, and
     external catalog safeguards.
-19. [Model evaluation standard](../../docs/ml/MODEL_EVALUATION.md) — Frozen splits,
+19. [Model evaluation standard](./ml/MODEL_EVALUATION.md) — Frozen splits,
     exact-match metrics, leakage checks, slices, and production gates.
 20. [ML quick start](../../ml/README.md) — Commands for validating datasets,
     training baselines, and running evaluations.
-21. [Alignment and verifier training](../../docs/ml/ALIGNMENT_AND_VERIFIER_TRAINING_KO.md)
+21. [Alignment and verifier training](./ml/ALIGNMENT_AND_VERIFIER_TRAINING.md)
     — Advanced notes on SFT, PPO, DPO, GRPO, and context-verifier boundaries.
 
 ### Phase 4: Review Future Extensions
 
-22. [Questions for a language engineer](../../docs/planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
+22. [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
     — External review questions for annotation, ontology, queue, and
     model-feeding decisions.
-23. [Voice agent pipeline and Raspberry Pi plan](../../docs/planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
+23. [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
     — ASR/NLU/TTS architecture, latency, reliability, and Raspberry Pi roles.
-24. [Single-user personalized ASR strategy](../../docs/planning/PERSONALIZED_ASR_STRATEGY_KO.md)
+24. [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY.md)
     — Personal vocabulary, Korean-English code-switching, correction feedback,
     and fine-tuning gates.
-25. [Item media and vision recognition plan](../../docs/planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
+25. [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
     — Artwork-first item photos, storage, privacy, and eventual vision
     recognition.
 26. [Apple Music UI kit design guide](../../docs/design/APPLE_MUSIC_UI_KIT_GUIDE_KO.md) —
@@ -99,26 +99,26 @@ For the current annotation milestone, reading through this phase is sufficient.
 - [Product and model plan](./planning/PLAN.md)
 - [Current action items](./planning/ACTION_ITEMS.md)
 - [Progress log](../planning/PROGRESS.md)
-- [Item media and vision recognition plan](../../docs/planning/ITEM_MEDIA_AND_VISION_PLAN_KO.md)
-- [Questions for a language engineer](../../docs/planning/LANGUAGE_ENGINEER_QUESTIONS_KO.md)
-- [Voice agent pipeline and Raspberry Pi plan](../../docs/planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI_KO.md)
-- [Single-user personalized ASR strategy](../../docs/planning/PERSONALIZED_ASR_STRATEGY_KO.md)
+- [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
+- [Questions for a language engineer](./planning/LANGUAGE_ENGINEER_QUESTIONS.md)
+- [Voice agent pipeline and Raspberry Pi plan](./planning/VOICE_AGENT_PIPELINE_AND_RASPBERRY_PI.md)
+- [Single-user personalized ASR strategy](./planning/PERSONALIZED_ASR_STRATEGY.md)
 
 ### Annotation
 
-- [Production annotation guide](../../docs/annotation/ANNOTATION_GUIDE_KO.md)
-- [Annotation conventions v4](../../docs/annotation/ANNOTATION_CONVENTIONS_KO.md)
-- [Relevance candidate dataset](../../docs/annotation/RELEVANCE_CANDIDATES_V1_KO.md)
+- [Production annotation guide](./annotation/ANNOTATION_GUIDE.md)
+- [Annotation conventions v4](./annotation/ANNOTATION_CONVENTIONS.md)
+- [Relevance candidate dataset](./annotation/RELEVANCE_CANDIDATES_V1.md)
 
 ### ML and Data
 
-- [ML and NLP concepts](../../docs/ml/ML_NLP_CONCEPTS_KO.md)
-- [Text dataset design v1](../../docs/ml/TEXT_DATASET_DESIGN_V1_KO.md)
-- [SFT, PPO, DPO, GRPO and verifier training notes](../../docs/ml/ALIGNMENT_AND_VERIFIER_TRAINING_KO.md)
-- [Model evaluation standard](../../docs/ml/MODEL_EVALUATION.md)
-- [Synthetic dataset design](../../docs/ml/SYNTHETIC_V1_KO.md)
-- [Open dataset research](../../docs/ml/OPEN_DATASETS_KO.md)
-- [Open Food Facts and brand normalization strategy](../../docs/ml/OPEN_FOOD_FACTS_BRAND_STRATEGY_KO.md)
+- [ML and NLP concepts](./ml/ML_NLP_CONCEPTS.md)
+- [Text dataset design v1](./ml/TEXT_DATASET_DESIGN_V1.md)
+- [SFT, PPO, DPO, GRPO and verifier training notes](./ml/ALIGNMENT_AND_VERIFIER_TRAINING.md)
+- [Model evaluation standard](./ml/MODEL_EVALUATION.md)
+- [Synthetic dataset design](./ml/SYNTHETIC_V1.md)
+- [Open dataset research](./ml/OPEN_DATASETS.md)
+- [Open Food Facts and brand normalization strategy](./ml/OPEN_FOOD_FACTS_BRAND_STRATEGY.md)
 
 ### Decisions
 

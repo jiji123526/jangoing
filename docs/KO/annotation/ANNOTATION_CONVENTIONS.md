@@ -1,0 +1,745 @@
+# Annotation Convention v4
+
+## 문서 목적
+
+이 문서는 `/annotate`에서 영어 대화 데이터를 라벨링할 때 사용하는 **정답 결정
+규칙**이다. 화면 조작법은 [ANNOTATION_GUIDE_KO.md](./ANNOTATION_GUIDE_KO.md)를
+참고한다. 같은 문장을 누가
+라벨링하더라도 relevance, intent, entity span, normalized value, 데이터 용도가 최대한 같아지는
+것이 이 문서의 목표다.
+
+- convention version: `annotation-v4`
+- 기본 언어/locale: 영어, `en-US`
+- 적용 범위: 실제 사용자 표현과 사람이 검토하는 영어 문장
+- 우선순위: 원문 의미 > 대화 맥락 > parser 예측
+
+현재 화면에는 이전 대화 맥락을 함께 저장하는 필드가 없다. 따라서 **현재 문장만으로
+안전하게 판단할 수 없는 경우 추측하지 않고 `needs_clarification`을 선택한다.**
+
+## 한 문장을 처리하는 순서
+
+항상 다음 순서로 판단한다.
+
+1. 원문을 수정하거나 문법을 교정하지 않고 그대로 입력한다.
+2. 발화 전체의 relevance를 선택한다.
+3. `actionable`이면 화자가 원하는 독립 행동마다 action을 하나 만든다.
+4. 각 action의 intent를 선택한다.
+5. 해당 action에 필요한 원문 표현만 entity로 연결한다.
+6. 각 entity를 canonical value로 정규화한다.
+7. action별 문장 구조를 나타내는 phrase family를 지정한다.
+8. 발화 전체가 독립 평가용인지 학습용인지 선택한다.
+9. 규칙으로 해결되지 않은 판단만 notes에 기록한다.
+
+`contextual_preference`, `domain_non_actionable`, `unrelated`를 선택한 경우에는
+action, intent, entity, phrase family를 만들지 않고 dataset metadata 단계로 이동한다.
+
+## Assistant draft 사용 규칙
+
+- `Draft with AI`는 annotator를 빠르게 돕는 보조 기능이지 정답 생성기가 아니다.
+- AI draft를 적용했더라도 intent, entity span, normalized value, phrase family는
+  사람이 최종 책임을 지고 다시 확인한다.
+- AI가 원문에 없는 span을 상상했거나, 애매한 값을 과하게 정규화했거나, 잘못된
+  phrase family를 골랐다고 판단되면 그대로 저장하지 말고 수정한다.
+- OpenAI key가 없으면 draft는 parser fallback으로 생성될 수 있다. 이 경우에도
+  라벨 품질 기준은 동일하다.
+
+## 원문 보존 규칙
+
+- 대소문자, 축약형, 오타, 구두점은 사용자가 입력한 그대로 보존한다.
+- `We're out of milk`를 `We are out of milk`로 고치지 않는다.
+- 하나의 입력에는 하나의 발화만 넣는다.
+- 개인 식별 정보, 비밀번호, 결제 정보 등 민감한 내용은 입력하지 않는다.
+- 완전히 같은 문장을 다시 입력하지 않는다. 단, 의미 있는 철자 오류나 표현 차이는
+  별도 문장으로 허용한다.
+
+## Relevance convention
+
+Relevance는 개별 action보다 먼저, **발화 전체가 현재 시스템에 어떤 종류의 신호인지**
+판단한다.
+
+| Relevance | 선택 기준 | 예시 |
+|---|---|---|
+| `actionable` | 실행·조회·상태 갱신·명확화가 필요한 요청 또는 보고 | `We're out of milk.`, `Find the cheapest milk.` |
+| `contextual_preference` | 즉시 action은 없지만 향후 추천에 유용한 선호·목표·생활 맥락 | `I love oat milk.`, `I'm trying to eat less sugar.` |
+| `domain_non_actionable` | 음식·장보기·요리를 언급하지만 action이나 지속적 선호 정보가 아님 | `Milk is expensive these days.`, `We had pasta yesterday.` |
+| `unrelated` | 주방·식품·가정 맥락과 무관함 | `I'm exhausted today.`, `What's the weather?` |
+
+- `needs_clarification`과 `unknown`도 화자가 시스템에 무엇인가를 요구한다면
+  relevance는 `actionable`이다.
+- 지원하지 않는 명확한 요청도 `actionable`이다.
+  예: `Find the cheapest milk brand.` -> `actionable` + `unknown > unsupported_request`
+- 단순히 음식 단어가 있다는 이유로 `actionable`을 선택하지 않는다.
+- non-actionable relevance에는 빈 action list를 저장한다. 신규 annotation에서는
+  legacy `preference_statement`, `unrelated_statement`, `unrelated_question` action을
+  만들지 않는다.
+
+## Intent convention
+
+Intent는 relevance가 `actionable`일 때만 선택하며, 키워드가 아니라 **화자의 목표**로
+결정한다. 한 문장에 여러 독립 행동이
+명시된 경우 action을 추가하고 각 action에 intent와 entity를 연결한다. 여러 절이 있어도
+실제로는 하나의 목표라면 action을 불필요하게 나누지 않는다.
+
+예를 들어 `Add milk to the list and throw away the spinach`는 두 action이다. 반면
+`Add milk and eggs to the list`는 하나의 쇼핑-list 행동으로 볼 수 있다. 현재 normalized
+object가 동일 label 여러 개를 완전히 표현하지 못하는 경우에는 같은 intent action을
+항목별로 나누고 notes에 이유를 남긴다.
+
+| Intent | 선택 기준 | 예시 |
+|---|---|---|
+| `add_item` | 물건이 들어왔거나 재고에 추가하라는 요청 | `Add two cartons of milk.` |
+| `update_expiry` | 기존 item의 유통기한 정보를 추가·수정·명시하는 요청/보고 | `The milk expires next Friday.` |
+| `set_low_threshold` | item이 Low가 되는 수량 기준을 설정·수정하거나 해당 시점 알림을 요청 | `Tell me when milk reaches one carton.` |
+| `consume_item` | 먹거나 사용해서 재고가 줄었다는 보고 | `I used one egg.` |
+| `mark_low` | 아직 남아 있지만 부족하거나 거의 소진됨 | `We're low on eggs.` |
+| `mark_out` | 현재 재고가 0이라는 상태를 확정적으로 보고 | `We have no milk.` |
+| `throw_away` | 버렸거나 폐기하라는 요청 | `Throw away the spinach.` |
+| `add_to_buy` | 쇼핑 목록에 추가하라는 명시적 요청 | `Put yogurt on the shopping list.` |
+| `query_inventory` | 보유 여부·수량·위치·유통기한을 묻는 요청 | `Do we have milk?` |
+| `needs_clarification` | 도메인 관련성이 있지만 안전한 행동이나 대상이 불명확함 | `Put that on the list.` |
+| `unknown` | 행동 의미는 분명하지만 현재 지원하지 않는 목표 | `Find the cheapest milk brand.` |
+
+### 부족함을 말하는 표현
+
+- `We're low on milk`처럼 조금 남았다는 의미이면 `mark_low`다.
+- `We only have two cartons left`처럼 **현재 남은 수량을 보고**하면 `mark_low`다.
+- `Tell me when two cartons are left`처럼 **미래의 Low 판정 기준을 설정**하면
+  `set_low_threshold`다.
+- `Milk is low at two cartons`처럼 지속적인 기준을 말하면 `set_low_threshold`지만,
+  단순히 현재 두 carton만 남았다는 문맥이면 `mark_low`다.
+- `We're out of milk`, `We have no milk`, `There is no yogurt left`처럼
+  **현재 재고가 0이라고 직접 말하면** `mark_out`이다.
+- 쇼핑 목록 추가가 **명시되지 않았다면** `mark_out`을 `add_to_buy`로 바꾸지 않는다.
+- `We're out of milk, add it to the list`는 두 action으로 나눈다.
+  Action 1은 `mark_out`, Action 2는 `add_to_buy`다.
+- `We're out of drinks`도 같은 규칙을 적용하며 `drinks`는 `CATEGORY`다.
+
+### `add_item`과 `update_expiry`
+
+- `Add milk expiring next Friday`처럼 **item을 새로 넣는 행동**이 핵심이면 `add_item`이다.
+- `The milk expires next Friday`, `Set the yogurt expiry to Friday`처럼
+  **기존 item의 expiry metadata를 붙이거나 고치는 행동**이 핵심이면 `update_expiry`다.
+- inventory 추가와 expiry 갱신이 한 문장에 둘 다 독립적으로 있으면 action을 나눈다.
+
+### `unknown`과 `needs_clarification`
+
+- 무엇을 해야 할지 또는 무엇을 가리키는지 모르는 actionable 발화:
+  `needs_clarification`
+- 의미는 분명하지만 현재 capability 밖인 actionable 요청: `unknown`
+- preference, domain non-actionable, unrelated 발화는 intent가 아니라 relevance로
+  끝내며 action을 만들지 않는다.
+- annotator가 개인적으로 합리적인 행동을 예상할 수 있다는 이유만으로 intent를
+  추론하지 않는다.
+
+## Entity convention
+
+문장에 등장한 모든 명사를 표시하는 작업이 아니다. **현재 선택된 action**을 실행하거나
+평가할 때 필요한 정보만 그 action에 표시한다. non-actionable relevance에는 entity를
+만들지 않는다. entity가 없는 `unknown`이나 `needs_clarification` action도 정상적인
+annotation이다.
+
+| Label | 선택 기준 | 원문 예 | normalized value 예 |
+|---|---|---|---|
+| `ITEM` | 특정 식품·제품 | `Coke`, `milk`, `apples` | `coke`, `milk`, `apple` |
+| `ITEM_CONDITION` | 기존 데이터 호환용 legacy label. 신규 기본 라벨링에는 사용하지 않음 | - | - |
+| `CATEGORY` | 여러 상품을 포괄하는 상위 개념 | `drinks`, `snacks`, `fruit` | `beverage`, `snack`, `fruit` |
+| `QUANTITY` | 개수나 양의 숫자 표현 | `two`, `a couple` | `2` |
+| `UNIT` | 수량의 측정·포장 단위 | `cartons`, `bottles` | `carton`, `bottle` |
+| `LOCATION` | 현재 지원하는 보관 장소 | `fridge`, `freezer`, `pantry` | `fridge`, `freezer`, `pantry` |
+| `EXPIRY_DATE` | 유통기한을 나타내는 날짜 표현 | `tomorrow`, `2026-09-01` | 가능하면 `YYYY-MM-DD` |
+
+### Span 경계
+
+- 원문에 실제로 보이는 연속된 문자만 선택한다.
+- 의미 없는 앞뒤 공백, 관사, 소유격, 구두점은 제외한다.
+- 수량과 단위는 합치지 않고 따로 선택한다: `[two] [cartons] of [milk]`.
+- `set_low_threshold`에서는 threshold로 지정된 숫자를 `QUANTITY`로 선택한다.
+  예: `Tell me when [milk] reaches [one] [carton].`
+- `I have six eggs; alert me at two`처럼 현재 수량과 threshold가 함께 있으면
+  threshold action 실행에 필요한 `two`만 `QUANTITY`로 선택한다. 현재 수량도 별도
+  action으로 라벨링해야 하는 명시적 재고 보고가 함께 있을 때만 action을 분리한다.
+- 복합 상품명은 의미 단위 전체를 선택한다: `[peanut butter]`.
+- 수식어가 상품 정체성의 일부면 포함한다: `[oat milk]`, `[diet Coke]`,
+  `[frozen blueberries]`. 보관·구매·검색·추천에서 별도 상품으로 구별해야 하는지가
+  기준이다.
+- 일시적인 상태·품질·추론 표현은 신규 entity로 잡지 않는다. `ripe`, `spoiled`,
+  `moldy`, `no longer usable`, `gone bad` 등은 raw context로 남겨 intent와 phrase
+  family 학습에 사용한다.
+- 단순 행동 상태 표현은 entity에 포함하지 않는다: `low on`, `out of`.
+- `expired`가 item을 직접 꾸미지 않고 discard/expiry 판단의 trigger로만 쓰일 때는
+  phrase family 판단에만 사용하고 entity로 억지로 잡지 않는다.
+- 같은 action의 entity span끼리는 겹치거나 중첩할 수 없다.
+- 동일 span이 실제로 여러 action에 필요하면 action별로 한 번씩 연결할 수 있다.
+- 원문에 없는 생략된 대상을 entity로 만들어내지 않는다.
+
+### ITEM과 CATEGORY
+
+핵심 질문은 “하나의 canonical product를 가리키는가, 여러 후보를 포괄하는가?”다.
+
+- `milk` → `ITEM: milk`
+- `whole milk` → `ITEM: whole_milk`
+- `oat milk` → `ITEM: oat_milk`
+- `Coke` → `ITEM: coke`
+- `ripe bananas` → `ITEM: banana`; `ripe`는 raw context로 남김
+- `frozen blueberries` → 전체 span `ITEM: frozen_blueberry`
+- `spoiled milk` → `ITEM: milk`; `spoiled`은 raw context로 남김
+- `drinks` / `beverages` / `something to drink` → `CATEGORY: beverage`
+- `fruit` → 문맥상 특정 과일이 정해지지 않았다면 `CATEGORY: fruit`
+- `apples` → `ITEM: apple`
+
+카테고리를 임의의 구체 상품으로 바꾸지 않는다. 예를 들어 `drinks`를 `water`로
+정규화하면 안 된다. 향후 추천 시스템은 `beverage`라는 범주를 입력으로 받아 별도의
+조건과 재고·가격 정보를 사용해 상품을 고르게 된다.
+
+### generic item과 specific item
+
+annotator는 **원문에 직접 나온 specificity 수준**을 유지한다. inventory에 무엇이
+들어 있는지 안다고 해서 더 구체적인 subtype으로 임의 승격하지 않는다.
+
+- `milk`라고만 말했으면 `ITEM: milk`
+- `whole milk`라고 말했으면 `ITEM: whole_milk`
+- `saltine crackers`라고 말했으면 `ITEM: saltine_crackers` 또는 현재 taxonomy 운영상
+  broad하게 묶는다면 `ITEM: crackers`
+- `crackers`라고만 말했으면 `ITEM: crackers`
+
+즉 annotation의 normalized value는 **사용자 mention의 canonical form**이지,
+반드시 최종 inventory row id와 같은 값일 필요는 없다.
+
+예:
+
+- inventory에 `whole_milk`만 있어도 사용자가 `We're out of milk`라고 말했다면
+  annotation은 `ITEM: milk`로 둔다.
+- 나중 runtime resolution 단계에서 household alias, taxonomy parent-child,
+  현재 inventory 후보 수를 바탕으로 `milk -> whole_milk`를 연결할 수 있다.
+- candidate가 여러 개면 runtime이 clarification을 요청할 수 있지만, annotator가
+  그 모호성을 annotation 단계에서 임의로 제거하지 않는다.
+
+`ITEM_CONDITION`은 과거 실험 데이터와 schema 호환성을 위해 남겨 두지만 신규
+annotation의 기본 entity scope에서는 제외한다. 상태 표현을 구조화해 실제 product
+기능에서 저장·검색·추천 입력으로 사용하기로 결정한 이후 별도 task로 다시 도입한다.
+
+`frozen blueberries`, `oat milk`, `green tea`, `ground coffee`, `baby spinach`처럼
+보관·구매·검색·추천에서 별도 상품을 뜻하는 수식어는 ITEM span 전체에 포함한다.
+따라서 `blueberries`는 `blueberry`, `frozen blueberries`는 `frozen_blueberry`로
+구분한다. 반면 `spoiled blueberries`, `blueberries are no longer usable`처럼 같은
+상품의 일시적 상태를 설명하는 말은 ITEM 밖의 raw context로 남긴다.
+
+## Normalization convention
+
+Normalized value는 번역문이나 설명이 아니라 시스템이 비교할 canonical ID다.
+
+- 영문 소문자 `snake_case`를 사용한다: `oat_milk`, `peanut_butter`.
+- 공백이 있는 표현은 단어 사이를 underscore로 바꾼다:
+  `oat milk` → `oat_milk`, `greek yogurt` → `greek_yogurt`.
+- 대문자, 하이픈, 여러 공백은 canonical ID에서 정리한다:
+  `Coke Zero` → `coke_zero`, `non-fat milk` → `non_fat_milk`.
+- 복수형은 단수형으로 통일한다: `apples` → `apple`.
+- 동일 개념의 표현은 같은 값으로 합친다: `drinks`, `beverages` → `beverage`.
+- 브랜드가 명시되면 의미가 있을 때 보존한다: `Coke` → `coke`.
+- generic mention은 generic canonical로 유지한다:
+  `milk`는 `milk`, `whole milk`는 `whole_milk`다.
+- 숫자 표현은 숫자로 통일한다: `two`, `a couple` → `2`.
+- 단위는 단수 canonical form을 쓴다: `bottles` → `bottle`.
+- LOCATION은 현재 contract가 허용하는 `fridge`, `freezer`, `pantry`만 사용한다.
+- 상대 날짜는 화면의 `Temporal context`에 표시된 **원래 inference의**
+  `reference_date`와 `timezone`으로만 ISO 날짜로 변환한다. annotation을 수행하는
+  현재 날짜나 브라우저 timezone으로 다시 해석하지 않는다.
+- expiry queue의 `Normalized suggestion`은 서버가 저장된 temporal context로 계산한
+  보조값이다. 원문 `EXPIRY_DATE` span과 결과가 일치하는지 사람이 확인한 뒤 적용한다.
+  suggestion이 없거나 문맥상 맞지 않으면 추측해 저장하지 말고 notes에 기록한다.
+- taxonomy에 canonical ID가 있으면 새 값을 만들기 전에 기존 ID를 사용한다.
+- ITEM, CATEGORY, UNIT에 필요한 canonical 값이 목록에 없지만 의미가 분명하면
+  annotator가 새 `snake_case` 값을 직접 입력한다. 저장 후 다음 annotation부터
+  추천값으로 다시 나타난다.
+- 단, 더 넓은 generic canonical이 이미 있다고 해서 사용자가 말한 specific subtype을
+  억지로 generic으로 내리지 않는다. 반대로 generic mention을 inventory 사정만 보고
+  specific subtype으로 올리지도 않는다.
+- `/annotate` UI의 `Save ...` 버튼은 새 ITEM/CATEGORY/UNIT 값을 lower_snake_case로
+  정리해 현재 추천 목록에 추가하는 보조 기능이다. 예: `oat milk`를 입력한 뒤
+  `Save oat_milk`를 누르면 canonical 값 `oat_milk`로 맞춰진다.
+- 확실하지 않은 정규화 값을 추측하지 않는다. 이 경우 새 값을 만들어 넣지 말고
+  span 또는 intent 판단을 다시 검토하고 notes에 이유를 남긴다.
+
+### reviewed annotation에서 normalized value 필수 규칙
+
+- 신규 annotation의 `ITEM`, `CATEGORY`, `UNIT`, `LOCATION`, `EXPIRY_DATE`는 reviewed annotation에서
+  normalized value가 **필수**다.
+- `EXPIRY_DATE`의 normalized value는 반드시 `YYYY-MM-DD` 형식이어야 한다.
+- `QUANTITY`는 현재 예외적으로 비워 둘 수 있다. 다만 가능하면 숫자 값으로 채운다.
+- 필수 label의 normalized value가 확실하지 않다면 억지로 틀린 값을 넣지 말고,
+  span 또는 intent 판단 자체를 다시 검토한 뒤 notes에 이유를 남긴다.
+
+`/annotate`는 이 규칙을 지키도록 label별 normalized value 입력 방식을 구분한다.
+
+- ITEM, CATEGORY, UNIT: 기존 canonical 값 검색 + 없으면 `Save ...` 버튼으로
+  lower_snake_case canonical 값 추가
+- QUANTITY: 숫자 입력 + 기존 숫자 추천
+- LOCATION: `fridge`, `freezer`, `pantry` 중 선택
+- EXPIRY_DATE: ISO 형식을 보장하는 날짜 선택기
+
+ITEM, CATEGORY, UNIT은 추천 목록에 없는 새 canonical 값을 바로
+입력할 수 있다. 저장되면 이후 annotation에서 자동 추천 목록에 합쳐진다.
+LOCATION은 product contract 제약 때문에 새 값을 만들지 않는다.
+
+## Phrase family convention
+
+Phrase family는 상품명 같은 slot 값이 아니라 **표현 구조와 화용적 기능**을 묶는다.
+모델이 거의 같은 문장을 학습하고 시험받는 data leakage를 막는 용도다.
+
+- 소문자 `snake_case`로 작성한다.
+- intent 이름만 쓰지 말고 구조를 구분한다.
+- item이나 category 이름을 family에 넣지 않는다.
+- 단어만 교체한 문장들은 같은 family를 사용한다.
+
+`/annotate`에서는 현재 intent에 맞는 controlled family만 선택할 수 있다. 목록에 맞는
+구조가 없으면 유사한 family로 합치지 말고 선택을 비워 둔 뒤 notes에 새 family 후보를
+기록한다. 합의 후 shared contract의 목록과 이 문서를 함께 수정한다.
+
+예:
+
+| 문장 | Phrase family |
+|---|---|
+| `We're low on milk.` / `We're low on eggs.` | `state_low_on_entity` |
+| `We're out of milk.` / `We're out of drinks.` | `state_out_of_entity` |
+| `Add milk to the list.` / `Put eggs on the list.` | `explicit_add_to_list` |
+| `Do we have milk?` / `Do we have apples?` | `yes_no_inventory_query` |
+| `Put that on the list.` / `Use that one.` | `unresolved_reference` |
+
+새 family가 필요한지 애매하면 기존 데이터의 문장 구조를 먼저 비교한다. 단순 동의어
+교체라면 같은 family, 문장 행위나 구문 구조가 달라지면 새 family로 분리한다.
+
+### Phrase family 선택 원칙
+
+- phrase family는 **intent를 먼저 확정한 뒤** 고른다. intent가 달라지면 family도 다시 고른다.
+- family 이름의 `entity`는 `ITEM`과 `CATEGORY`를 모두 포함한다.
+- 표면 단어보다 **문장의 기능**을 본다. 예를 들어 `need`가 들어 있어도 실제 기능이
+  쇼핑 요청이면 `add_to_buy`, 재고 부족 상태 보고면 `mark_low` 계열 family를 고른다.
+- 더 구체적인 family가 명시되면 더 일반적인 family보다 우선한다.
+  예: `expired`가 명시되면 generic discard family보다 `expired_item_discard`를 우선한다.
+- 시제와 화행이 분명하면 그대로 반영한다.
+  예: 명령은 request 계열, 이미 일어난 일의 보고는 report 계열 family를 우선한다.
+- 같은 의미라도 item, category, 수량만 바뀐 문장은 같은 family를 유지한다.
+
+### 자주 겹치는 family 판정 규칙
+
+- `finished_item_report` vs `mark_low` vs `state_out_of_entity`
+  `finished`, `used up`, `ate the last`, `drank the last`처럼 **완결된 소비 event**가
+  직접 말해지면 `consume_item > finished_item_report`다.
+  `low on`, `almost out`, `only one left`처럼 **아직 조금 남은 상태**면 `mark_low`다.
+  `out of`처럼 **0개 상태만 보이고 event나 다음 action이 명시되지 않으면**
+  `mark_out > state_out_of_entity`다.
+
+- `consumed_item_report` vs `used_item_report` vs `quantity_consumed`
+  `ate`, `drank`처럼 **섭취**가 중심이면 `consumed_item_report`,
+  `used for cooking`, `used in pancakes`처럼 **조리/사용**이 중심이면
+  `used_item_report`다.
+  수량이 들어 있어도 문장 핵심이 “얼마나 썼는가”가 아니면 family를 바꾸지 않는다.
+  양을 뺀 사실이 문장 중심일 때만 `quantity_consumed`를 쓴다.
+
+- `state_low_on_entity` vs `state_almost_out` vs `quantity_running_low`
+  `low on`, `running low on`은 `state_low_on_entity`,
+  `almost out`, `almost gone`, `barely any left`는 `state_almost_out`,
+  `one left`, `half a carton left`처럼 **남은 양이 직접 드러나면**
+  `quantity_running_low`다.
+  다만 `0 left`처럼 사실상 소진이면 `state_out_of_entity` 쪽을 우선한다.
+
+- `explicit_add_to_list` vs `purchase_request` vs `need_to_buy` vs `shopping_reminder`
+  `add ... to the list`, `put ... on the shopping list`처럼 **list 조작이 직접
+  명시되면** `explicit_add_to_list`다.
+  `buy`, `pick up`, `get`처럼 **지금 사 오라는 직접 요청**이면 `purchase_request`,
+  `need to buy`처럼 **구매 필요성 진술**이면 `need_to_buy`,
+  `remind me`, `don't let me forget`처럼 **나중 행동 메모**면 `shopping_reminder`다.
+
+- `need_more_soon` vs `need_to_buy`
+  `We'll need more milk soon`처럼 **가까운 미래 부족 전망**이면 `mark_low > need_more_soon`이다.
+  `We need to buy milk`처럼 **구매 행동 필요성 자체를 말하면**
+  `add_to_buy > need_to_buy`다.
+  `need`가 들어 있어도 실제 행동이 아니라 상태 판단이면 `need_more_soon`을 우선한다.
+
+- `vague_category_request` vs category-level `add_to_buy`
+  category만 언급돼도 `add`, `put on the list`, `buy` 같은 **행동 동사**가 분명하면
+  `add_to_buy` intent를 주고 `CATEGORY` entity를 쓴다.
+  예: `Add drinks to the list.` -> `add_to_buy > explicit_add_to_list`
+  행동은 불명확하고 막연히 필요만 말하면 `vague_category_request`다.
+  예: `We need some drinks.` -> `needs_clarification > vague_category_request`
+
+- `yes_no_inventory_query` vs `quantity_inventory_query`
+  `Do we have milk?`처럼 **존재 여부**가 핵심이면 `yes_no_inventory_query`,
+  `How much milk is left?`처럼 **남은 양**이 핵심이면 `quantity_inventory_query`다.
+  `Do we have any milk left?`는 yes/no 판정을 요청하므로 기본적으로
+  `yes_no_inventory_query`로 둔다.
+
+- `storage_instruction` vs `explicit_add_to_inventory`
+  location이 있어도 핵심이 “추가해라”면 `explicit_add_to_inventory`다.
+  location 결정이 문장 중심일 때만 `storage_instruction`을 쓴다.
+
+- `expiry_metadata_report` vs `expired_item_discard`
+  expiry 사실만 **보고/기록**하면 `expiry_metadata_report`다.
+  expiry를 이유로 **버리라는 요청 또는 버린 보고**가 되면 `expired_item_discard`다.
+
+- `spoiled_item_discard` vs `expired_item_discard`
+  부패, 냄새, 상함, 곰팡이 등 **품질 이상**이 핵심이면 `spoiled_item_discard`,
+  날짜 경과나 expiry 판단이 핵심이면 `expired_item_discard`다.
+
+### Intent별 family 경계
+
+#### `add_item`
+
+- `explicit_add_to_inventory`
+  재고에 넣으라는 **직접적 추가 요청**이다.
+  예: `Add milk.`, `Put two cartons of milk in the fridge.`
+  `bought`, `picked up`, `got`처럼 이미 확보한 사실을 보고하면 이 family가 아니라
+  `purchased_item_report`를 쓴다. 문장의 핵심이 저장 위치 지시라면
+  `storage_instruction`이 더 맞다.
+
+- `purchased_item_report`
+  이미 사 왔거나 들어왔다는 **사후 보고**다.
+  예: `I bought milk.`, `We picked up eggs today.`
+  명령형으로 지금 넣으라는 말은 아니다. quantity가 있다는 이유만으로 자동으로
+  `quantity_addition`으로 바꾸지 않는다.
+
+- `storage_instruction`
+  핵심이 **어디에 보관할지**에 있다.
+  예: `Put the yogurt in the fridge.`, `Store the meat in the freezer.`
+  location이 있어도 핵심이 단순 inventory 추가라면 `explicit_add_to_inventory`를
+  유지한다.
+
+- `quantity_addition`
+  핵심이 **얼마나 더 들어왔는지** 또는 **얼마를 더할지**에 있다.
+  예: `Add one more carton of milk.`, `We added three more eggs.`
+  단순히 quantity가 포함된 일반 add 문장은 아니다. 수량이 문장의 중심이 아닐 때는
+  `explicit_add_to_inventory` 또는 `purchased_item_report`를 쓴다.
+
+#### `update_expiry`
+
+- `explicit_set_expiry`
+  핵심이 **기존 item의 expiry date를 설정하거나 기록하는 직접 요청**이다.
+  예: `Set the milk expiry to Friday.`, `Add an expiration date for the yogurt.`
+  item을 새로 넣는 행동이 중심이면 `add_item`으로 간다.
+
+- `expiry_metadata_report`
+  기존 item의 expiry 정보를 **보고하거나 명시**한다.
+  예: `The milk expires next Friday.`, `These eggs are good until Monday.`
+  질문이면 `query_inventory`의 `expiry_inventory_query`, 폐기 판단이면
+  `throw_away`의 `expired_item_discard`를 본다.
+
+- `expiry_metadata_correction`
+  이미 알고 있던 expiry 정보를 **정정**한다.
+  예: `Actually, the yogurt expires tomorrow.`, `The earlier date was wrong; it's Friday.`
+  단순 새 정보 보고인데 correction 맥락이 없으면 `expiry_metadata_report`를 쓴다.
+
+#### `set_low_threshold`
+
+- `explicit_set_low_threshold`
+  threshold나 Low 기준을 직접 설정하라는 요청이다.
+  예: `Set the low threshold for eggs to six.`, `Make milk low at one carton.`
+
+- `threshold_notification_request`
+  특정 수량에 도달했을 때 알려 달라는 요청이다.
+  예: `Tell me when milk reaches one carton.`, `Let me know when two eggs are left.`
+  지금 부족하다는 상태 보고가 아니므로 `mark_low`로 보내지 않는다.
+
+- `threshold_policy_statement`
+  사용자가 Low로 간주하는 지속적인 수량 기준을 진술한다.
+  예: `Eggs are low at six.`, `For me, two cans counts as low.`
+  `We only have six eggs left`처럼 현재 상태만 보고하면 `mark_low`다.
+
+- `threshold_correction`
+  기존 threshold를 정정하거나 대체한다.
+  예: `Actually, make the egg threshold four.`, `Change milk's low point to two cartons.`
+  correction 맥락이 없으면 앞의 세 family 중 의미에 맞는 것을 쓴다.
+
+#### `consume_item`
+
+- `consumed_item_report`
+  먹거나 마셔서 재고가 줄었다는 **직접 소비 보고**다.
+  예: `I ate two yogurts.`, `We drank the juice.`
+  요리나 재료 사용에 초점이 있으면 `used_item_report`가 더 맞다.
+
+- `used_item_report`
+  먹었다기보다 **요리, 조리, 사용**에 초점이 있다.
+  예: `I used one egg.`, `We used half the milk for pancakes.`
+  실제 섭취를 말하면 `consumed_item_report`를 쓴다.
+
+- `finished_item_report`
+  특정 item을 **다 써서 끝냈다**는 완료 상태 보고다.
+  예: `We finished the milk.`, `I used up the yogurt.`
+  단순 low 상태는 `mark_low`이고, `We're out of milk`처럼 결과 상태만 있고 실제
+  소비 event가 명시되지 않으면 `mark_out`의 `state_out_of_entity`를 쓴다.
+
+- `quantity_consumed`
+  소비나 사용의 핵심이 **정확한 소모량**에 있다.
+  예: `I used half a carton of milk.`, `We ate three eggs.`
+  수량이 있어도 단순 report로 읽히면 generic family를 유지한다. 이 family는 “양을
+  빼는 구조”가 문장 중심일 때만 쓴다.
+
+#### `mark_low`
+
+- `state_low_on_entity`
+  `low on`, `running low on`처럼 **명시적 부족 상태**를 말한다.
+  예: `We're low on milk.`, `We're running low on drinks.`
+  거의 다 떨어졌다는 뉘앙스면 `state_almost_out`이 더 맞다.
+
+- `state_almost_out`
+  `almost out`, `almost gone`, `barely any left`처럼 **임박한 고갈**을 말한다.
+  예: `We're almost out of eggs.`, `The milk is almost gone.`
+  완전히 0이 되었고 그 상태만 말하면 `state_out_of_entity` 쪽이다.
+
+- `need_more_soon`
+  핵심이 **곧 더 필요해질 것**이라는 전망/판단이다.
+  예: `We'll need more milk soon.`, `We should get more eggs soon.`
+  실제 쇼핑 요청으로 해석해 `add_to_buy` intent를 줬다면 이 family를 쓰지 않는다.
+  명시적 low-state 표현이 있으면 `state_low_on_entity`를 우선한다.
+
+- `quantity_running_low`
+  현재 남은 양이 적다는 점이 **수량 표현으로 직접 드러난다**.
+  예: `We only have one egg left.`, `There's half a carton left.`
+  단순 yes/no 질문은 query이고, 완전 소진이면 `state_out_of_entity`다.
+
+#### `mark_out`
+
+- `state_out_of_entity`
+  `We're out of ...`, `We have no ...`, `There is no ... left`처럼
+  **현재 재고가 0이라는 상태**를 직접 말한다.
+  예: `We're out of milk.`, `We have no eggs.`, `There are no drinks left.`
+  이 family는 **상태가 0이라는 관측**이지, 소비 원인 보고가 아니다.
+  따라서 `We used up the milk`처럼 원인이 분명한 completed consumption event는
+  `finished_item_report`를 우선한다.
+  `Add it to the list` 같은 후속 행동이 함께 있으면 별도 action으로 분리한다.
+
+#### `throw_away`
+
+- `explicit_discard_request`
+  핵심이 **버리라는 직접 요청**이다.
+  예: `Throw away the spinach.`, `Discard the old yogurt.`
+  `expired`, `spoiled`, `moldy` 같은 이유가 중심이면 각각 더 구체적인 family를 쓴다.
+
+- `spoiled_item_discard`
+  버리는 이유가 **상함, 부패, 맛/냄새 이상**이다.
+  예: `Throw away the spoiled milk.`, `The spinach went bad, toss it.`
+  날짜가 지나서 버리는 경우는 `expired_item_discard`다.
+
+- `thrown_away_report`
+  이미 **버렸다는 완료 보고**다.
+  예: `I threw away the spinach.`, `We tossed the old bread.`
+  완료 보고이면서 동시에 `expired`/`spoiled`가 핵심이면 generic report보다 이유
+  중심 family를 우선한다.
+
+- `expired_item_discard`
+  버리는 이유가 **유통기한 경과 또는 expiry 판단**이다.
+  예: `Throw away the expired yogurt.`, `I tossed the milk because it expired.`
+  단순히 오래돼 보여서 버린다면 `spoiled_item_discard`가 더 맞을 수 있다.
+
+#### `add_to_buy`
+
+- `explicit_add_to_list`
+  쇼핑 목록에 넣으라는 **명시적 list 조작**이다.
+  예: `Add milk to the list.`, `Put eggs on the shopping list.`
+  item뿐 아니라 category도 올 수 있다.
+  예: `Add drinks to the list.` -> `CATEGORY: beverage`
+  `buy milk`처럼 list를 말하지 않고 구매 자체를 요청하면 `purchase_request` 또는
+  `need_to_buy`를 쓴다.
+
+- `purchase_request`
+  화자가 **지금 사 오거나 가져오라**고 직접 요청한다.
+  예: `Buy milk.`, `Pick up eggs.`, `Get more yogurt.`
+  necessity statement라면 `need_to_buy`, reminder 구조라면 `shopping_reminder`다.
+
+- `need_to_buy`
+  화자가 **사야 한다는 필요성**을 진술한다.
+  예: `We need to buy milk.`, `I need eggs.`
+  imperative tone이 강하면 `purchase_request`가 더 맞다. 단순 부족 상태 보고만 있고
+  구매 요청이 명시되지 않으면 `mark_low` 또는 `mark_out`을 본다.
+
+- `shopping_reminder`
+  나중 쇼핑을 위한 **메모/리마인더**다.
+  예: `Remind me to buy milk.`, `Don't let me forget eggs.`
+  지금 즉시 구매를 시키는 직접 요청은 아니다.
+
+#### `query_inventory`
+
+- `yes_no_inventory_query`
+  존재 여부를 묻는 **예/아니오형 질문**이다.
+  예: `Do we have milk?`, `Is there any yogurt?`
+  남은 양을 묻는다면 `quantity_inventory_query`다.
+
+- `quantity_inventory_query`
+  남은 **양, 개수, 분량**을 묻는다.
+  예: `How much milk is left?`, `How many eggs do we have?`
+  `Do we have any milk left?`는 존재 확인이 중심이면 `yes_no_inventory_query`다.
+
+- `location_inventory_query`
+  물건이 **어디 있는지**를 묻는다.
+  예: `Where is the yogurt?`, `Did we put the juice in the fridge or pantry?`
+  location이 언급돼도 질문 초점이 존재 여부면 `yes_no_inventory_query`다.
+
+- `expiry_inventory_query`
+  유통기한이나 expiry status를 묻는다.
+  예: `When does the milk expire?`, `Is the yogurt still good?`
+  단순 재고 존재 여부와 expiry 질문이 함께 있으면, 실제 질문 초점이 무엇인지 보고
+  하나를 고른다. 둘 다 독립 질문이면 action을 나눈다.
+
+#### `needs_clarification`
+
+- `unresolved_reference`
+  `that`, `it`, `the usual one`처럼 **지시 대상이 현재 문장만으로 복원되지 않는다**.
+  예: `Put that on the list.`, `Use that one.`
+  action은 보이지만 object가 불명확한 경우다.
+
+- `vague_category_request`
+  category는 보이지만 **무엇을 어떻게 하라는지 충분히 구체적이지 않다**.
+  예: `We need some drinks.`, `Get something sweet.`
+  다만 `Add drinks to the list`, `Buy some fruit`처럼 category에 대해서도 행동 동사가
+  명시되면 `add_to_buy` 계열로 보내고, 이 family는 행동이 막연한 경우에만 쓴다.
+
+- `usual_items_request`
+  household-specific routine set을 요구하지만 **구성원이 현재 문장에 없다**.
+  예: `Buy the usual.`, `Get our regular groceries.`
+  annotator 개인 상식으로 usual set을 상상하지 않는다.
+
+- `ambiguous_action`
+  대상은 비교적 분명하지만 **무슨 행동을 원하는지** 불명확하다.
+  예: `Milk.`, `Eggs next.`, `Handle the yogurt.`
+  domain과 관련은 있으나 add/query/discard/consume 중 무엇인지 고를 근거가 부족하다.
+
+#### `unknown`
+
+- `preference_statement`
+  취향, 선호, 일반 의견 표현이다.
+  예: `I like coffee.`, `We prefer oat milk.`
+  재고를 바꾸거나 목록에 넣으라는 요청이 아니다.
+
+- `unrelated_question`
+  주방 inventory/shopping domain과 무관한 질문이다.
+  예: `What's the weather?`, `When is the meeting?`
+  domain 관련이지만 현재 intent set 밖 기능이면 `unsupported_request`를 본다.
+
+- `unrelated_statement`
+  domain과 무관한 평서문이다.
+  예: `I'm tired today.`, `The movie was good.`
+  preference나 capability request도 아니다.
+
+- `unsupported_request`
+  domain 관련성은 있지만 **현재 지원 intent 바깥의 명확한 요청**이다.
+  예: `What should I cook tonight?`, `Find the cheapest milk brand.`
+  이 경우는 불명확해서 clarification이 필요한 것이 아니라, 요청 의미는 명확하지만
+  현재 시스템 capability 밖이기 때문에 `unknown`으로 둔다.
+
+## Train/Evaluation convention
+
+### `train_candidate`
+
+- synthetic 문장의 검토본
+- 기존 phrase family의 추가 variation
+- 규칙을 정립하기 위해 만든 예문
+- 이미 모델 개발 과정에서 본 문장
+- `correction queue`, `expiry queue`, `low-confidence queue`, `confirmed queue`에서
+  가져온 대부분의 annotation 후보
+
+### `evaluation_candidate`
+
+- 실제 사용자가 자연스럽게 만든 독립 표현
+- 기존 template를 보고 단어만 바꾸지 않은 문장
+- 모델·학습 데이터·현재 오류 분석을 보기 전에 확보한 문장
+- intent와 entity 정답을 사람이 확인한 문장
+- 기본적으로 `evaluation holdout` queue에서 가져온 후보
+
+`evaluation_candidate`는 즉시 최종 test set이 아니다. 중복 제거, family 단위 분리,
+품질 검토, 버전 고정 후에만 frozen evaluation set이 된다. 같은 phrase family는
+train과 evaluation에 나누어 넣지 않는다.
+
+### Queue와 dataset purpose 관계
+
+- `correction queue`
+  모델이 실제로 틀렸고 사용자가 correction을 남긴 문장을 모은다.
+  기본 목적은 error-focused `train_candidate` 수집이다.
+
+- `expiry queue`
+  날짜/유통기한 signal이 있는 문장을 모은다.
+  기본 목적은 `EXPIRY_DATE` span과 normalization 품질을 높이는
+  `train_candidate` 수집이다.
+  화면의 reference date, timezone, original inference timestamp는 원래 발화의
+  의미를 복원하기 위한 값이며 annotation 시각으로 바꾸지 않는다.
+  `annotation-queue-seed-v2`의 각 expiry 문장은 서로 명시적인 temporal context를
+  가지며, v1의 hidden shared-date 의미를 정답으로 재사용하지 않는다.
+
+- `low-confidence queue`
+  confidence가 낮거나 `unknown`, `needs_clarification`에 가까운 문장을 모은다.
+  기본 목적은 active-learning 성격의 `train_candidate` 수집이다.
+
+- `confirmed queue`
+  모델이 맞았고 사용자가 confirmed한 실사용 문장을 모은다.
+  기본 목적은 실제 production 분포에 가까운 `train_candidate` 보강이다.
+
+- `preference/context queue`
+  `candidate_relevance = contextual_preference`인 pregenerated 문장을 모은다.
+  선호·목표·식단·household context와 즉시 action의 경계를 검수한다.
+
+- `domain non-actionable queue`
+  `candidate_relevance = domain_non_actionable`인 pregenerated 문장을 모은다.
+  grocery vocabulary가 있지만 action이 없는 hard negative를 검수한다.
+
+- `unrelated negative queue`
+  `candidate_relevance = unrelated`인 pregenerated 문장을 모은다.
+  완전 바깥-domain negative이며 domain non-actionable보다 적게 유지한다.
+
+- `evaluation holdout`
+  reviewed 문장 중 deterministic bucket 규칙으로 분리한 후보를 모은다.
+  기본 목적은 `evaluation_candidate` 수집이다.
+
+queue는 **샘플을 어디서 가져왔는지**를 나타내고, dataset purpose는 **최종 split에서
+어디에 들어갈지**를 나타낸다. 보통 queue의 기본 목적을 따르지만, annotator는 특별한
+근거가 있을 때 다른 purpose로 저장할 수 있다. 다만 이런 경우 notes에 이유를 남기는
+편이 좋다.
+
+UI는 마지막 queue와 dataset purpose를 브라우저에 각각 저장한다. 새로고침과 연속
+제출은 두 선택을 유지하며, queue가 purpose를 자동으로 바꾸지 않는다. 특히
+`evaluation holdout`을 검수할 때는 `Evaluation candidate`가 선택됐는지 사람이
+확인한다.
+
+세 relevance queue의 `candidate_relevance`는 생성 단계의 routing hint일 뿐 정답이
+아니다. 화면에서 preselect되어도 문장 자체를 읽고 네 relevance 중 하나를 다시
+판단한다. 사람이 저장한 `annotations.relevance`만 학습 ground truth로 사용한다.
+
+## Notes convention
+
+명확한 문장은 notes를 비워 둔다. 다음 경우에만 짧고 객관적인 영어 문장으로 남긴다.
+
+- 두 intent 사이에서 결정한 근거
+- taxonomy에 없는 canonical value
+- 상대 날짜 suggestion이 없거나 저장된 기준 날짜/timezone에 문제가 있는 경우
+- multi-intent 또는 문맥 부족 문제
+- convention에서 다루지 않은 새로운 edge case
+
+예:
+
+```text
+Implicit out-of-stock statement; no explicit shopping-list request.
+```
+
+## 일관성 확인 체크리스트
+
+저장 전에 다음을 확인한다.
+
+- 원문을 고치지 않았는가?
+- intent가 키워드가 아니라 화자의 목표를 나타내는가?
+- 불명확한 의미를 임의로 추측하지 않았는가?
+- span이 원문의 정확한 연속 부분과 일치하는가?
+- ITEM과 CATEGORY를 구분했는가?
+- normalized value가 canonical 형식인가?
+- 유사 template에 동일한 phrase family를 사용했는가?
+- evaluation 후보가 기존 template의 변형은 아닌가?
+- 특별한 판단이 있었다면 notes에 근거를 남겼는가?
+
+## Convention 변경 절차
+
+새로운 사례가 이 문서로 해결되지 않으면 annotator마다 임의 규칙을 만들지 않는다.
+
+1. 해당 record를 `needs_clarification` 또는 가장 보수적인 라벨로 저장한다.
+2. notes에 edge case와 가능한 선택지를 기록한다.
+3. 팀이 기준을 결정한 뒤 이 문서를 먼저 수정한다.
+4. 의미가 바뀌는 변경이면 convention/schema version을 올린다.
+5. 기존 annotation 중 영향을 받는 범위를 찾아 재검토한다.
+
+단순 오탈자 수정은 버전을 올리지 않는다. intent 의미, entity 경계, normalization,
+split 정책이 바뀌면 새 버전이 필요하다.

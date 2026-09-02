@@ -2,6 +2,73 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - ML docs added to bilingual tree
+
+### Completed
+
+- Added `docs/ENG/ml/ML_NLP_CONCEPTS.md` as the English mirror of the ML/NLP
+  concepts guide, completing the current mirrored ML doc set.
+- Added mirrored Korean and English ML document trees for model evaluation,
+  alignment/verifier notes, dataset design, synthetic data, and external
+  dataset research.
+- Updated the English and Korean language indexes so their ML sections now
+  prefer `docs/ENG/ml/` and `docs/KO/ml/` instead of falling back to legacy
+  root ML docs.
+- Corrected the Korean ML concepts mirror's internal related-document links so
+  the mirrored tree is self-consistent.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-02 - Specialist planning docs added to bilingual tree
+
+### Completed
+
+- Added `docs/KO/planning/` mirrors for the specialist planning docs:
+  item media, language engineer questions, personalized ASR, and voice pipeline.
+- Added English translations for those four planning docs under
+  `docs/ENG/planning/`.
+- Updated the English and Korean language indexes so those planning links now
+  prefer the mirrored language folders instead of legacy root docs.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-02 - English annotation conventions mirror added
+
+### Completed
+
+- Added `docs/ENG/annotation/ANNOTATION_CONVENTIONS.md` as the English mirror
+  of the current annotation convention source.
+- Updated the English annotation guide to reference the local English
+  conventions file instead of the Korean fallback.
+- Updated the English language index so annotation conventions now resolve
+  inside `docs/ENG/annotation/`.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-02 - Annotation docs phase added to bilingual tree
+
+### Completed
+
+- Added `docs/KO/annotation/` mirrors for the current Korean annotation guide,
+  annotation conventions, and relevance-candidate operation document.
+- Added English translations for the annotation guide and
+  `relevance-candidates-v1` under `docs/ENG/annotation/`.
+- Updated the English and Korean language indexes so annotation guide and
+  relevance-candidate links now prefer the mirrored language folders instead of
+  falling back to legacy root docs.
+- Kept annotation conventions on the Korean mirrored source for now; the
+  English translation of that larger document remains a separate follow-up batch.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-02 - Phase-1 bilingual docs tree added
 
 ### Completed
