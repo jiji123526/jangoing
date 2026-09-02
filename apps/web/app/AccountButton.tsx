@@ -1,8 +1,9 @@
 "use client";
 
-import type {
-  HouseholdJoinCode,
-  HouseholdMember,
+import {
+  UpdateHouseholdProfileRequestSchema,
+  type HouseholdJoinCode,
+  type HouseholdMember,
 } from "@jangoing/contracts";
 import {
   Ban,
@@ -10,7 +11,6 @@ import {
   ChevronRight,
   CircleUserRound,
   Copy,
-  Home,
   RotateCcw,
   Share2,
   Trash2,
@@ -25,12 +25,21 @@ import {
   getHouseholdMembers,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
+  updateHouseholdProfile,
 } from "../lib/api";
 import { useCurrentHousehold } from "./HouseholdContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
-type AccountScreen = "overview" | "invite" | "members";
+type AccountScreen = "overview" | "invite" | "members" | "edit";
 const accountModalTransitionMs = 420;
+const householdColorPresets = [
+  "#1F6B45",
+  "#2F6EA5",
+  "#D05A3A",
+  "#A4476A",
+  "#7561A8",
+  "#B8860B",
+];
 
 function formatExpiration(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -41,7 +50,7 @@ function formatExpiration(value: string): string {
 }
 
 export function AccountButton() {
-  const { user, household } = useCurrentHousehold();
+  const { user, household, setHousehold } = useCurrentHousehold();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const membersRequestRef = useRef(0);
@@ -54,6 +63,11 @@ export function AccountButton() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [membersError, setMembersError] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [profileEmoji, setProfileEmoji] = useState("");
+  const [profileColor, setProfileColor] = useState("#1F6B45");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +120,11 @@ export function AccountButton() {
     setMembersLoading(false);
     setRemovingMemberId(null);
     setMembersError(null);
+    setProfileName("");
+    setProfileEmoji("");
+    setProfileColor("#1F6B45");
+    setProfileSaving(false);
+    setProfileError(null);
     setNotice(null);
     setError(null);
   }
@@ -267,10 +286,54 @@ export function AccountButton() {
     }
   }
 
+  function openHouseholdEditor(): void {
+    if (!household || household.role !== "owner") return;
+    setProfileName(household.name);
+    setProfileEmoji(household.profile_emoji);
+    setProfileColor(household.icon_color);
+    setProfileError(null);
+    setScreen("edit");
+  }
+
+  async function saveHouseholdProfile(): Promise<void> {
+    setProfileError(null);
+    const parsed = UpdateHouseholdProfileRequestSchema.safeParse({
+      name: profileName,
+      profile_emoji: profileEmoji,
+      icon_color: profileColor,
+    });
+    if (!parsed.success) {
+      const fields = parsed.error.flatten().fieldErrors;
+      setProfileError(
+        fields.profile_emoji?.[0] ??
+          fields.name?.[0] ??
+          fields.icon_color?.[0] ??
+          "Check the household profile values.",
+      );
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const updated = await updateHouseholdProfile(parsed.data);
+      setHousehold(updated);
+      setScreen("overview");
+    } catch (caught) {
+      setProfileError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update the household profile.",
+      );
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   const displayName = user.display_name ?? "Jangoing user";
   const initial = (user.display_name ?? user.email).slice(0, 1).toUpperCase();
   const isOwner = household?.role === "owner";
-  const modalBusy = busy !== null || removingMemberId !== null;
+  const modalBusy =
+    busy !== null || removingMemberId !== null || profileSaving;
 
   return (
     <>
@@ -316,8 +379,12 @@ export function AccountButton() {
                 <ChevronLeft size={28} />
               </button>
             ) : (
-              <span className="account-modal-brand" aria-hidden="true">
-                <Home size={20} strokeWidth={2.2} />
+              <span
+                className="account-modal-brand"
+                style={{ backgroundColor: household?.icon_color }}
+                aria-hidden="true"
+              >
+                {household?.profile_emoji ?? "🏠"}
               </span>
             )}
             <h2 id="account-modal-title">
@@ -325,7 +392,9 @@ export function AccountButton() {
                 ? household?.name ?? "Household"
                 : screen === "invite"
                   ? "Household Invite"
-                  : "Household Members"}
+                  : screen === "members"
+                    ? "Household Members"
+                    : "Edit Household"}
             </h2>
             <button
               className="account-modal-close"
@@ -352,15 +421,40 @@ export function AccountButton() {
                     <small>{user.email}</small>
                   </div>
                 </div>
-                <div className="account-household-row">
-                  <span className="account-row-icon" aria-hidden="true">
-                    <Home size={20} />
-                  </span>
-                  <div>
-                    <strong>{household?.name}</strong>
-                    <small>{isOwner ? "Owner" : "Member"}</small>
+                {isOwner ? (
+                  <button
+                    className="account-household-row is-actionable"
+                    type="button"
+                    onClick={openHouseholdEditor}
+                  >
+                    <span
+                      className="account-household-emoji"
+                      style={{ backgroundColor: household?.icon_color }}
+                      aria-hidden="true"
+                    >
+                      {household?.profile_emoji ?? "🏠"}
+                    </span>
+                    <span>
+                      <strong>{household?.name}</strong>
+                      <small>Owner · Edit household</small>
+                    </span>
+                    <ChevronRight size={20} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <div className="account-household-row">
+                    <span
+                      className="account-household-emoji"
+                      style={{ backgroundColor: household?.icon_color }}
+                      aria-hidden="true"
+                    >
+                      {household?.profile_emoji ?? "🏠"}
+                    </span>
+                    <div>
+                      <strong>{household?.name}</strong>
+                      <small>Member</small>
+                    </div>
                   </div>
-                </div>
+                )}
               </section>
 
               <p className="account-group-note">
@@ -533,7 +627,7 @@ export function AccountButton() {
                 <p className="account-feedback is-error" role="alert">{error}</p>
               )}
             </div>
-          ) : (
+          ) : screen === "members" ? (
             <div className="account-modal-content account-members-content">
               <div className="account-members-heading">
                 <h3>People in {household?.name}</h3>
@@ -612,6 +706,97 @@ export function AccountButton() {
                   Only the household owner can remove members.
                 </p>
               )}
+            </div>
+          ) : (
+            <div className="account-modal-content account-edit-content">
+              <div className="account-profile-preview">
+                <span
+                  style={{ backgroundColor: profileColor }}
+                  aria-hidden="true"
+                >
+                  {profileEmoji || "🏠"}
+                </span>
+                <strong>{profileName.trim() || "Household Name"}</strong>
+                <small>Visible to everyone in this household</small>
+              </div>
+
+              <section className="account-edit-group">
+                <label>
+                  <span>Household Name</span>
+                  <input
+                    type="text"
+                    value={profileName}
+                    maxLength={80}
+                    autoComplete="organization"
+                    onChange={(event) => setProfileName(event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Emoji</span>
+                  <input
+                    className="account-emoji-input"
+                    type="text"
+                    value={profileEmoji}
+                    maxLength={32}
+                    autoComplete="off"
+                    aria-describedby="account-emoji-help"
+                    onChange={(event) => setProfileEmoji(event.target.value)}
+                  />
+                </label>
+              </section>
+              <p className="account-edit-help" id="account-emoji-help">
+                Enter one emoji. It replaces the default house icon.
+              </p>
+
+              <section className="account-color-group">
+                <div>
+                  <strong>Icon Color</strong>
+                  <label>
+                    <span>Custom color</span>
+                    <input
+                      type="color"
+                      value={profileColor}
+                      onChange={(event) => setProfileColor(event.target.value)}
+                    />
+                  </label>
+                </div>
+                <div className="account-color-presets" aria-label="Icon colors">
+                  {householdColorPresets.map((color) => (
+                    <button
+                      className={
+                        profileColor.toUpperCase() === color
+                          ? "is-selected"
+                          : undefined
+                      }
+                      type="button"
+                      key={color}
+                      aria-label={`Use ${color}`}
+                      aria-pressed={profileColor.toUpperCase() === color}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setProfileColor(color)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {profileError && (
+                <p className="account-feedback is-error" role="alert">
+                  {profileError}
+                </p>
+              )}
+
+              <button
+                className="account-profile-save"
+                type="button"
+                disabled={
+                  profileSaving ||
+                  !profileName.trim() ||
+                  !profileEmoji.trim()
+                }
+                onClick={() => void saveHouseholdProfile()}
+              >
+                {profileSaving ? "Saving…" : "Save Household"}
+              </button>
             </div>
           )}
         </div>

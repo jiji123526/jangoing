@@ -12,6 +12,7 @@ import {
   InterpretCommandRequestSchema,
   JoinHouseholdRequestSchema,
   ShoppingItemContextRequestSchema,
+  UpdateHouseholdProfileRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
   type Interpretation,
@@ -57,6 +58,7 @@ import {
   removeHouseholdMember,
   revokeHouseholdJoinCodes,
   rotateHouseholdJoinCode,
+  updateHouseholdProfile,
 } from "./households";
 
 interface Env extends AuthEnvironment {
@@ -123,7 +125,7 @@ function configuredOrigins(env: Env): string[] {
 function corsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers({
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     Vary: "Origin",
   });
   const origin = request.headers.get("Origin");
@@ -956,6 +958,24 @@ async function route(request: Request, env: Env): Promise<Response> {
 
     if (request.method === "GET" && url.pathname === "/households/current") {
       return json(request, env, await getCurrentHousehold(env, identity));
+    }
+
+    if (request.method === "PATCH" && url.pathname === "/households/current") {
+      const body = await request.json().catch(() => null);
+      const parsed = UpdateHouseholdProfileRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        return json(
+          request,
+          env,
+          { error: "Invalid household profile", details: parsed.error.flatten() },
+          400,
+        );
+      }
+      return json(
+        request,
+        env,
+        await updateHouseholdProfile(env, identity, parsed.data),
+      );
     }
 
     if (request.method === "GET" && url.pathname === "/households/members") {

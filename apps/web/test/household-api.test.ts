@@ -4,6 +4,7 @@ import {
   getHouseholdMembers,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
+  updateHouseholdProfile,
 } from "../lib/api";
 
 describe("household invite API client", () => {
@@ -79,6 +80,33 @@ describe("household invite API client", () => {
     expect(fetchMock).toHaveBeenLastCalledWith(
       `http://localhost:8787/households/members/${memberId}`,
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("updates and validates the shared household profile", async () => {
+    const household = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      name: "Shared Kitchen",
+      profile_emoji: "🥑",
+      icon_color: "#336699",
+      role: "owner",
+      created_at: "2026-09-02T12:00:00.000Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({ household }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      updateHouseholdProfile({
+        name: household.name,
+        profile_emoji: household.profile_emoji,
+        icon_color: household.icon_color,
+      }),
+    ).resolves.toEqual(household);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8787/households/current",
+      expect.objectContaining({ method: "PATCH" }),
     );
   });
 });

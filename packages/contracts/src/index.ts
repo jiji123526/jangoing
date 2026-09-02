@@ -640,6 +640,22 @@ export const FridgeSetupResponseSchema = FridgeSetupStatusSchema.extend({
 });
 
 export const HouseholdRoleSchema = z.enum(["owner", "member"]);
+const HouseholdProfileEmojiSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(32)
+  .refine(
+    (value) =>
+      /^(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)$/u.test(
+        value,
+      ),
+    "Enter one emoji",
+  );
+const HouseholdIconColorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/)
+  .transform((value) => value.toUpperCase());
 
 export const CreateHouseholdRequestSchema = z
   .object({
@@ -656,9 +672,19 @@ export const JoinHouseholdRequestSchema = z
 export const HouseholdSummarySchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
+  profile_emoji: HouseholdProfileEmojiSchema,
+  icon_color: HouseholdIconColorSchema,
   role: HouseholdRoleSchema,
   created_at: z.string().datetime(),
 });
+
+export const UpdateHouseholdProfileRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    profile_emoji: HouseholdProfileEmojiSchema,
+    icon_color: HouseholdIconColorSchema,
+  })
+  .strict();
 
 export const HouseholdJoinCodeSchema = z.object({
   code: z.string(),
@@ -755,6 +781,9 @@ export type CreateHouseholdRequest = z.infer<
 >;
 export type JoinHouseholdRequest = z.infer<typeof JoinHouseholdRequestSchema>;
 export type HouseholdSummary = z.infer<typeof HouseholdSummarySchema>;
+export type UpdateHouseholdProfileRequest = z.infer<
+  typeof UpdateHouseholdProfileRequestSchema
+>;
 export type HouseholdJoinCode = z.infer<typeof HouseholdJoinCodeSchema>;
 export type HouseholdUserProfile = z.infer<typeof HouseholdUserProfileSchema>;
 export type HouseholdMember = z.infer<typeof HouseholdMemberSchema>;

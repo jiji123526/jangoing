@@ -378,6 +378,7 @@ GET /households/members
 Household owner는 다음 route도 사용할 수 있다.
 
 ```text
+PATCH /households/current
 POST /households/join-code
 POST /households/join-code/revoke
 DELETE /households/members/:userId
@@ -431,6 +432,8 @@ generated-review import
   먼저 정렬한다.
 - `DELETE /households/members/:userId`는 owner만 member를 제거할 수 있게 하며,
   owner 제거 시도와 다른 household target을 거부한다.
+- `PATCH /households/current`는 owner만 shared household name, emoji, icon
+  color를 수정할 수 있게 한다.
 - Join code는 50 bit cryptographic randomness와 읽기 쉬운 `ABCD-EFGH-JK`
   format을 사용하며 HMAC-SHA256 hash만 저장한다.
 - Invalid, expired, revoked code는 모두 동일한 `invalid_household_code`
@@ -701,36 +704,29 @@ account surface가 담당하며, onboarding에는 household에 들어가기 위�
 Ownership transfer, household 나가기, account 삭제, privacy control은 이후
 account 작업으로 남아 있다.
 
-### Household Profile Customization 제안
+### Household Profile Customization 상태
 
-Account dialog header는 일반적인 product account title 대신 현재 household
-name을 사용한다. Household name과 icon은 모든 member에게 보이는 shared
-metadata이므로 Google user profile과 분리해서 관리해야 한다.
+2026-09-02 구현 완료:
 
-권장 1단계:
+- `0014_add_household_profile.sql` migration이 `profile_emoji`와 `icon_color`를
+  추가하고 기존 household를 `🏠`, `#1F6B45`로 backfill한다.
+- Household name은 non-unique로 유지하며 trim 후 1–80자를 허용한다.
+- Profile emoji는 arbitrary text가 아니라 validation을 통과한 단일 emoji
+  sequence여야 한다.
+- Icon color는 6자리 hex value를 허용하며 UI에서 preset과 native color input을
+  제공한다.
+- Owner만 household row를 action으로 열고 변경을 저장할 수 있다.
+- Member는 동일한 shared name, emoji, color를 read-only row로 본다.
+- `Edit Household` screen은 live preview, name, emoji, color, inline
+  validation, save state를 포함한다.
+- Update response가 shared household context를 갱신하므로 page reload 없이
+  account title, header icon, household row가 바뀐다.
+- Profile image upload는 의도적으로 제외해 object storage나 media cleanup
+  lifecycle이 필요하지 않다.
 
-- Owner가 기존 household name을 수정할 수 있게 한다.
-- `households`에 nullable `icon_key`, `icon_color` field를 추가한다.
-- Home, refrigerator, produce, meal, shopping 등의 작은 preset icon set과
-  accessibility를 고려한 고정 color palette를 제공한다.
-- Update를 validate하고 변경된 household summary를 반환하는 owner-only
-  `PATCH /households/current` endpoint를 추가한다.
-- Account dialog 안에 preview, name input, icon grid, Cancel, Save로 구성된
-  `Edit Household` screen을 추가한다.
-- 응답으로 shared household context를 갱신해 page reload 없이 header와
-  profile row가 즉시 변경되게 한다.
-- Member는 read-only로 유지한다.
-
-Preset icon은 object storage, moderation, image processing, cleanup, signed
-delivery URL이 필요하지 않으므로 image upload보다 먼저 적용하는 것을
-권장한다. 이후 item media storage lifecycle이 마련되면 R2 기반 household
-photo를 추가할 수 있으며, 이 단계에서도 preset icon은 fallback으로 유지한다.
-
-구현 전 결정이 필요한 product 항목:
-
-- 첫 release에서 preset icon과 color만 사용할지, image upload도 포함할지
-- Household name을 unique하게 제한할지 여부(현재는 제한하지 않음)
-- Member가 profile 변경을 제안할 수 있게 할지, owner만 수정 가능하게 할지
+Worker와 Web contract 변경을 배포하기 전에 migration `0014`를 먼저
+적용해야 한다. Code를 먼저 배포하면 아직 존재하지 않는 column을 household
+query가 참조하게 된다.
 
 ## Local Development
 

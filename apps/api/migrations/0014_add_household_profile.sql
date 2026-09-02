@@ -1,0 +1,5 @@
+ALTER TABLE households
+  ADD COLUMN profile_emoji TEXT NOT NULL DEFAULT '🏠';
+
+ALTER TABLE households
+  ADD COLUMN icon_color TEXT NOT NULL DEFAULT '#1F6B45';

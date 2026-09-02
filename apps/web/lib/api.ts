@@ -37,7 +37,9 @@ import {
   type CurrentHouseholdResponse,
   type HouseholdJoinCode,
   type HouseholdMember,
+  type HouseholdSummary,
   type JoinedHouseholdResponse,
+  type UpdateHouseholdProfileRequest,
   type SpeakerRole,
 } from "@jangoing/contracts";
 import { z } from "zod";
@@ -340,6 +342,16 @@ export async function getInventoryData(): Promise<InventoryItem[]> {
 export async function getCurrentHousehold(): Promise<CurrentHouseholdResponse> {
   const body = await apiRequest("/households/current");
   return CurrentHouseholdResponseSchema.parse(body);
+}
+
+export async function updateHouseholdProfile(
+  update: UpdateHouseholdProfileRequest,
+): Promise<HouseholdSummary> {
+  const body = await apiRequest("/households/current", {
+    method: "PATCH",
+    body: JSON.stringify(update),
+  });
+  return JoinedHouseholdResponseSchema.parse(body).household;
 }
 
 export async function createHousehold(

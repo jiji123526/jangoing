@@ -103,6 +103,10 @@ const singleHouseholdMembershipMigrationPath = resolve(
   apiDirectory,
   "migrations/0013_enforce_single_household_membership.sql",
 );
+const householdProfileMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0014_add_household_profile.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -194,6 +198,12 @@ const singleHouseholdMembershipIndex = database.prepare(
 if (!singleHouseholdMembershipIndex?.name) {
   database.exec(readFileSync(singleHouseholdMembershipMigrationPath, "utf8"));
 }
+const householdColumns = database.prepare(
+  "PRAGMA table_info(households)",
+).all() as Array<{ name: string }>;
+if (!householdColumns.some((column) => column.name === "profile_emoji")) {
+  database.exec(readFileSync(householdProfileMigrationPath, "utf8"));
+}
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
@@ -255,7 +265,7 @@ function events(limit?: number, since?: string): EventRecord[] {
 function responseHeaders(origin?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     Vary: "Origin",
   };

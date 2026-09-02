@@ -133,6 +133,7 @@ describe("household consumer-data isolation", () => {
       "0011_add_inventory_category.sql",
       "0012_add_household_ownership.sql",
       "0013_enforce_single_household_membership.sql",
+      "0014_add_household_profile.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -334,6 +335,42 @@ describe("household consumer-data isolation", () => {
       success: true,
       removed_user_id: userC,
     });
+  });
+
+  it("allows only owners to update shared household profile metadata", async () => {
+    const update = {
+      name: "Shared Kitchen",
+      profile_emoji: "🥑",
+      icon_color: "#336699",
+    };
+    const invalidEmoji = await request(
+      "/households/current",
+      {
+        method: "PATCH",
+        body: JSON.stringify({ ...update, profile_emoji: "avocado" }),
+      },
+      tokenA,
+    );
+    expect(invalidEmoji.status).toBe(400);
+
+    const denied = await request(
+      "/households/current",
+      { method: "PATCH", body: JSON.stringify(update) },
+      tokenC,
+    );
+    expect(denied.status).toBe(403);
+
+    const updated = await request(
+      "/households/current",
+      { method: "PATCH", body: JSON.stringify(update) },
+      tokenA,
+    );
+    expect(updated.status).toBe(200);
+    expect(await updated.json()).toMatchObject({ household: update });
+
+    const memberView = await request("/households/current", {}, tokenC);
+    expect(memberView.status).toBe(200);
+    expect(await memberView.json()).toMatchObject({ household: update });
   });
 
   it("prevents another household from resolving an inference", async () => {

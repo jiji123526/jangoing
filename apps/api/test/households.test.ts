@@ -13,6 +13,7 @@ import {
   removeHouseholdMember,
   revokeHouseholdJoinCodes,
   rotateHouseholdJoinCode,
+  updateHouseholdProfile,
   type HouseholdEnvironment,
 } from "../src/households";
 
@@ -101,6 +102,7 @@ describe("household lifecycle", () => {
       "0003_create_inference_logs.sql",
       "0012_add_household_ownership.sql",
       "0013_enforce_single_household_membership.sql",
+      "0014_add_household_profile.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -152,6 +154,8 @@ describe("household lifecycle", () => {
 
     expect(created.household).toMatchObject({
       name: "Our Kitchen",
+      profile_emoji: "🏠",
+      icon_color: "#1F6B45",
       role: "owner",
     });
     expect(created.join_code.code).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{2}$/);
@@ -343,6 +347,60 @@ describe("household lifecycle", () => {
       listHouseholdMembers(env, ownerWithHousehold),
     ).resolves.toMatchObject({
       members: [{ id: owner.user.id, role: "owner" }],
+    });
+  });
+
+  it("allows only the owner to customize the household profile", async () => {
+    const owner = identity("owner-1");
+    const member = identity("member-1");
+    insertUser(owner);
+    insertUser(member);
+    const created = await createHousehold(
+      env,
+      owner,
+      { name: "Our Kitchen" },
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    const ownerWithHousehold = identity(
+      owner.user.id,
+      created.household.id,
+      "owner",
+    );
+
+    await expect(
+      updateHouseholdProfile(
+        env,
+        identity(member.user.id, created.household.id, "member"),
+        {
+          name: "Member Rename",
+          profile_emoji: "🍎",
+          icon_color: "#AA3344",
+        },
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      code: "household_owner_required",
+    });
+
+    await expect(
+      updateHouseholdProfile(
+        env,
+        ownerWithHousehold,
+        {
+          name: "Jiwoo's Kitchen",
+          profile_emoji: "🍳",
+          icon_color: "#336699",
+        },
+        new Date("2026-09-02T13:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      household: {
+        id: created.household.id,
+        name: "Jiwoo's Kitchen",
+        profile_emoji: "🍳",
+        icon_color: "#336699",
+        role: "owner",
+      },
     });
   });
 

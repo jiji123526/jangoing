@@ -2,6 +2,31 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Household profile customization added
+
+### Completed
+
+- Added shared household name, emoji, and icon-color persistence.
+- Made the household row actionable for owners and read-only for members.
+- Added a live-preview editor with typed emoji validation, color presets,
+  native color selection, and save state.
+- Replaced default household glyphs in the account header and household row
+  with the configured emoji and background color.
+- Update shared household context immediately after save.
+
+### Validation
+
+- Added migration defaults and owner/member authorization coverage.
+- Added Worker route validation for invalid emoji input and shared member
+  visibility.
+- Added Web client response validation for profile updates.
+
+### Deployment
+
+1. Apply D1 migration `0014_add_household_profile.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
+
 ## 2026-09-02 - Shared member editing and private search recents verified
 
 ### Completed

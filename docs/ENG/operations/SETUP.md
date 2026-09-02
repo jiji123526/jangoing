@@ -40,7 +40,7 @@ To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
 the required event, correction, inference-log, annotation, and inventory
-schema migrations through migration 0013. This keeps local development
+schema migrations through migration 0014. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
 
@@ -120,7 +120,7 @@ household routes.
 
 ### 4. Prepare Cloudflare Without Enabling Required Auth
 
-Apply migrations `0012` and `0013`, configure secrets, and deploy while
+Apply migrations through `0014`, configure secrets, and deploy while
 `AUTH_REQUIRED` remains `false`:
 
 ```bash
@@ -518,7 +518,7 @@ For preview deployments, allow each preview origin explicitly or use a controlle
 - [x] Wrangler authenticated
 - [x] Production D1 created
 - [x] D1 ID added to `wrangler.toml`
-- [ ] Production migrations through 0013 applied
+- [ ] Production migrations through 0014 applied
 - [x] Worker deployed and health endpoint verified
 - [x] Repository imported into Vercel and connected to `main`
 - [x] `NEXT_PUBLIC_API_BASE_URL` configured

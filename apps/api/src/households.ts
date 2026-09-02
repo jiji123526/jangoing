@@ -5,6 +5,7 @@ import type {
   HouseholdMember,
   HouseholdSummary,
   JoinHouseholdRequest,
+  UpdateHouseholdProfileRequest,
 } from "@jangoing/contracts";
 import type { RequestIdentity } from "./auth";
 
@@ -16,6 +17,8 @@ export interface HouseholdEnvironment {
 interface HouseholdRow {
   id: string;
   name: string;
+  profile_emoji: string;
+  icon_color: string;
   role: "owner" | "member";
   created_at: string;
 }
@@ -32,6 +35,8 @@ interface HouseholdMemberRow {
 const joinCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const joinCodeLength = 10;
 const joinCodeLifetimeMs = 7 * 24 * 60 * 60 * 1000;
+const defaultHouseholdEmoji = "🏠";
+const defaultHouseholdIconColor = "#1F6B45";
 const encoder = new TextEncoder();
 
 export class HouseholdError extends Error {
@@ -130,6 +135,8 @@ function summary(row: HouseholdRow): HouseholdSummary {
   return {
     id: row.id,
     name: row.name,
+    profile_emoji: row.profile_emoji,
+    icon_color: row.icon_color,
     role: row.role,
     created_at: row.created_at,
   };
@@ -140,7 +147,9 @@ async function readHouseholdForUser(
   userId: string,
 ): Promise<HouseholdSummary | null> {
   const row = await env.DB.prepare(
-    `SELECT h.id, h.name, hm.role, h.created_at
+    `SELECT
+       h.id, h.name, h.profile_emoji, h.icon_color,
+       hm.role, h.created_at
      FROM household_memberships hm
      JOIN households h ON h.id = hm.household_id
      WHERE hm.user_id = ?`,
@@ -163,6 +172,36 @@ export async function getCurrentHousehold(
       ? await readHouseholdForUser(env, identity.user.id)
       : null,
   };
+}
+
+export async function updateHouseholdProfile(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+  input: UpdateHouseholdProfileRequest,
+  now = new Date(),
+): Promise<{ household: HouseholdSummary }> {
+  assertOwner(identity);
+  await env.DB.prepare(
+    `UPDATE households
+     SET name = ?, profile_emoji = ?, icon_color = ?, updated_at = ?
+     WHERE id = ?`,
+  ).bind(
+    input.name,
+    input.profile_emoji,
+    input.icon_color,
+    now.toISOString(),
+    identity.householdId,
+  ).run();
+
+  const household = await readHouseholdForUser(env, identity.user.id);
+  if (!household) {
+    throw new HouseholdError(
+      500,
+      "household_resolution_failed",
+      "Unable to resolve household",
+    );
+  }
+  return { household };
 }
 
 export async function listHouseholdMembers(
@@ -288,6 +327,8 @@ export async function createHousehold(
     household: {
       id: householdId,
       name: input.name,
+      profile_emoji: defaultHouseholdEmoji,
+      icon_color: defaultHouseholdIconColor,
       role: "owner",
       created_at: createdAt,
     },

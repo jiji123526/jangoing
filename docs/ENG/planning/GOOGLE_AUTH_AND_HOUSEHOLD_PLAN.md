@@ -388,6 +388,7 @@ GET /households/members
 Household owners may also access:
 
 ```text
+PATCH /households/current
 POST /households/join-code
 POST /households/join-code/revoke
 DELETE /households/members/:userId
@@ -441,6 +442,8 @@ Implemented on 2026-09-02:
   household, with the owner sorted first;
 - `DELETE /households/members/:userId` lets only owners remove a member,
   rejects attempts to remove the owner, and cannot target another household;
+- `PATCH /households/current` lets only owners update the shared household
+  name, emoji, and icon color;
 - join codes contain 50 bits of cryptographic randomness, use a readable
   `ABCD-EFGH-JK` format, and are stored only as HMAC-SHA256 hashes;
 - invalid, expired, and revoked codes return the same
@@ -716,38 +719,29 @@ Implemented on 2026-09-02:
 Ownership transfer, leaving a household, account deletion, and privacy controls
 remain later account work.
 
-### Household Profile Customization Proposal
+### Household Profile Customization Status
 
-The account dialog header uses the current household name rather than a generic
-product-account title. Household customization should remain distinct from the
-Google user profile because the name and icon are shared metadata visible to
-every member.
+Implemented on 2026-09-02:
 
-Recommended first phase:
+- migration `0014_add_household_profile.sql` adds `profile_emoji` and
+  `icon_color`, backfilling existing households with `🏠` and `#1F6B45`;
+- household names remain non-unique and accept 1–80 trimmed characters;
+- the profile emoji must be one validated emoji sequence rather than arbitrary
+  text;
+- icon colors accept a six-digit hex value, with presets and a native color
+  input in the UI;
+- only the owner can open the household row as an action and save changes;
+- members see the same shared name, emoji, and color in a read-only row;
+- the `Edit Household` screen includes a live preview, name, emoji, color,
+  inline validation, and a save state;
+- the update response refreshes shared household context so the account title,
+  header icon, and household row update without a page reload;
+- profile image upload is intentionally excluded; no object storage or media
+  cleanup lifecycle is required.
 
-- allow owners to edit the existing household name;
-- add nullable `icon_key` and `icon_color` fields to `households`;
-- offer a small preset icon set such as home, refrigerator, produce, meal, and
-  shopping, plus an accessible fixed color palette;
-- expose an owner-only `PATCH /households/current` endpoint that validates and
-  returns the updated household summary;
-- add an `Edit Household` screen inside the account dialog with preview,
-  name input, icon grid, Cancel, and Save;
-- update shared household context from the response so the header and profile
-  row change immediately without a page reload;
-- keep members read-only.
-
-Preset icons are recommended before image upload because they require no object
-storage, moderation, image processing, cleanup, or signed delivery URLs. A
-later phase can add a household photo backed by R2 after the item-media storage
-lifecycle is established. That phase should retain the preset icon as a
-fallback.
-
-Pending product decisions before implementation:
-
-- preset icon and color only, or image upload in the first release;
-- whether the household name must be unique (not currently required);
-- whether members may propose profile changes or only owners may edit.
+Apply migration `0014` before deploying the Worker and Web contract changes.
+Deploying code first would make household queries reference columns that do not
+yet exist.
 
 ## Local Development
 

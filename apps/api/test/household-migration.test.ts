@@ -147,4 +147,24 @@ describe("household ownership migration", () => {
       { household_id: "household-2", value: "false" },
     ]);
   });
+
+  it("backfills default household profile values", () => {
+    const createdAt = "2026-09-02T00:00:00.000Z";
+    database.prepare(
+      `INSERT INTO households (id, name, created_at, updated_at)
+       VALUES (?, ?, ?, ?)`,
+    ).run("household-profile", "Profile Home", createdAt, createdAt);
+
+    database.exec(migration("0014_add_household_profile.sql"));
+
+    expect(
+      database.prepare(
+        `SELECT profile_emoji, icon_color
+         FROM households WHERE id = ?`,
+      ).get("household-profile"),
+    ).toEqual({
+      profile_emoji: "🏠",
+      icon_color: "#1F6B45",
+    });
+  });
 });

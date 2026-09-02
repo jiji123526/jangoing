@@ -41,7 +41,7 @@ API URL을 직접 지정하려면 `apps/web/.env.local.example`을 복사해
 `apps/web/.env.local`을 만든다.
 
 로컬 API는 자동으로 `apps/api/.local/jangoing.sqlite`를 만들고, 필요한 event,
-correction, inference-log, annotation, inventory schema migration을 `0013`까지
+correction, inference-log, annotation, inventory schema migration을 `0014`까지
 적용한다. 이렇게 해야 로컬 개발이 Cloudflare 인증과 native runtime에서
 분리된다. Production은 여전히 Cloudflare Worker와 D1을 사용한다.
 
@@ -118,7 +118,7 @@ Node/SQLite development API에는 Worker authentication과 household route가 �
 
 ### 4. Required Auth를 켜지 않고 Cloudflare 준비
 
-`AUTH_REQUIRED=false`를 유지한 상태로 migration `0012`, `0013`을 적용하고 secret을
+`AUTH_REQUIRED=false`를 유지한 상태로 migration `0014`까지 적용하고 secret을
 설정한 뒤 Worker를 배포한다.
 
 ```bash
