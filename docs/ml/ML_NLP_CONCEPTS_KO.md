@@ -1288,7 +1288,7 @@ PyTorch와 DistilBERT는 baseline artifact와 `metrics.json`을 직접 만들어
 
 ## 32. 관련 문서
 
-- [ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md](../decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md): 학술 목표, 연구 질문, 방법론
+- [ACADEMIC_GOALS_AND_RESEARCH_APPROACH_KO.md](../decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH_KO.md): 학술 목표, 연구 질문, 방법론
 - [IMPLEMENTATION_NOTES_KO.md](../decisions/IMPLEMENTATION_NOTES_KO.md): 구현 내용과 기술 선택
 - [SYNTHETIC_V1_KO.md](./SYNTHETIC_V1_KO.md): synthetic-v1 생성 및 결정 기록
 - [MODEL_EVALUATION.md](./MODEL_EVALUATION.md): 평가와 로깅 원칙

@@ -137,19 +137,24 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 
 ## Documentation
 
-- [Documentation index](./docs/README.md)
-- [MVP and product plan](./docs/planning/PLAN.md)
-- [Local, Cloudflare, and Vercel setup](./docs/operations/SETUP.md)
+- [Documentation bridge index](./docs/README.md)
+- [English documentation index](./docs/ENG/README.md)
+- [Korean documentation index](./docs/KO/README.md)
+- [MVP and product plan](./docs/ENG/planning/PLAN.md)
+- [Local, Cloudflare, and Vercel setup](./docs/ENG/operations/SETUP.md)
 - [Development progress log](./docs/planning/PROGRESS.md)
-- [Current action items and annotation targets](./docs/planning/ACTION_ITEMS.md)
+- [Current action items and annotation targets](./docs/ENG/planning/ACTION_ITEMS.md)
 - [Model evaluation and logging standard](./docs/ml/MODEL_EVALUATION.md)
-- [Academic goals and research approach](./docs/decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
-- [구현 내용과 기술적 의사결정 설명서](./docs/decisions/IMPLEMENTATION_NOTES_KO.md)
+- [Academic goals and research approach](./docs/ENG/decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
+- [구현 내용과 기술적 의사결정 설명서](./docs/KO/decisions/IMPLEMENTATION_NOTES.md)
 - [영어 synthetic-v1 생성 및 의사결정 기록](./docs/ml/SYNTHETIC_V1_KO.md)
 - [공개 데이터셋 조사 및 도입 계획](./docs/ml/OPEN_DATASETS_KO.md)
 - [머신러닝·자연어 처리·언어학 개념 안내서](./docs/ml/ML_NLP_CONCEPTS_KO.md)
 - [Production annotation 화면 사용 및 의사결정 기록](./docs/annotation/ANNOTATION_GUIDE_KO.md)
 - [Annotation 정답 결정 규칙 v4](./docs/annotation/ANNOTATION_CONVENTIONS_KO.md)
+
+The progress log remains in `./docs/planning/PROGRESS.md` as the English source
+log and is intentionally excluded from translation.
 
 ## MVP Commands
 
