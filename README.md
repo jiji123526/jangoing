@@ -137,21 +137,19 @@ Git commit, seed, split counts, per-class report, and confusion matrix. See
 
 ## Documentation
 
-- [Documentation bridge index](./docs/README.md)
 - [English documentation index](./docs/ENG/README.md)
-- [Korean documentation index](./docs/KO/README.md)
 - [MVP and product plan](./docs/ENG/planning/PLAN.md)
 - [Local, Cloudflare, and Vercel setup](./docs/ENG/operations/SETUP.md)
 - [Development progress log](./docs/planning/PROGRESS.md)
 - [Current action items and annotation targets](./docs/ENG/planning/ACTION_ITEMS.md)
 - [Model evaluation and logging standard](./docs/ENG/ml/MODEL_EVALUATION.md)
 - [Academic goals and research approach](./docs/ENG/decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
-- [구현 내용과 기술적 의사결정 설명서](./docs/KO/decisions/IMPLEMENTATION_NOTES.md)
-- [영어 synthetic-v1 생성 및 의사결정 기록](./docs/KO/ml/SYNTHETIC_V1.md)
-- [공개 데이터셋 조사 및 도입 계획](./docs/KO/ml/OPEN_DATASETS.md)
-- [머신러닝·자연어 처리·언어학 개념 안내서](./docs/KO/ml/ML_NLP_CONCEPTS.md)
-- [Production annotation 화면 사용 및 의사결정 기록](./docs/KO/annotation/ANNOTATION_GUIDE.md)
-- [Annotation 정답 결정 규칙 v4](./docs/KO/annotation/ANNOTATION_CONVENTIONS.md)
+- [Implementation notes](./docs/ENG/decisions/IMPLEMENTATION_NOTES.md)
+- [Synthetic dataset design](./docs/ENG/ml/SYNTHETIC_V1.md)
+- [Open dataset research](./docs/ENG/ml/OPEN_DATASETS.md)
+- [ML and NLP concepts](./docs/ENG/ml/ML_NLP_CONCEPTS.md)
+- [Production annotation guide](./docs/ENG/annotation/ANNOTATION_GUIDE.md)
+- [Annotation conventions v4](./docs/ENG/annotation/ANNOTATION_CONVENTIONS.md)
 
 The progress log remains in `./docs/planning/PROGRESS.md` as the English source
 log and is intentionally excluded from translation.
