@@ -2,6 +2,34 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Korean docs index labels aligned to actual titles
+
+### Completed
+
+- Updated `docs/KO/README.md` so visible link labels now match the actual
+  document titles instead of using English summary labels.
+- Kept mixed Korean/English titles where the source documents themselves use
+  mixed naming, so the index matches what opens on click.
+
+### Deployment
+
+- This change is documentation-only.
+
+## 2026-09-02 - Root docs index simplified
+
+### Completed
+
+- Replaced `docs/README.md` as a mixed-language reading guide with a minimal
+  language router.
+- Removed direct links from the root docs index to individual planning,
+  annotation, ML, decision, and operations documents.
+- Kept the root index focused on language selection, folder structure, and
+  documentation maintenance rules.
+
+### Deployment
+
+- This change is documentation-only.
+
 ## 2026-09-02 - ML docs added to bilingual tree
 
 ### Completed
