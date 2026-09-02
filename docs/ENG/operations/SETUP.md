@@ -40,9 +40,153 @@ To override the API URL, create `apps/web/.env.local` from `apps/web/.env.local.
 
 The local API automatically creates `apps/api/.local/jangoing.sqlite` and applies
 the required event, correction, inference-log, annotation, and inventory
-schema migrations through migration 0011. This keeps local development
+schema migrations through migration 0013. This keeps local development
 independent from Cloudflare authentication and its native runtime. Production
 still uses the Cloudflare Worker and D1.
+
+## Google Authentication and Household Rollout
+
+Authentication is mandatory for consumer pages. Any Google account may sign in;
+there is no email allowlist. A signed-in user must join or create a household
+before the app and bottom navigation render.
+
+### 1. Create Google OAuth Credentials
+
+In Google Cloud Console:
+
+1. Configure the OAuth consent screen as External.
+2. Request only `openid`, `email`, and `profile`.
+3. Create an OAuth client of type Web application.
+4. Add these local values:
+
+```text
+Authorized JavaScript origin:
+http://localhost:3000
+
+Authorized redirect URI:
+http://localhost:3000/api/auth/callback/google
+```
+
+5. Replace `<WEB_ORIGIN>` with the exact production Vercel/custom origin and
+   add:
+
+```text
+Authorized JavaScript origin:
+<WEB_ORIGIN>
+
+Authorized redirect URI:
+<WEB_ORIGIN>/api/auth/callback/google
+```
+
+While the consent screen is in Testing, only configured Google test users can
+sign in. Publish the consent screen to Production when any Google account
+should be usable. Basic identity scopes do not require requesting access to
+Gmail, Drive, or other Google data.
+
+### 2. Generate Three Independent Secrets
+
+Run this three times and retain each output separately:
+
+```bash
+openssl rand -base64 32
+```
+
+Use the values as:
+
+- `AUTH_SECRET`: Auth.js cookie/session encryption;
+- `APP_JWT_SECRET`: shared only by Vercel and the Worker;
+- `HOUSEHOLD_CODE_SECRET`: Worker-only join-code hashing.
+
+Never reuse the Google client secret for these values and never prefix a
+server-only variable with `NEXT_PUBLIC_`.
+
+### 3. Configure Local Web Authentication
+
+Create `apps/web/.env.local` from `.env.local.example` and set:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=<DEPLOYED_WORKER_ORIGIN>
+AUTH_SECRET=<AUTH_SECRET>
+AUTH_GOOGLE_ID=<GOOGLE_OAUTH_CLIENT_ID>
+AUTH_GOOGLE_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+APP_JWT_SECRET=<APP_JWT_SECRET>
+APP_JWT_ISSUER=jangoing-web
+APP_JWT_AUDIENCE=jangoing-api
+```
+
+Use the deployed Worker for end-to-end local authentication testing. The
+Node/SQLite development API does not implement the Worker authentication and
+household routes.
+
+### 4. Prepare Cloudflare Without Enabling Required Auth
+
+Apply migrations `0012` and `0013`, configure secrets, and deploy while
+`AUTH_REQUIRED` remains `false`:
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run db:migrate:remote
+
+cd apps/api
+npx wrangler secret put APP_JWT_SECRET
+npx wrangler secret put HOUSEHOLD_CODE_SECRET
+cd ../..
+
+npm run deploy:api
+```
+
+Enter the same `APP_JWT_SECRET` used by Vercel. `APP_JWT_ISSUER` and
+`APP_JWT_AUDIENCE` are non-secret Worker variables already defined in
+`wrangler.toml`.
+
+### 5. Configure and Deploy Vercel
+
+Set these production environment variables in Vercel:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=<DEPLOYED_WORKER_ORIGIN>
+AUTH_SECRET=<AUTH_SECRET>
+AUTH_GOOGLE_ID=<GOOGLE_OAUTH_CLIENT_ID>
+AUTH_GOOGLE_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+APP_JWT_SECRET=<SAME_APP_JWT_SECRET_AS_WORKER>
+APP_JWT_ISSUER=jangoing-web
+APP_JWT_AUDIENCE=jangoing-api
+```
+
+Redeploy Web, open the production app, and sign in using the Google account
+that should own the existing inventory. Stop at the household-choice screen;
+do not create a household manually. The membership check creates the stable
+Google-linked user needed by the backfill.
+
+### 6. Audit and Apply the Bootstrap Backfill
+
+Run the dry-run first, replacing `<GOOGLE_EMAIL>` with the exact signed-in
+account:
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run household:backfill-bootstrap -- \
+  --remote \
+  --owner-email "<GOOGLE_EMAIL>" \
+  --household-name "Jiwoo's Home"
+```
+
+Review the event count, `web` inference count, app-state count, owner Google
+subject, and inference sources that will remain unassigned. If correct:
+
+```bash
+npm run household:backfill-bootstrap -- \
+  --remote \
+  --owner-email "<GOOGLE_EMAIL>" \
+  --household-name "Jiwoo's Home" \
+  --apply \
+  --confirm "Jiwoo's Home"
+```
+
+Refresh the web app. It should skip onboarding and open `Jiwoo's Home`.
+
+Do not set `AUTH_REQUIRED=true` until this refresh, household inventory,
+shopping list, fridge-setup state, and sign-out/sign-in cycle are verified.
 
 ## Production-Only Annotation Mode
 
@@ -374,7 +518,7 @@ For preview deployments, allow each preview origin explicitly or use a controlle
 - [x] Wrangler authenticated
 - [x] Production D1 created
 - [x] D1 ID added to `wrangler.toml`
-- [ ] Production migrations through 0011 applied
+- [ ] Production migrations through 0013 applied
 - [x] Worker deployed and health endpoint verified
 - [x] Repository imported into Vercel and connected to `main`
 - [x] `NEXT_PUBLIC_API_BASE_URL` configured

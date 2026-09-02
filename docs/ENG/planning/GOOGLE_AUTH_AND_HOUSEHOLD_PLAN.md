@@ -663,6 +663,26 @@ enter a household.
 - prevent dismissal while a create or join mutation is being committed;
 - honor reduced-motion preferences for sheet and selection transitions.
 
+### Onboarding Implementation Status
+
+Implemented on 2026-09-02:
+
+- Google authentication is mandatory and the onboarding gate cannot be
+  dismissed into anonymous app access;
+- any valid Google account may sign in; no subject or email allowlist is
+  applied;
+- signed-out, membership-resolution, household-choice, join, create,
+  completion, and authenticated-app states are implemented;
+- existing household members skip onboarding;
+- app pages and bottom navigation do not render before household resolution;
+- join-code formatting, disabled submission, pending state, inline errors,
+  back navigation, title focus, safe areas, and reduced motion are included;
+- the Home profile control now opens a minimal account sheet with profile
+  identity and sign-out.
+
+Owner code management, member management, account deletion, and privacy
+controls remain later account-sheet work.
+
 ## Local Development
 
 Google OAuth configuration needs:
@@ -810,9 +830,8 @@ Authentication is complete only when:
 ## Open Decisions
 
 - Which Google account receives the existing production inventory?
-- Should the private MVP use a Google-subject or email allowlist?
-- Should join codes expire after seven days, and should they allow unlimited
-  joins until expiration or have a maximum use count?
+- Should active seven-day join codes allow unlimited joins until expiration or
+  have a maximum use count?
 - Where should owners rotate, revoke, and generate household codes?
 - Should `/annotate` remain public, use a separate admin token, or require an
   authorized account?
@@ -820,5 +839,3 @@ Authentication is complete only when:
   added?
 - Should user-generated language remain available for research after account
   deletion, and under what de-identification policy?
-- Should the signed-out experience remain a mandatory authentication gate, or
-  should a future isolated anonymous demo mode make onboarding dismissible?

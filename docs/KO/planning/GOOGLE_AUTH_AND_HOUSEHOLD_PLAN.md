@@ -649,6 +649,26 @@ account surface가 담당하며, onboarding에는 household에 들어가기 위�
 - Create/join mutation commit 중 dismiss 방지
 - Sheet와 selection transition에서 reduced-motion preference 준수
 
+### Onboarding 구현 상태
+
+2026-09-02 구현 완료:
+
+- Google authentication은 mandatory이며 onboarding gate를 dismiss해 anonymous
+  app access로 들어갈 수 없다.
+- 모든 valid Google account가 sign in할 수 있으며 subject 또는 email allowlist를
+  적용하지 않는다.
+- Signed-out, membership-resolution, household-choice, join, create,
+  completion, authenticated-app state를 구현했다.
+- 기존 household member는 onboarding을 건너뛴다.
+- Household resolution 전에는 app page와 bottom navigation을 render하지 않는다.
+- Join-code formatting, disabled submission, pending state, inline error, back
+  navigation, title focus, safe area, reduced motion을 포함한다.
+- Home profile control은 profile identity와 sign-out을 제공하는 minimal account
+  sheet를 연다.
+
+Owner code management, member management, account deletion, privacy control은
+이후 account-sheet 작업으로 남아 있다.
+
 ## Local Development
 
 Google OAuth configuration:
@@ -795,8 +815,7 @@ Public rollout 전에 다음을 정의한다.
 ## Open Decisions
 
 - 기존 production inventory를 어떤 Google account에 할당할 것인가?
-- Private MVP에 Google-subject 또는 email allowlist를 사용할 것인가?
-- Join code를 7일 후 만료시킬 것인가? 만료 전 unlimited join을 허용할 것인가,
+- Active seven-day join code가 expiration 전 unlimited join을 허용할 것인가,
   maximum use count를 둘 것인가?
 - Owner가 household code를 rotate, revoke, generate하는 UI를 어디에 둘 것인가?
 - `/annotate`를 public으로 둘 것인가, 별도 admin token을 사용할 것인가, authorized
@@ -804,6 +823,3 @@ Public rollout 전에 다음을 정의한다.
 - Household switching, member removal, leave household는 언제 추가할 것인가?
 - Account deletion 이후 user-generated language를 research에 유지할 것인가? 유지한다면
   어떤 de-identification policy를 적용할 것인가?
-- Signed-out experience를 mandatory authentication gate로 유지할 것인가, 아니면
-  이후 isolated anonymous demo mode를 추가해 onboarding을 dismiss할 수 있게 할
-  것인가?

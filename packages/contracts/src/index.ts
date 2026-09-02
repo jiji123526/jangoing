@@ -677,6 +677,14 @@ export const CurrentHouseholdResponseSchema = z.object({
   household: HouseholdSummarySchema.nullable(),
 });
 
+export const JoinedHouseholdResponseSchema = z.object({
+  household: HouseholdSummarySchema,
+});
+
+export const CreatedHouseholdResponseSchema = JoinedHouseholdResponseSchema.extend({
+  join_code: HouseholdJoinCodeSchema,
+});
+
 export type Intent = z.infer<typeof IntentSchema>;
 export type SpeakerRole = z.infer<typeof SpeakerRoleSchema>;
 export type ActivationMode = z.infer<typeof ActivationModeSchema>;
@@ -737,4 +745,10 @@ export type HouseholdJoinCode = z.infer<typeof HouseholdJoinCodeSchema>;
 export type HouseholdUserProfile = z.infer<typeof HouseholdUserProfileSchema>;
 export type CurrentHouseholdResponse = z.infer<
   typeof CurrentHouseholdResponseSchema
+>;
+export type JoinedHouseholdResponse = z.infer<
+  typeof JoinedHouseholdResponseSchema
+>;
+export type CreatedHouseholdResponse = z.infer<
+  typeof CreatedHouseholdResponseSchema
 >;

@@ -41,9 +41,147 @@ API URL을 직접 지정하려면 `apps/web/.env.local.example`을 복사해
 `apps/web/.env.local`을 만든다.
 
 로컬 API는 자동으로 `apps/api/.local/jangoing.sqlite`를 만들고, 필요한 event,
-correction, inference-log, annotation, inventory schema migration을 `0011`까지
+correction, inference-log, annotation, inventory schema migration을 `0013`까지
 적용한다. 이렇게 해야 로컬 개발이 Cloudflare 인증과 native runtime에서
 분리된다. Production은 여전히 Cloudflare Worker와 D1을 사용한다.
+
+## Google Authentication 및 Household Rollout
+
+Consumer page에서는 authentication이 mandatory다. Email allowlist는 없으며 모든
+Google account가 sign in할 수 있다. Signed-in user는 household를 join하거나
+생성해야 app과 bottom navigation을 볼 수 있다.
+
+### 1. Google OAuth Credential 생성
+
+Google Cloud Console에서:
+
+1. OAuth consent screen을 External로 설정한다.
+2. `openid`, `email`, `profile` scope만 요청한다.
+3. Web application 유형의 OAuth client를 생성한다.
+4. 다음 local 값을 추가한다.
+
+```text
+Authorized JavaScript origin:
+http://localhost:3000
+
+Authorized redirect URI:
+http://localhost:3000/api/auth/callback/google
+```
+
+5. `<WEB_ORIGIN>`을 실제 production Vercel/custom origin으로 교체해 추가한다.
+
+```text
+Authorized JavaScript origin:
+<WEB_ORIGIN>
+
+Authorized redirect URI:
+<WEB_ORIGIN>/api/auth/callback/google
+```
+
+Consent screen이 Testing이면 등록한 Google test user만 sign in할 수 있다. 모든
+Google account를 허용하려면 consent screen을 Production으로 publish한다. Basic
+identity scope를 위해 Gmail, Drive 등 다른 Google data access를 요청하지 않는다.
+
+### 2. 독립적인 Secret 세 개 생성
+
+다음 command를 세 번 실행하고 각 output을 따로 보관한다.
+
+```bash
+openssl rand -base64 32
+```
+
+각 값을 다음 용도로 사용한다.
+
+- `AUTH_SECRET`: Auth.js cookie/session encryption
+- `APP_JWT_SECRET`: Vercel과 Worker만 공유
+- `HOUSEHOLD_CODE_SECRET`: Worker-only join-code hashing
+
+Google client secret을 이 값으로 재사용하지 않는다. Server-only variable에
+`NEXT_PUBLIC_` prefix를 붙이지 않는다.
+
+### 3. Local Web Authentication 설정
+
+`.env.local.example`을 기준으로 `apps/web/.env.local`을 만들고 다음을 설정한다.
+
+```text
+NEXT_PUBLIC_API_BASE_URL=<DEPLOYED_WORKER_ORIGIN>
+AUTH_SECRET=<AUTH_SECRET>
+AUTH_GOOGLE_ID=<GOOGLE_OAUTH_CLIENT_ID>
+AUTH_GOOGLE_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+APP_JWT_SECRET=<APP_JWT_SECRET>
+APP_JWT_ISSUER=jangoing-web
+APP_JWT_AUDIENCE=jangoing-api
+```
+
+End-to-end local authentication test에는 deployed Worker를 사용한다.
+Node/SQLite development API에는 Worker authentication과 household route가 없다.
+
+### 4. Required Auth를 켜지 않고 Cloudflare 준비
+
+`AUTH_REQUIRED=false`를 유지한 상태로 migration `0012`, `0013`을 적용하고 secret을
+설정한 뒤 Worker를 배포한다.
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run db:migrate:remote
+
+cd apps/api
+npx wrangler secret put APP_JWT_SECRET
+npx wrangler secret put HOUSEHOLD_CODE_SECRET
+cd ../..
+
+npm run deploy:api
+```
+
+Vercel과 동일한 `APP_JWT_SECRET`을 입력한다. `APP_JWT_ISSUER`와
+`APP_JWT_AUDIENCE`는 `wrangler.toml`에 이미 정의된 non-secret Worker variable다.
+
+### 5. Vercel 설정 및 배포
+
+Vercel production environment variable에 다음 값을 설정한다.
+
+```text
+NEXT_PUBLIC_API_BASE_URL=<DEPLOYED_WORKER_ORIGIN>
+AUTH_SECRET=<AUTH_SECRET>
+AUTH_GOOGLE_ID=<GOOGLE_OAUTH_CLIENT_ID>
+AUTH_GOOGLE_SECRET=<GOOGLE_OAUTH_CLIENT_SECRET>
+APP_JWT_SECRET=<WORKER와_동일한_APP_JWT_SECRET>
+APP_JWT_ISSUER=jangoing-web
+APP_JWT_AUDIENCE=jangoing-api
+```
+
+Web을 redeploy하고 production app에서 기존 inventory를 소유할 Google account로
+sign in한다. Household-choice screen에서 멈추고 household를 직접 생성하지 않는다.
+Membership check가 backfill에 필요한 stable Google-linked user를 생성한다.
+
+### 6. Bootstrap Backfill Audit 및 적용
+
+먼저 `<GOOGLE_EMAIL>`을 실제 signed-in account로 교체해 dry-run한다.
+
+```bash
+cd /home/jjiwoo/.workspace/jangoing
+npm run household:backfill-bootstrap -- \
+  --remote \
+  --owner-email "<GOOGLE_EMAIL>" \
+  --household-name "Jiwoo's Home"
+```
+
+Event count, `web` inference count, app-state count, owner Google subject,
+unassigned 상태로 유지할 inference source를 검토한다. 정확하면 적용한다.
+
+```bash
+npm run household:backfill-bootstrap -- \
+  --remote \
+  --owner-email "<GOOGLE_EMAIL>" \
+  --household-name "Jiwoo's Home" \
+  --apply \
+  --confirm "Jiwoo's Home"
+```
+
+Web app을 refresh하면 onboarding을 건너뛰고 `Jiwoo's Home`을 열어야 한다.
+
+Refresh, household inventory, shopping list, fridge-setup state,
+sign-out/sign-in cycle을 확인하기 전에는 `AUTH_REQUIRED=true`로 바꾸지 않는다.
 
 ## Production 전용 Annotation 모드
 

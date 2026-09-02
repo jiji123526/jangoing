@@ -2,6 +2,39 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Mandatory Google and household onboarding implemented
+
+### Completed
+
+- Added a non-dismissible Google sign-in gate for all application pages.
+- Allowed any valid Google account without an application allowlist.
+- Added household membership resolution with existing-member bypass.
+- Added Apple-inspired household choice, join-code, household creation, and
+  completion screens.
+- Prevented app pages and bottom navigation from rendering before household
+  access is resolved.
+- Added accessible focus movement, inline errors, loading states, safe-area
+  layout, reduced-motion handling, and in-memory form state.
+- Replaced the Home profile placeholder with an account sheet and sign-out.
+- Added typed household response contracts and web API methods.
+- Added mirrored Google Cloud, Vercel, Worker, migration, first-login, and
+  bootstrap-backfill setup instructions.
+
+### Verification
+
+- `npm run test`
+- `npm run typecheck`
+- `npm run build --workspace @jangoing/api`
+- `npm run build --workspace @jangoing/web`
+- `git diff --check`
+
+### Deployment
+
+- No Google, Vercel, Worker, or D1 configuration was changed.
+- The mandatory gate must not be deployed before the documented OAuth,
+  migration, and secret setup is complete.
+- `AUTH_REQUIRED` remains `false` through first login and bootstrap backfill.
+
 ## 2026-09-02 - Google session and bootstrap backfill tooling implemented
 
 ### Completed

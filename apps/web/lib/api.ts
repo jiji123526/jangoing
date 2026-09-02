@@ -3,11 +3,14 @@ import {
   AnnotationNormalizedValuesResponseSchema,
   AnnotationStatsSchema,
   AnnotationQueueResponseSchema,
+  CreatedHouseholdResponseSchema,
+  CurrentHouseholdResponseSchema,
   EventRecordSchema,
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
+  JoinedHouseholdResponseSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
   type AnnotationAssistantProposal,
@@ -27,6 +30,9 @@ import {
   type ShoppingItemContextRequest,
   type ActivationMode,
   type AdjustInventoryItemRequest,
+  type CreatedHouseholdResponse,
+  type CurrentHouseholdResponse,
+  type JoinedHouseholdResponse,
   type SpeakerRole,
 } from "@jangoing/contracts";
 import { z } from "zod";
@@ -318,6 +324,31 @@ export type ShoppingMutationResult = z.infer<
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
   return InventoryResponseSchema.parse(body).inventory;
+}
+
+export async function getCurrentHousehold(): Promise<CurrentHouseholdResponse> {
+  const body = await apiRequest("/households/current");
+  return CurrentHouseholdResponseSchema.parse(body);
+}
+
+export async function createHousehold(
+  name: string,
+): Promise<CreatedHouseholdResponse> {
+  const body = await apiRequest("/households/create", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  return CreatedHouseholdResponseSchema.parse(body);
+}
+
+export async function joinHousehold(
+  code: string,
+): Promise<JoinedHouseholdResponse> {
+  const body = await apiRequest("/households/join", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+  return JoinedHouseholdResponseSchema.parse(body);
 }
 
 export async function getFridgeSetupStatus(): Promise<FridgeSetupStatus> {

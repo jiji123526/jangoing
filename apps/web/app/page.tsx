@@ -15,7 +15,6 @@ import {
   Check,
   ChevronUp,
   ChevronRight,
-  CircleUserRound,
   Lightbulb,
   LoaderCircle,
   Mic,
@@ -49,6 +48,7 @@ import {
   type DashboardData,
 } from "../lib/api";
 import { FridgeSetupDialog } from "./FridgeSetupDialog";
+import { AccountButton } from "./AccountButton";
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
@@ -1559,14 +1559,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         <div className="home-overview">
           <header className="home-titlebar">
             <h1>Home</h1>
-            <span
-              className="home-profile-placeholder"
-              role="img"
-              aria-label="Account profile placeholder"
-              title="Account profiles are planned"
-            >
-              <CircleUserRound size={30} strokeWidth={1.75} />
-            </span>
+            <AccountButton />
           </header>
 
           {error && !homeQuickUpdateOpen && (
