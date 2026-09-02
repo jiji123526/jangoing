@@ -2,6 +2,19 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Account sheet stacking fixed
+
+### Completed
+
+- Moved the account modal above the Home Quick Update bar and bottom
+  navigation stacking tiers.
+- Added a viewport-aware maximum height and contained scrolling so account
+  actions, including Sign Out, remain reachable on short mobile screens.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
 ## 2026-09-02 - Shared loading skeletons added
 
 ### Completed
