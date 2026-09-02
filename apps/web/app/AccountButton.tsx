@@ -94,7 +94,14 @@ export function AccountButton() {
     if (open && members === null && !membersLoading) {
       void loadMembers();
     }
-  }, [open]);
+  }, [members, membersLoading, open]);
+
+  useEffect(() => {
+    setMembers(null);
+    setMembersLoading(false);
+    setMembersError(null);
+    membersRequestRef.current += 1;
+  }, [household?.id]);
 
   useEffect(() => {
     return () => {
@@ -115,7 +122,6 @@ export function AccountButton() {
     setScreen("overview");
     setJoinCode(null);
     setBusy(null);
-    setMembers(null);
     setMembersLoading(false);
     setRemovingMemberId(null);
     setMembersError(null);

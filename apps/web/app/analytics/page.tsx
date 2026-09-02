@@ -76,6 +76,42 @@ function countEvents(events: EventRecord[], eventTypes: EventType[]): number {
   return events.filter((event) => selectedTypes.has(event.event_type)).length;
 }
 
+function restoredPurchaseIds(events: EventRecord[]): Set<string> {
+  const restored = new Set<string>();
+  const unmatchedPurchases = new Map<string, EventRecord[]>();
+  const orderedEvents = [...events].sort(
+    (left, right) =>
+      left.created_at.localeCompare(right.created_at) ||
+      left.id.localeCompare(right.id),
+  );
+
+  for (const event of orderedEvents) {
+    if (event.event_type === "shopping_item_purchased") {
+      unmatchedPurchases.set(event.item_name, [
+        ...(unmatchedPurchases.get(event.item_name) ?? []),
+        event,
+      ]);
+      continue;
+    }
+
+    if (event.event_type !== "shopping_item_restored") continue;
+
+    const purchases = unmatchedPurchases.get(event.item_name);
+    if (!purchases || purchases.length === 0) continue;
+    const restoredPurchase = purchases.pop();
+    if (restoredPurchase) {
+      restored.add(restoredPurchase.id);
+    }
+    if (purchases.length === 0) {
+      unmatchedPurchases.delete(event.item_name);
+    } else {
+      unmatchedPurchases.set(event.item_name, purchases);
+    }
+  }
+
+  return restored;
+}
+
 function relativeTimestamp(value: string): string {
   const elapsed = Date.now() - new Date(value).getTime();
   const minutes = Math.max(0, Math.floor(elapsed / 60_000));
@@ -162,6 +198,19 @@ export default function AnalyticsPage() {
       (event) => new Date(event.created_at).getTime() >= cutoff,
     );
   }, [events]);
+  const undonePurchaseIds = useMemo(
+    () => restoredPurchaseIds(weeklyEvents),
+    [weeklyEvents],
+  );
+  const effectivePurchasedEvents = useMemo(
+    () =>
+      weeklyEvents.filter(
+        (event) =>
+          event.event_type === "shopping_item_purchased" &&
+          !undonePurchaseIds.has(event.id),
+      ),
+    [undonePurchaseIds, weeklyEvents],
+  );
 
   const metrics = useMemo(
     () => [
@@ -182,7 +231,7 @@ export default function AnalyticsPage() {
       {
         key: "purchased" as const,
         label: "Purchased",
-        value: countEvents(weeklyEvents, ["shopping_item_purchased"]),
+        value: effectivePurchasedEvents.length,
         icon: ShoppingBag,
         tone: "purchased",
       },
@@ -194,21 +243,30 @@ export default function AnalyticsPage() {
         tone: "discarded",
       },
     ],
-    [weeklyEvents],
+    [effectivePurchasedEvents.length, weeklyEvents],
   );
 
   const selectedMetricConfig = selectedMetric
     ? metricConfig[selectedMetric]
     : metricConfig.updates;
   const selectedEvents = useMemo(() => {
-    const eventTypes = selectedMetric
-      ? selectedMetricConfig.eventTypes
-      : null;
-    return weeklyEvents
-      .filter((event) => eventTypes === null || eventTypes.includes(event.event_type))
+    const filteredEvents =
+      selectedMetric === "purchased"
+        ? effectivePurchasedEvents
+        : weeklyEvents;
+    const eventTypes = selectedMetric ? selectedMetricConfig.eventTypes : null;
+    return filteredEvents
+      .filter(
+        (event) => eventTypes === null || eventTypes.includes(event.event_type),
+      )
       .sort((left, right) => right.created_at.localeCompare(left.created_at))
       .slice(0, 12);
-  }, [selectedMetric, selectedMetricConfig.eventTypes, weeklyEvents]);
+  }, [
+    effectivePurchasedEvents,
+    selectedMetric,
+    selectedMetricConfig.eventTypes,
+    weeklyEvents,
+  ]);
 
   return (
     <main id="analytics" className="analytics-page">
