@@ -790,8 +790,9 @@ main#search {
 }
 
 .account-modal-page {
-  width: 100%;
+  width: min(var(--consumer-max-width), 100%);
   max-height: var(--account-modal-max-height);
+  margin: 0 auto;
   display: flex;
   overflow: hidden;
   flex-direction: column;
@@ -801,9 +802,8 @@ main#search {
 }
 
 .account-modal-header {
-  width: min(var(--consumer-max-width), 100%);
+  width: 100%;
   min-height: 82px;
-  margin: 0 auto;
   padding: 18px 16px 12px;
   display: grid;
   flex: 0 0 auto;
@@ -857,8 +857,7 @@ main#search {
 .account-modal-content {
   flex: 0 1 auto;
   min-height: 0;
-  width: min(var(--consumer-max-width), 100%);
-  margin: 0 auto;
+  width: 100%;
   padding: 20px 16px calc(34px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
