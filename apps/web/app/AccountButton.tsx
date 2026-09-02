@@ -33,12 +33,11 @@ import { LoadingSkeleton } from "./LoadingSkeleton";
 type AccountScreen = "overview" | "invite" | "members" | "edit";
 const accountModalTransitionMs = 420;
 const householdColorPresets = [
-  "#1F6B45",
-  "#2F6EA5",
-  "#D05A3A",
-  "#A4476A",
-  "#7561A8",
-  "#B8860B",
+  "#5ED6A7",
+  "#64B5F6",
+  "#FF8A65",
+  "#F47FB0",
+  "#FFD45C",
 ];
 
 function formatExpiration(value: string): string {
@@ -332,6 +331,9 @@ export function AccountButton() {
   const displayName = user.display_name ?? "Jangoing user";
   const initial = (user.display_name ?? user.email).slice(0, 1).toUpperCase();
   const isOwner = household?.role === "owner";
+  const usesCustomProfileColor = !householdColorPresets.includes(
+    profileColor.toUpperCase(),
+  );
   const modalBusy =
     busy !== null || removingMemberId !== null || profileSaving;
 
@@ -751,14 +753,6 @@ export function AccountButton() {
               <section className="account-color-group">
                 <div>
                   <strong>Icon Color</strong>
-                  <label>
-                    <span>Custom color</span>
-                    <input
-                      type="color"
-                      value={profileColor}
-                      onChange={(event) => setProfileColor(event.target.value)}
-                    />
-                  </label>
                 </div>
                 <div className="account-color-presets" aria-label="Icon colors">
                   {householdColorPresets.map((color) => (
@@ -776,6 +770,20 @@ export function AccountButton() {
                       onClick={() => setProfileColor(color)}
                     />
                   ))}
+                  <label
+                    className={`account-color-picker${
+                      usesCustomProfileColor ? " is-selected" : ""
+                    }`}
+                    title="Choose a custom color"
+                  >
+                    <span aria-hidden="true">+</span>
+                    <input
+                      type="color"
+                      value={profileColor}
+                      aria-label="Choose a custom icon color"
+                      onChange={(event) => setProfileColor(event.target.value)}
+                    />
+                  </label>
                 </div>
               </section>
 
