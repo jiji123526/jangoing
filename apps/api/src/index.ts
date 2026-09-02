@@ -53,6 +53,8 @@ import {
   createHousehold,
   getCurrentHousehold,
   joinHousehold,
+  listHouseholdMembers,
+  removeHouseholdMember,
   revokeHouseholdJoinCodes,
   rotateHouseholdJoinCode,
 } from "./households";
@@ -121,7 +123,7 @@ function configuredOrigins(env: Env): string[] {
 function corsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers({
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     Vary: "Origin",
   });
   const origin = request.headers.get("Origin");
@@ -954,6 +956,27 @@ async function route(request: Request, env: Env): Promise<Response> {
 
     if (request.method === "GET" && url.pathname === "/households/current") {
       return json(request, env, await getCurrentHousehold(env, identity));
+    }
+
+    if (request.method === "GET" && url.pathname === "/households/members") {
+      return json(request, env, await listHouseholdMembers(env, identity));
+    }
+
+    const householdMemberPath = url.pathname.match(
+      /^\/households\/members\/([^/]+)$/,
+    );
+    if (request.method === "DELETE" && householdMemberPath) {
+      let targetUserId: string;
+      try {
+        targetUserId = decodeURIComponent(householdMemberPath[1]);
+      } catch {
+        return json(request, env, { error: "Invalid member id" }, 400);
+      }
+      return json(
+        request,
+        env,
+        await removeHouseholdMember(env, identity, targetUserId),
+      );
     }
 
     if (request.method === "POST" && url.pathname === "/households/create") {

@@ -379,11 +379,18 @@ POST /households/join
 POST /households/create
 ```
 
+Authenticated household members may access:
+
+```text
+GET /households/members
+```
+
 Household owners may also access:
 
 ```text
 POST /households/join-code
 POST /households/join-code/revoke
+DELETE /households/members/:userId
 ```
 
 `POST /households/join` accepts a code and adds the authenticated user as a
@@ -430,6 +437,10 @@ Implemented on 2026-09-02:
   issue a replacement;
 - `POST /households/join-code/revoke` lets owners invalidate active codes
   without issuing another;
+- `GET /households/members` returns only profiles belonging to the caller's
+  household, with the owner sorted first;
+- `DELETE /households/members/:userId` lets only owners remove a member,
+  rejects attempts to remove the owner, and cannot target another household;
 - join codes contain 50 bits of cryptographic randomness, use a readable
   `ABCD-EFGH-JK` format, and are stored only as HMAC-SHA256 hashes;
 - invalid, expired, and revoked codes return the same
@@ -688,10 +699,55 @@ Implemented on 2026-09-02:
 - owners can revoke previously shared codes after reopening the dialog without
   requiring the plaintext code to be displayed again;
 - members can view their household and role but do not receive owner code
-  controls.
+  controls;
+- the account dialog enters from the bottom and exits through the same path,
+  while reduced-motion users receive an immediate transition.
+- every joined user can open a household-member screen with avatar, name,
+  email, and role;
+- owners can remove non-owner members after confirmation, while members receive
+  a read-only list.
+- owner and member roles have equal read/write access to shared inventory and
+  shopping-list operations; role restrictions apply only to household
+  administration;
+- recent search history remains device-local but is namespaced by authenticated
+  user ID so accounts sharing one browser do not see each other's history; it
+  is not synchronized across devices.
 
-Member listing and removal, ownership transfer, leaving a household, account
-deletion, and privacy controls remain later account work.
+Ownership transfer, leaving a household, account deletion, and privacy controls
+remain later account work.
+
+### Household Profile Customization Proposal
+
+The account dialog header uses the current household name rather than a generic
+product-account title. Household customization should remain distinct from the
+Google user profile because the name and icon are shared metadata visible to
+every member.
+
+Recommended first phase:
+
+- allow owners to edit the existing household name;
+- add nullable `icon_key` and `icon_color` fields to `households`;
+- offer a small preset icon set such as home, refrigerator, produce, meal, and
+  shopping, plus an accessible fixed color palette;
+- expose an owner-only `PATCH /households/current` endpoint that validates and
+  returns the updated household summary;
+- add an `Edit Household` screen inside the account dialog with preview,
+  name input, icon grid, Cancel, and Save;
+- update shared household context from the response so the header and profile
+  row change immediately without a page reload;
+- keep members read-only.
+
+Preset icons are recommended before image upload because they require no object
+storage, moderation, image processing, cleanup, or signed delivery URLs. A
+later phase can add a household photo backed by R2 after the item-media storage
+lifecycle is established. That phase should retain the preset icon as a
+fallback.
+
+Pending product decisions before implementation:
+
+- preset icon and color only, or image upload in the first release;
+- whether the household name must be unique (not currently required);
+- whether members may propose profile changes or only owners may edit.
 
 ## Local Development
 
@@ -845,7 +901,7 @@ Authentication is complete only when:
 - Where should owners rotate, revoke, and generate household codes?
 - Should `/annotate` remain public, use a separate admin token, or require an
   authorized account?
-- When should household switching, member removal, and leaving a household be
-  added?
+- When should household switching, ownership transfer, and leaving a household
+  be added?
 - Should user-generated language remain available for research after account
   deletion, and under what de-identification policy?

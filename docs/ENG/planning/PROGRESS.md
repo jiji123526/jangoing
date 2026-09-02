@@ -2,6 +2,47 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Shared member editing and private search recents verified
+
+### Completed
+
+- Confirmed that owner and member roles both have read/write access to shared
+  inventory and shopping-list operations.
+- Added Worker route coverage proving member mutations retain household and
+  user provenance.
+- Changed recent-search local storage from one browser-wide key to an
+  authenticated-user namespace.
+- Discard the ambiguous legacy shared key instead of assigning another
+  account's history to the currently signed-in user.
+
+### Deployment
+
+- Deploy the Web app for user-scoped search recents.
+- The member editing policy already exists in the Worker; the new Worker test
+  documents and protects that behavior.
+
+## 2026-09-02 - Household member management added
+
+### Completed
+
+- Added household-scoped member listing with owner-first ordering.
+- Added an owner-only member removal endpoint that cannot remove the owner or
+  target another household.
+- Added a member count row and nested member screen to the account dialog.
+- Show avatar, name, email, role, and current-user status for each member.
+- Keep member access read-only and expose removal controls only to owners.
+- Update the visible list immediately after successful removal.
+
+### Validation
+
+- Added household lifecycle and Worker route tests for listing, isolation,
+  owner authorization, and removal.
+- Added Web API client coverage for member listing and deletion.
+
+### Deployment
+
+- Deploy the Worker and Web app; no D1 migration is required.
+
 ## 2026-09-02 - Household profile and sharing implemented
 
 ### Completed
@@ -10,6 +51,8 @@ Add new entries at the top of the log so the latest state is easy to find.
   based on the grouped account-page reference.
 - Added shared authenticated user and household context for profile surfaces.
 - Added Google identity, household name, role, and owner-aware account rows.
+- Use the current household name as the account dialog title.
+- Added reversible bottom-up account dialog motion with a reduced-motion path.
 - Connected owner-only seven-day invite generation, copy, native sharing,
   rotation, and revocation to the existing Worker endpoints.
 - Kept plaintext join codes in component memory only and clear them when the

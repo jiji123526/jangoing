@@ -8,7 +8,9 @@ import {
   createHousehold,
   getCurrentHousehold,
   joinHousehold,
+  listHouseholdMembers,
   normalizeJoinCode,
+  removeHouseholdMember,
   revokeHouseholdJoinCodes,
   rotateHouseholdJoinCode,
   type HouseholdEnvironment,
@@ -281,6 +283,67 @@ describe("household lifecycle", () => {
         identity("member-1", created.household.id, "member"),
       ),
     ).rejects.toBeInstanceOf(HouseholdError);
+  });
+
+  it("lists members for the household and allows only owner removal", async () => {
+    const owner = identity("owner-1");
+    const member = identity("member-1");
+    insertUser(owner);
+    insertUser(member);
+    const created = await createHousehold(
+      env,
+      owner,
+      { name: "Our Kitchen" },
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    await joinHousehold(
+      env,
+      member,
+      { code: created.join_code.code },
+      new Date("2026-09-02T12:01:00.000Z"),
+    );
+    const ownerWithHousehold = identity(
+      owner.user.id,
+      created.household.id,
+      "owner",
+    );
+    const memberWithHousehold = identity(
+      member.user.id,
+      created.household.id,
+      "member",
+    );
+
+    await expect(
+      listHouseholdMembers(env, memberWithHousehold),
+    ).resolves.toMatchObject({
+      members: [
+        { id: owner.user.id, role: "owner" },
+        { id: member.user.id, role: "member" },
+      ],
+    });
+    await expect(
+      removeHouseholdMember(env, memberWithHousehold, owner.user.id),
+    ).rejects.toMatchObject({
+      status: 403,
+      code: "household_owner_required",
+    });
+    await expect(
+      removeHouseholdMember(env, ownerWithHousehold, owner.user.id),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "household_owner_cannot_be_removed",
+    });
+    await expect(
+      removeHouseholdMember(env, ownerWithHousehold, member.user.id),
+    ).resolves.toEqual({
+      success: true,
+      removed_user_id: member.user.id,
+    });
+    await expect(
+      listHouseholdMembers(env, ownerWithHousehold),
+    ).resolves.toMatchObject({
+      members: [{ id: owner.user.id, role: "owner" }],
+    });
   });
 
   it("enforces one household membership per user in the database", () => {

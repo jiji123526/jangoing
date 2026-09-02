@@ -672,6 +672,20 @@ export const HouseholdUserProfileSchema = z.object({
   avatar_url: z.string().url().nullable(),
 });
 
+export const HouseholdMemberSchema = HouseholdUserProfileSchema.extend({
+  role: HouseholdRoleSchema,
+  joined_at: z.string().datetime(),
+});
+
+export const HouseholdMembersResponseSchema = z.object({
+  members: z.array(HouseholdMemberSchema),
+});
+
+export const HouseholdMemberRemovalResponseSchema = z.object({
+  success: z.literal(true),
+  removed_user_id: z.string().uuid(),
+});
+
 export const CurrentHouseholdResponseSchema = z.object({
   user: HouseholdUserProfileSchema,
   household: HouseholdSummarySchema.nullable(),
@@ -743,6 +757,13 @@ export type JoinHouseholdRequest = z.infer<typeof JoinHouseholdRequestSchema>;
 export type HouseholdSummary = z.infer<typeof HouseholdSummarySchema>;
 export type HouseholdJoinCode = z.infer<typeof HouseholdJoinCodeSchema>;
 export type HouseholdUserProfile = z.infer<typeof HouseholdUserProfileSchema>;
+export type HouseholdMember = z.infer<typeof HouseholdMemberSchema>;
+export type HouseholdMembersResponse = z.infer<
+  typeof HouseholdMembersResponseSchema
+>;
+export type HouseholdMemberRemovalResponse = z.infer<
+  typeof HouseholdMemberRemovalResponseSchema
+>;
 export type CurrentHouseholdResponse = z.infer<
   typeof CurrentHouseholdResponseSchema
 >;

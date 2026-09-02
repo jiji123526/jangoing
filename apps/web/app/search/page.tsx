@@ -10,6 +10,11 @@ import {
   getInventoryData,
   getShoppingListData,
 } from "../../lib/api";
+import {
+  legacySearchHistoryStorageKey,
+  searchHistoryStorageKey,
+} from "../../lib/search-history";
+import { useCurrentHousehold } from "../HouseholdContext";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 
 type SearchScope = "inventory" | "shopping";
@@ -146,6 +151,8 @@ function SearchArtwork({
 }
 
 export default function SearchPage() {
+  const { user } = useCurrentHousehold();
+  const recentSearchStorageKey = searchHistoryStorageKey(user.id);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [shopping, setShopping] = useState<ShoppingListItem[]>([]);
   const [query, setQuery] = useState("");
@@ -180,7 +187,9 @@ export default function SearchPage() {
         if (active) setLoading(false);
       });
 
-    const stored = window.localStorage.getItem("jangoing-recent-searches");
+    setRecentSearches([]);
+    window.localStorage.removeItem(legacySearchHistoryStorageKey);
+    const stored = window.localStorage.getItem(recentSearchStorageKey);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -192,13 +201,13 @@ export default function SearchPage() {
           );
         }
       } catch {
-        window.localStorage.removeItem("jangoing-recent-searches");
+        window.localStorage.removeItem(recentSearchStorageKey);
       }
     }
     return () => {
       active = false;
     };
-  }, []);
+  }, [recentSearchStorageKey]);
 
   const results = useMemo(() => {
     const needle = searchable(submittedQuery);
@@ -289,7 +298,7 @@ export default function SearchPage() {
         ),
       ].slice(0, 5);
       window.localStorage.setItem(
-        "jangoing-recent-searches",
+        recentSearchStorageKey,
         JSON.stringify(next),
       );
       return next;
@@ -461,7 +470,7 @@ export default function SearchPage() {
               type="button"
               onClick={() => {
                 setRecentSearches([]);
-                window.localStorage.removeItem("jangoing-recent-searches");
+                window.localStorage.removeItem(recentSearchStorageKey);
               }}
             >
               Clear Recent Searches

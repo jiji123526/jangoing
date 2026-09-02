@@ -2,6 +2,7 @@ import type {
   CreateHouseholdRequest,
   CurrentHouseholdResponse,
   HouseholdJoinCode,
+  HouseholdMember,
   HouseholdSummary,
   JoinHouseholdRequest,
 } from "@jangoing/contracts";
@@ -17,6 +18,15 @@ interface HouseholdRow {
   name: string;
   role: "owner" | "member";
   created_at: string;
+}
+
+interface HouseholdMemberRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  role: "owner" | "member";
+  joined_at: string;
 }
 
 const joinCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -153,6 +163,63 @@ export async function getCurrentHousehold(
       ? await readHouseholdForUser(env, identity.user.id)
       : null,
   };
+}
+
+export async function listHouseholdMembers(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+): Promise<{ members: HouseholdMember[] }> {
+  if (!identity.householdId) {
+    throw new HouseholdError(
+      409,
+      "household_required",
+      "Household setup is required",
+    );
+  }
+
+  const result = await env.DB.prepare(
+    `SELECT
+       u.id, u.email, u.display_name, u.avatar_url,
+       hm.role, hm.created_at AS joined_at
+     FROM household_memberships hm
+     JOIN users u ON u.id = hm.user_id
+     WHERE hm.household_id = ?
+     ORDER BY
+       CASE hm.role WHEN 'owner' THEN 0 ELSE 1 END,
+       lower(COALESCE(u.display_name, u.email)),
+       hm.created_at`,
+  ).bind(identity.householdId).all<HouseholdMemberRow>();
+
+  return { members: result.results };
+}
+
+export async function removeHouseholdMember(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+  targetUserId: string,
+): Promise<{ success: true; removed_user_id: string }> {
+  assertOwner(identity);
+  if (targetUserId === identity.user.id) {
+    throw new HouseholdError(
+      400,
+      "household_owner_cannot_be_removed",
+      "The household owner cannot be removed",
+    );
+  }
+
+  const result = await env.DB.prepare(
+    `DELETE FROM household_memberships
+     WHERE household_id = ? AND user_id = ? AND role = 'member'`,
+  ).bind(identity.householdId, targetUserId).run();
+  if (!result.meta.changes) {
+    throw new HouseholdError(
+      404,
+      "household_member_not_found",
+      "Household member not found",
+    );
+  }
+
+  return { success: true, removed_user_id: targetUserId };
 }
 
 function joinCodeDates(now: Date): { createdAt: string; expiresAt: string } {

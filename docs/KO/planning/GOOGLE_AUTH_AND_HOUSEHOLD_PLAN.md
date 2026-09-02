@@ -369,11 +369,18 @@ POST /households/join
 POST /households/create
 ```
 
+Authenticated household member는 다음 route를 사용할 수 있다.
+
+```text
+GET /households/members
+```
+
 Household owner는 다음 route도 사용할 수 있다.
 
 ```text
 POST /households/join-code
 POST /households/join-code/revoke
+DELETE /households/members/:userId
 ```
 
 `POST /households/join`은 code를 받아 authenticated user를 member로 추가한다.
@@ -420,6 +427,10 @@ generated-review import
   code를 발급하게 한다.
 - `POST /households/join-code/revoke`는 owner가 replacement 없이 active code를
   무효화하게 한다.
+- `GET /households/members`는 caller household에 속한 profile만 반환하고 owner를
+  먼저 정렬한다.
+- `DELETE /households/members/:userId`는 owner만 member를 제거할 수 있게 하며,
+  owner 제거 시도와 다른 household target을 거부한다.
 - Join code는 50 bit cryptographic randomness와 읽기 쉬운 `ABCD-EFGH-JK`
   format을 사용하며 HMAC-SHA256 hash만 저장한다.
 - Invalid, expired, revoked code는 모두 동일한 `invalid_household_code`
@@ -675,9 +686,51 @@ account surface가 담당하며, onboarding에는 household에 들어가기 위�
   공유한 code를 revoke할 수 있다.
 - Member는 household와 role을 볼 수 있지만 owner code control은 표시되지
   않는다.
+- Account dialog는 bottom에서 진입하고 같은 경로로 닫히며, reduced-motion
+  user에게는 즉시 전환된다.
+- 모든 joined user는 avatar, name, email, role이 표시되는 household member
+  screen을 열 수 있다.
+- Owner는 확인 후 non-owner member를 제거할 수 있고 member에게는 read-only
+  list를 제공한다.
+- Owner와 member role은 shared inventory와 shopping-list operation에 동일한
+  read/write access를 가지며 role 제한은 household administration에만 적용한다.
+- Recent search history는 device-local로 유지하지만 authenticated user ID별로
+  namespace를 분리해 같은 browser의 account가 서로의 history를 보지 않게 한다.
+  이 history는 device 간 synchronize되지 않는다.
 
-Member 목록 및 제거, ownership transfer, household 나가기, account 삭제,
-privacy control은 이후 account 작업으로 남아 있다.
+Ownership transfer, household 나가기, account 삭제, privacy control은 이후
+account 작업으로 남아 있다.
+
+### Household Profile Customization 제안
+
+Account dialog header는 일반적인 product account title 대신 현재 household
+name을 사용한다. Household name과 icon은 모든 member에게 보이는 shared
+metadata이므로 Google user profile과 분리해서 관리해야 한다.
+
+권장 1단계:
+
+- Owner가 기존 household name을 수정할 수 있게 한다.
+- `households`에 nullable `icon_key`, `icon_color` field를 추가한다.
+- Home, refrigerator, produce, meal, shopping 등의 작은 preset icon set과
+  accessibility를 고려한 고정 color palette를 제공한다.
+- Update를 validate하고 변경된 household summary를 반환하는 owner-only
+  `PATCH /households/current` endpoint를 추가한다.
+- Account dialog 안에 preview, name input, icon grid, Cancel, Save로 구성된
+  `Edit Household` screen을 추가한다.
+- 응답으로 shared household context를 갱신해 page reload 없이 header와
+  profile row가 즉시 변경되게 한다.
+- Member는 read-only로 유지한다.
+
+Preset icon은 object storage, moderation, image processing, cleanup, signed
+delivery URL이 필요하지 않으므로 image upload보다 먼저 적용하는 것을
+권장한다. 이후 item media storage lifecycle이 마련되면 R2 기반 household
+photo를 추가할 수 있으며, 이 단계에서도 preset icon은 fallback으로 유지한다.
+
+구현 전 결정이 필요한 product 항목:
+
+- 첫 release에서 preset icon과 color만 사용할지, image upload도 포함할지
+- Household name을 unique하게 제한할지 여부(현재는 제한하지 않음)
+- Member가 profile 변경을 제안할 수 있게 할지, owner만 수정 가능하게 할지
 
 ## Local Development
 
@@ -830,6 +883,7 @@ Public rollout 전에 다음을 정의한다.
 - Owner가 household code를 rotate, revoke, generate하는 UI를 어디에 둘 것인가?
 - `/annotate`를 public으로 둘 것인가, 별도 admin token을 사용할 것인가, authorized
   account를 요구할 것인가?
-- Household switching, member removal, leave household는 언제 추가할 것인가?
+- Household switching, ownership transfer, leave household는 언제 추가할
+  것인가?
 - Account deletion 이후 user-generated language를 research에 유지할 것인가? 유지한다면
   어떤 de-identification policy를 적용할 것인가?

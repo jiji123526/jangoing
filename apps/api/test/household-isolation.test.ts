@@ -112,9 +112,11 @@ describe("household consumer-data isolation", () => {
   };
   let tokenA: string;
   let tokenB: string;
+  let tokenC: string;
 
   const userA = "11111111-1111-4111-8111-111111111111";
   const userB = "22222222-2222-4222-8222-222222222222";
+  const userC = "33333333-3333-4333-8333-333333333333";
   const householdA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const householdB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const createdAt = "2026-09-02T12:00:00.000Z";
@@ -151,6 +153,7 @@ describe("household consumer-data isolation", () => {
     );
     insertUser.run(userA, "google-a", "a@example.com", createdAt, createdAt);
     insertUser.run(userB, "google-b", "b@example.com", createdAt, createdAt);
+    insertUser.run(userC, "google-c", "c@example.com", createdAt, createdAt);
     const insertHousehold = database.prepare(
       `INSERT INTO households (id, name, created_at, updated_at)
        VALUES (?, ?, ?, ?)`,
@@ -164,6 +167,11 @@ describe("household consumer-data isolation", () => {
     );
     insertMembership.run(householdA, userA, createdAt);
     insertMembership.run(householdB, userB, createdAt);
+    database.prepare(
+      `INSERT INTO household_memberships (
+        household_id, user_id, role, created_at
+      ) VALUES (?, ?, 'member', ?)`,
+    ).run(householdA, userC, createdAt);
 
     const insertEvent = database.prepare(
       `INSERT INTO events (
@@ -177,6 +185,7 @@ describe("household consumer-data isolation", () => {
 
     tokenA = await appToken("google-a", "a@example.com");
     tokenB = await appToken("google-b", "b@example.com");
+    tokenC = await appToken("google-c", "c@example.com");
   });
 
   afterEach(() => {
@@ -241,6 +250,89 @@ describe("household consumer-data isolation", () => {
     expect(row).toEqual({
       household_id: householdA,
       created_by_user_id: userA,
+    });
+  });
+
+  it("allows regular members to edit shared inventory and shopping", async () => {
+    const inventoryEdit = await request(
+      "/inventory/milk/edit",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          quantity: 3,
+          unit: "carton",
+          location: "fridge",
+          expiration_date: null,
+          low_threshold: 1,
+          category: "dairy_eggs",
+        }),
+      },
+      tokenC,
+    );
+    expect(inventoryEdit.status).toBe(201);
+
+    const shoppingAdd = await request(
+      "/shopping-list/coffee/add",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          quantity: 1,
+          unit: null,
+          location: "pantry",
+          expiration_date: null,
+        }),
+      },
+      tokenC,
+    );
+    expect(shoppingAdd.status).toBe(201);
+
+    const rows = database.prepare(
+      `SELECT event_type, household_id, created_by_user_id
+       FROM events
+       WHERE created_by_user_id = ?
+       ORDER BY created_at, event_type`,
+    ).all(userC);
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(expect.arrayContaining([
+      {
+        event_type: "item_adjusted",
+        household_id: householdA,
+        created_by_user_id: userC,
+      },
+      {
+        event_type: "item_added_to_buy",
+        household_id: householdA,
+        created_by_user_id: userC,
+      },
+    ]));
+  });
+
+  it("lists only household members and permits only owner removal", async () => {
+    const memberList = await request("/households/members", {}, tokenC);
+    expect(memberList.status).toBe(200);
+    expect(await memberList.json()).toMatchObject({
+      members: [
+        { id: userA, role: "owner" },
+        { id: userC, role: "member" },
+      ],
+    });
+
+    const denied = await request(
+      `/households/members/${userA}`,
+      { method: "DELETE" },
+      tokenC,
+    );
+    expect(denied.status).toBe(403);
+
+    const removed = await request(
+      `/households/members/${userC}`,
+      { method: "DELETE" },
+      tokenA,
+    );
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({
+      success: true,
+      removed_user_id: userC,
     });
   });
 

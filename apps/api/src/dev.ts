@@ -255,7 +255,7 @@ function events(limit?: number, since?: string): EventRecord[] {
 function responseHeaders(origin?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     Vary: "Origin",
   };

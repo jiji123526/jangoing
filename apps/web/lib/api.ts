@@ -9,6 +9,8 @@ import {
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
   HouseholdJoinCodeSchema,
+  HouseholdMemberRemovalResponseSchema,
+  HouseholdMembersResponseSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   JoinedHouseholdResponseSchema,
@@ -34,6 +36,7 @@ import {
   type CreatedHouseholdResponse,
   type CurrentHouseholdResponse,
   type HouseholdJoinCode,
+  type HouseholdMember,
   type JoinedHouseholdResponse,
   type SpeakerRole,
 } from "@jangoing/contracts";
@@ -371,6 +374,19 @@ export async function revokeHouseholdJoinCode(): Promise<void> {
     method: "POST",
   });
   HouseholdJoinCodeRevokeResponseSchema.parse(body);
+}
+
+export async function getHouseholdMembers(): Promise<HouseholdMember[]> {
+  const body = await apiRequest("/households/members");
+  return HouseholdMembersResponseSchema.parse(body).members;
+}
+
+export async function removeHouseholdMember(userId: string): Promise<void> {
+  const body = await apiRequest(
+    `/households/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+  HouseholdMemberRemovalResponseSchema.parse(body);
 }
 
 export async function getFridgeSetupStatus(): Promise<FridgeSetupStatus> {

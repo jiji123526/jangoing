@@ -1,6 +1,9 @@
 "use client";
 
-import type { HouseholdJoinCode } from "@jangoing/contracts";
+import type {
+  HouseholdJoinCode,
+  HouseholdMember,
+} from "@jangoing/contracts";
 import {
   Ban,
   ChevronLeft,
@@ -10,18 +13,24 @@ import {
   Home,
   RotateCcw,
   Share2,
+  Trash2,
   UserPlus,
+  UsersRound,
   X,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
   createHouseholdJoinCode,
+  getHouseholdMembers,
+  removeHouseholdMember,
   revokeHouseholdJoinCode,
 } from "../lib/api";
 import { useCurrentHousehold } from "./HouseholdContext";
+import { LoadingSkeleton } from "./LoadingSkeleton";
 
-type AccountScreen = "overview" | "invite";
+type AccountScreen = "overview" | "invite" | "members";
+const accountModalTransitionMs = 420;
 
 function formatExpiration(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -34,18 +43,29 @@ function formatExpiration(value: string): string {
 export function AccountButton() {
   const { user, household } = useCurrentHousehold();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const membersRequestRef = useRef(0);
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [screen, setScreen] = useState<AccountScreen>("overview");
   const [joinCode, setJoinCode] = useState<HouseholdJoinCode | null>(null);
   const [busy, setBusy] = useState<"generate" | "revoke" | null>(null);
+  const [members, setMembers] = useState<HouseholdMember[] | null>(null);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [membersError, setMembersError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
+    if (!open || dialog.open) return;
+
+    dialog.showModal();
+    void dialog.offsetHeight;
+    const frame = window.requestAnimationFrame(() => setVisible(true));
+    return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
   useEffect(() => {
@@ -57,17 +77,51 @@ export function AccountButton() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (open && members === null && !membersLoading) {
+      void loadMembers();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   function resetDialog(): void {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     setOpen(false);
+    setVisible(false);
+    membersRequestRef.current += 1;
     setScreen("overview");
     setJoinCode(null);
     setBusy(null);
+    setMembers(null);
+    setMembersLoading(false);
+    setRemovingMemberId(null);
+    setMembersError(null);
     setNotice(null);
     setError(null);
   }
 
   function closeDialog(): void {
-    dialogRef.current?.close();
+    const dialog = dialogRef.current;
+    if (!dialog?.open || closeTimerRef.current !== null) return;
+
+    setVisible(false);
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    closeTimerRef.current = window.setTimeout(
+      () => dialog.close(),
+      reduceMotion ? 0 : accountModalTransitionMs,
+    );
   }
 
   async function generateCode(): Promise<void> {
@@ -160,9 +214,63 @@ export function AccountButton() {
     }
   }
 
+  async function loadMembers(): Promise<void> {
+    const requestId = membersRequestRef.current + 1;
+    membersRequestRef.current = requestId;
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const nextMembers = await getHouseholdMembers();
+      if (membersRequestRef.current === requestId) {
+        setMembers(nextMembers);
+      }
+    } catch (caught) {
+      if (membersRequestRef.current === requestId) {
+        setMembersError(
+          caught instanceof Error
+            ? caught.message
+            : "Could not load household members.",
+        );
+      }
+    } finally {
+      if (membersRequestRef.current === requestId) {
+        setMembersLoading(false);
+      }
+    }
+  }
+
+  async function removeMember(member: HouseholdMember): Promise<void> {
+    const name = member.display_name ?? member.email;
+    if (
+      !window.confirm(
+        `Remove ${name} from ${household?.name}? They will lose access to this household.`,
+      )
+    ) {
+      return;
+    }
+
+    setRemovingMemberId(member.id);
+    setMembersError(null);
+    try {
+      await removeHouseholdMember(member.id);
+      setMembers((current) =>
+        current?.filter((candidate) => candidate.id !== member.id) ?? null,
+      );
+    } catch (caught) {
+      setMembersError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not remove the household member.",
+      );
+    } finally {
+      setRemovingMemberId(null);
+    }
+  }
+
   const displayName = user.display_name ?? "Jangoing user";
   const initial = (user.display_name ?? user.email).slice(0, 1).toUpperCase();
   const isOwner = household?.role === "owner";
+  const modalBusy = busy !== null || removingMemberId !== null;
 
   return (
     <>
@@ -177,9 +285,14 @@ export function AccountButton() {
       </button>
 
       <dialog
-        className="account-modal"
+        className={`account-modal${visible ? " is-visible" : ""}`}
         ref={dialogRef}
         aria-labelledby="account-modal-title"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && !modalBusy) {
+            closeDialog();
+          }
+        }}
         onCancel={(event) => {
           event.preventDefault();
           closeDialog();
@@ -188,12 +301,12 @@ export function AccountButton() {
       >
         <div className="account-modal-page">
           <header className="account-modal-header">
-            {screen === "invite" ? (
+            {screen !== "overview" ? (
               <button
                 className="account-modal-back"
                 type="button"
                 aria-label="Back to account"
-                disabled={busy !== null}
+                disabled={modalBusy}
                 onClick={() => {
                   setScreen("overview");
                   setNotice(null);
@@ -208,13 +321,17 @@ export function AccountButton() {
               </span>
             )}
             <h2 id="account-modal-title">
-              {screen === "overview" ? "Jangoing Account" : "Household Invite"}
+              {screen === "overview"
+                ? household?.name ?? "Household"
+                : screen === "invite"
+                  ? "Household Invite"
+                  : "Household Members"}
             </h2>
             <button
               className="account-modal-close"
               type="button"
               aria-label="Close account"
-              disabled={busy !== null}
+              disabled={modalBusy}
               onClick={closeDialog}
             >
               <X size={28} strokeWidth={2} />
@@ -251,8 +368,35 @@ export function AccountButton() {
                 {household?.name}.
               </p>
 
-              {isOwner && (
-                <section className="account-group">
+              <section className="account-group">
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
+                    setScreen("members");
+                    setNotice(null);
+                    setError(null);
+                    if (members === null && !membersLoading) {
+                      void loadMembers();
+                    }
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <UsersRound size={20} />
+                  </span>
+                  <span>
+                    <strong>Household Members</strong>
+                    <small>
+                      {members
+                        ? `${members.length} member${members.length === 1 ? "" : "s"}`
+                        : membersLoading
+                          ? "Loading members…"
+                          : "View shared access"}
+                    </small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
+                {isOwner && (
                   <button
                     className="account-settings-row"
                     type="button"
@@ -271,8 +415,8 @@ export function AccountButton() {
                     </span>
                     <ChevronRight size={20} aria-hidden="true" />
                   </button>
-                </section>
-              )}
+                )}
+              </section>
 
               <section className="account-group account-destructive-group">
                 <button
@@ -284,7 +428,7 @@ export function AccountButton() {
                 </button>
               </section>
             </div>
-          ) : (
+          ) : screen === "invite" ? (
             <div className="account-modal-content account-invite-content">
               <div className="account-invite-heading">
                 <span aria-hidden="true">
@@ -387,6 +531,86 @@ export function AccountButton() {
               )}
               {error && (
                 <p className="account-feedback is-error" role="alert">{error}</p>
+              )}
+            </div>
+          ) : (
+            <div className="account-modal-content account-members-content">
+              <div className="account-members-heading">
+                <h3>People in {household?.name}</h3>
+                <p>
+                  Everyone listed here shares this household&apos;s inventory
+                  and shopping list.
+                </p>
+              </div>
+
+              {membersLoading && members === null ? (
+                <LoadingSkeleton
+                  variant="rows"
+                  rows={3}
+                  label="Loading household members"
+                />
+              ) : membersError && members === null ? (
+                <section className="account-members-message">
+                  <p role="alert">{membersError}</p>
+                  <button type="button" onClick={() => void loadMembers()}>
+                    Try Again
+                  </button>
+                </section>
+              ) : (
+                <section className="account-group account-member-list">
+                  {members?.map((member) => {
+                    const memberName = member.display_name ?? member.email;
+                    const memberInitial = memberName.slice(0, 1).toUpperCase();
+                    const isCurrentUser = member.id === user.id;
+                    const canRemove = isOwner && member.role === "member";
+                    return (
+                      <div className="account-member-row" key={member.id}>
+                        {member.avatar_url ? (
+                          <img
+                            src={member.avatar_url}
+                            alt=""
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <span className="account-member-avatar" aria-hidden="true">
+                            {memberInitial}
+                          </span>
+                        )}
+                        <span className="account-member-copy">
+                          <strong>
+                            {memberName}
+                            {isCurrentUser ? " (You)" : ""}
+                          </strong>
+                          <small>{member.email}</small>
+                        </span>
+                        <span className="account-member-role">
+                          {member.role === "owner" ? "Owner" : "Member"}
+                        </span>
+                        {canRemove && (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${memberName}`}
+                            disabled={removingMemberId !== null}
+                            onClick={() => void removeMember(member)}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+
+              {membersError && members !== null && (
+                <p className="account-feedback is-error" role="alert">
+                  {membersError}
+                </p>
+              )}
+              {!isOwner && (
+                <p className="account-group-note">
+                  Only the household owner can remove members.
+                </p>
               )}
             </div>
           )}
