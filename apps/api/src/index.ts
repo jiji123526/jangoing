@@ -53,6 +53,7 @@ import {
   HouseholdError,
   createHousehold,
   getCurrentHousehold,
+  getCurrentHouseholdJoinCode,
   joinHousehold,
   listHouseholdMembers,
   removeHouseholdMember,
@@ -1043,6 +1044,14 @@ async function route(request: Request, env: Env): Promise<Response> {
         env,
         await rotateHouseholdJoinCode(env, identity),
         201,
+      );
+    }
+
+    if (request.method === "GET" && url.pathname === "/households/join-code") {
+      return json(
+        request,
+        env,
+        await getCurrentHouseholdJoinCode(env, identity),
       );
     }
 

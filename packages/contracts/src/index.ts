@@ -692,6 +692,10 @@ export const HouseholdJoinCodeSchema = z.object({
   expires_at: z.string().datetime(),
 });
 
+export const HouseholdJoinCodeResponseSchema = z.object({
+  join_code: HouseholdJoinCodeSchema.nullable(),
+});
+
 export const HouseholdUserProfileSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
@@ -786,6 +790,9 @@ export type UpdateHouseholdProfileRequest = z.infer<
   typeof UpdateHouseholdProfileRequestSchema
 >;
 export type HouseholdJoinCode = z.infer<typeof HouseholdJoinCodeSchema>;
+export type HouseholdJoinCodeResponse = z.infer<
+  typeof HouseholdJoinCodeResponseSchema
+>;
 export type HouseholdUserProfile = z.infer<typeof HouseholdUserProfileSchema>;
 export type HouseholdMember = z.infer<typeof HouseholdMemberSchema>;
 export type HouseholdMembersResponse = z.infer<

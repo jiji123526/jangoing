@@ -32,6 +32,11 @@ interface HouseholdMemberRow {
   joined_at: string;
 }
 
+interface HouseholdJoinCodeRow {
+  code_ciphertext: string | null;
+  expires_at: string;
+}
+
 const joinCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const joinCodeLength = 10;
 const joinCodeLifetimeMs = 7 * 24 * 60 * 60 * 1000;
@@ -64,6 +69,20 @@ function requiredCodeSecret(env: HouseholdEnvironment): string {
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function hexToBytes(value: string): Uint8Array {
+  if (value.length % 2 !== 0) {
+    throw new HouseholdError(
+      500,
+      "household_code_ciphertext_invalid",
+      "Stored household code is invalid",
+    );
+  }
+
+  return new Uint8Array(
+    value.match(/.{1,2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? [],
+  );
 }
 
 export function normalizeJoinCode(input: string): string | null {
@@ -106,6 +125,60 @@ export async function hashJoinCode(
     await crypto.subtle.sign("HMAC", key, encoder.encode(normalized)),
   );
   return bytesToHex(digest);
+}
+
+async function encryptionKey(env: HouseholdEnvironment): Promise<CryptoKey> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    encoder.encode(requiredCodeSecret(env)),
+  );
+  return crypto.subtle.importKey(
+    "raw",
+    digest,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptJoinCode(
+  code: string,
+  env: HouseholdEnvironment,
+): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await encryptionKey(env);
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      encoder.encode(code),
+    ),
+  );
+  return `${bytesToHex(iv)}.${bytesToHex(ciphertext)}`;
+}
+
+async function decryptJoinCode(
+  value: string,
+  env: HouseholdEnvironment,
+): Promise<string> {
+  const [ivHex, ciphertextHex] = value.split(".");
+  if (!ivHex || !ciphertextHex) {
+    throw new HouseholdError(
+      500,
+      "household_code_ciphertext_invalid",
+      "Stored household code is invalid",
+    );
+  }
+
+  const key = await encryptionKey(env);
+  const iv = Uint8Array.from(hexToBytes(ivHex));
+  const ciphertext = Uint8Array.from(hexToBytes(ciphertextHex));
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext,
+  );
+  return new TextDecoder().decode(plaintext);
 }
 
 function assertNoHousehold(identity: RequestIdentity): void {
@@ -285,6 +358,7 @@ export async function createHousehold(
   const joinCodeId = crypto.randomUUID();
   const code = generateJoinCode();
   const codeHash = await hashJoinCode(code, env);
+  const codeCiphertext = await encryptJoinCode(code, env);
   const { createdAt, expiresAt } = joinCodeDates(now);
 
   try {
@@ -300,13 +374,14 @@ export async function createHousehold(
       ).bind(householdId, identity.user.id, createdAt),
       env.DB.prepare(
         `INSERT INTO household_join_codes (
-          id, household_id, code_hash, created_by_user_id,
+          id, household_id, code_hash, code_ciphertext, created_by_user_id,
           expires_at, revoked_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
       ).bind(
         joinCodeId,
         householdId,
         codeHash,
+        codeCiphertext,
         identity.user.id,
         expiresAt,
         createdAt,
@@ -401,6 +476,7 @@ export async function rotateHouseholdJoinCode(
   assertOwner(identity);
   const code = generateJoinCode();
   const codeHash = await hashJoinCode(code, env);
+  const codeCiphertext = await encryptJoinCode(code, env);
   const { createdAt, expiresAt } = joinCodeDates(now);
 
   await env.DB.batch([
@@ -411,13 +487,14 @@ export async function rotateHouseholdJoinCode(
     ).bind(createdAt, identity.householdId),
     env.DB.prepare(
       `INSERT INTO household_join_codes (
-        id, household_id, code_hash, created_by_user_id,
+        id, household_id, code_hash, code_ciphertext, created_by_user_id,
         expires_at, revoked_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
     ).bind(
       crypto.randomUUID(),
       identity.householdId,
       codeHash,
+      codeCiphertext,
       identity.user.id,
       expiresAt,
       createdAt,
@@ -425,6 +502,38 @@ export async function rotateHouseholdJoinCode(
   ]);
 
   return { join_code: { code, expires_at: expiresAt } };
+}
+
+export async function getCurrentHouseholdJoinCode(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+  now = new Date(),
+): Promise<{ join_code: HouseholdJoinCode | null }> {
+  assertOwner(identity);
+  const row = await env.DB.prepare(
+    `SELECT code_ciphertext, expires_at
+     FROM household_join_codes
+     WHERE household_id = ?
+       AND revoked_at IS NULL
+       AND expires_at > ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+  ).bind(identity.householdId, now.toISOString()).first<HouseholdJoinCodeRow>();
+
+  if (!row) {
+    return { join_code: null };
+  }
+
+  if (!row.code_ciphertext) {
+    return rotateHouseholdJoinCode(env, identity, now);
+  }
+
+  return {
+    join_code: {
+      code: await decryptJoinCode(row.code_ciphertext, env),
+      expires_at: row.expires_at,
+    },
+  };
 }
 
 export async function revokeHouseholdJoinCodes(

@@ -22,6 +22,7 @@ import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
   createHouseholdJoinCode,
+  getCurrentHouseholdJoinCode,
   getHouseholdMembers,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
@@ -72,7 +73,7 @@ export function AccountButton() {
   const [visible, setVisible] = useState(false);
   const [screen, setScreen] = useState<AccountScreen>("overview");
   const [joinCode, setJoinCode] = useState<HouseholdJoinCode | null>(null);
-  const [busy, setBusy] = useState<"generate" | "revoke" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "revoke" | "load" | null>(null);
   const [members, setMembers] = useState<HouseholdMember[] | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
@@ -189,6 +190,29 @@ export function AccountButton() {
     }
   }
 
+  async function loadInviteCode(): Promise<void> {
+    if (!household || busy !== null) return;
+    setBusy("load");
+    setNotice(null);
+    setError(null);
+    try {
+      const currentCode = await getCurrentHouseholdJoinCode();
+      if (currentCode) {
+        setJoinCode(currentCode);
+      } else {
+        setJoinCode(await createHouseholdJoinCode());
+      }
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not load the household invitation.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function copyCode(): Promise<void> {
     if (!joinCode) return;
     try {
@@ -254,6 +278,13 @@ export function AccountButton() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function openInviteScreen(): void {
+    setScreen("invite");
+    setNotice(null);
+    setError(null);
+    void loadInviteCode();
   }
 
   async function loadMembers(): Promise<void> {
@@ -520,11 +551,7 @@ export function AccountButton() {
                   <button
                     className="account-settings-row"
                     type="button"
-                    onClick={() => {
-                      setScreen("invite");
-                      setNotice(null);
-                      setError(null);
-                    }}
+                    onClick={openInviteScreen}
                   >
                     <span className="account-row-icon" aria-hidden="true">
                       <UserPlus size={20} />
@@ -594,6 +621,8 @@ export function AccountButton() {
                         <strong>
                           {busy === "generate"
                             ? "Generating…"
+                            : busy === "load"
+                              ? "Loading…"
                             : "Generate New Code"}
                         </strong>
                         <small>Replaces the code shown above</small>
@@ -629,7 +658,9 @@ export function AccountButton() {
                     disabled={busy !== null}
                     onClick={() => void generateCode()}
                   >
-                    {busy === "generate"
+                    {busy === "load"
+                      ? "Loading Code…"
+                      : busy === "generate"
                       ? "Generating Code…"
                       : "Generate Invite Code"}
                   </button>

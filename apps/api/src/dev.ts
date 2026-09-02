@@ -107,6 +107,10 @@ const householdProfileMigrationPath = resolve(
   apiDirectory,
   "migrations/0014_add_household_profile.sql",
 );
+const householdJoinCodeCiphertextMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0015_store_household_join_code_ciphertext.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -203,6 +207,12 @@ const householdColumns = database.prepare(
 ).all() as Array<{ name: string }>;
 if (!householdColumns.some((column) => column.name === "profile_emoji")) {
   database.exec(readFileSync(householdProfileMigrationPath, "utf8"));
+}
+const householdJoinCodeColumns = database.prepare(
+  "PRAGMA table_info(household_join_codes)",
+).all() as Array<{ name: string }>;
+if (!householdJoinCodeColumns.some((column) => column.name === "code_ciphertext")) {
+  database.exec(readFileSync(householdJoinCodeCiphertextMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";

@@ -167,4 +167,14 @@ describe("household ownership migration", () => {
       icon_color: "#1F6B45",
     });
   });
+
+  it("adds a readable ciphertext column for household join codes", () => {
+    database.exec(migration("0015_store_household_join_code_ciphertext.sql"));
+
+    expect(
+      database.prepare(
+        "SELECT name FROM pragma_table_info('household_join_codes') WHERE name = 'code_ciphertext'",
+      ).get(),
+    ).toEqual({ name: "code_ciphertext" });
+  });
 });

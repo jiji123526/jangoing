@@ -6,6 +6,7 @@ import type { RequestIdentity } from "../src/auth";
 import {
   HouseholdError,
   createHousehold,
+  getCurrentHouseholdJoinCode,
   getCurrentHousehold,
   joinHousehold,
   listHouseholdMembers,
@@ -103,6 +104,7 @@ describe("household lifecycle", () => {
       "0012_add_household_ownership.sql",
       "0013_enforce_single_household_membership.sql",
       "0014_add_household_profile.sql",
+      "0015_store_household_join_code_ciphertext.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -141,7 +143,7 @@ describe("household lifecycle", () => {
     expect(normalizeJoinCode("too-short")).toBeNull();
   });
 
-  it("creates an owner membership and stores only the code hash", async () => {
+  it("creates an owner membership and stores the code hash plus ciphertext", async () => {
     const owner = identity("owner-1");
     insertUser(owner);
 
@@ -160,12 +162,18 @@ describe("household lifecycle", () => {
     });
     expect(created.join_code.code).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{2}$/);
     const storedCode = database.prepare(
-      "SELECT code_hash, expires_at FROM household_join_codes",
-    ).get() as { code_hash: string; expires_at: string };
+      "SELECT code_hash, code_ciphertext, expires_at FROM household_join_codes",
+    ).get() as {
+      code_hash: string;
+      code_ciphertext: string;
+      expires_at: string;
+    };
     expect(storedCode.code_hash).toMatch(/^[a-f0-9]{64}$/);
     expect(storedCode.code_hash).not.toContain(
       created.join_code.code.replaceAll("-", ""),
     );
+    expect(storedCode.code_ciphertext).toContain(".");
+    expect(storedCode.code_ciphertext).not.toContain(created.join_code.code);
     expect(storedCode.expires_at).toBe("2026-09-09T12:00:00.000Z");
 
     const current = await getCurrentHousehold(
@@ -180,6 +188,27 @@ describe("household lifecycle", () => {
       avatar_url: null,
     });
     expect(current.user).not.toHaveProperty("googleSubject");
+  });
+
+  it("returns the current active join code for the owner", async () => {
+    const owner = identity("owner-1");
+    insertUser(owner);
+    const created = await createHousehold(
+      env,
+      owner,
+      { name: "Our Kitchen" },
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+
+    await expect(
+      getCurrentHouseholdJoinCode(
+        env,
+        identity("owner-1", created.household.id, "owner"),
+        new Date("2026-09-03T12:00:00.000Z"),
+      ),
+    ).resolves.toEqual({
+      join_code: created.join_code,
+    });
   });
 
   it("joins an existing household with a normalized valid code", async () => {

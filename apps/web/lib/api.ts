@@ -8,7 +8,7 @@ import {
   EventRecordSchema,
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
-  HouseholdJoinCodeSchema,
+  HouseholdJoinCodeResponseSchema,
   HouseholdMemberRemovalResponseSchema,
   HouseholdMembersResponseSchema,
   LoggedInterpretationSchema,
@@ -318,9 +318,6 @@ const ShoppingMutationResponseSchema = z.object({
   inventory: z.array(InventoryItemSchema),
   items: z.array(ShoppingListItemSchema),
 });
-const HouseholdJoinCodeResponseSchema = z.object({
-  join_code: HouseholdJoinCodeSchema,
-});
 const HouseholdJoinCodeRevokeResponseSchema = z.object({
   success: z.literal(true),
 });
@@ -378,6 +375,15 @@ export async function createHouseholdJoinCode(): Promise<HouseholdJoinCode> {
   const body = await apiRequest("/households/join-code", {
     method: "POST",
   });
+  const response = HouseholdJoinCodeResponseSchema.parse(body).join_code;
+  if (!response) {
+    throw new Error("Household invite code was not returned.");
+  }
+  return response;
+}
+
+export async function getCurrentHouseholdJoinCode(): Promise<HouseholdJoinCode | null> {
+  const body = await apiRequest("/households/join-code");
   return HouseholdJoinCodeResponseSchema.parse(body).join_code;
 }
 
