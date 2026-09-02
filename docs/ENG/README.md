@@ -3,11 +3,9 @@
 The repository root `README.md` is the project entry point. Detailed plans,
 operational guides, decisions, and learning references live in this directory.
 
-The `KO/ENG` split is being migrated in phases. When a mirrored document has
-not been created in this tree yet, links temporarily fall back to the legacy
-root `docs/...` path or to the opposite-language counterpart. The development
-progress log is intentionally kept as the English source log and is not part of
-the translation scope.
+Use this language tree as the primary reading path. The development progress
+log is intentionally kept as the English source log and is not part of the
+translation scope. The design guide remains a root-level document for now.
 
 ## Recommended Reading Order
 
