@@ -406,41 +406,221 @@ main#search {
 
 .auth-onboarding-loading {
   min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.loading-skeleton {
+  --skeleton-base: rgba(118, 118, 128, 0.12);
+  --skeleton-highlight: rgba(255, 255, 255, 0.72);
+  width: 100%;
+  min-width: 0;
+  margin: 4px 0 20px;
+  overflow: hidden;
+}
+
+.loading-skeleton--rows,
+.loading-skeleton--search {
+  padding: 0 16px;
+}
+
+.loading-skeleton__row {
+  min-height: 68px;
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 14px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
 }
 
-.auth-onboarding-loading p {
-  margin: 0;
-  color: rgba(60, 60, 67, 0.65);
-  font-size: 15px;
+.loading-skeleton__row > i {
+  width: 48px;
+  height: 48px;
+  border-radius: 7px;
 }
 
-.auth-onboarding-mark {
-  width: 76px;
-  height: 76px;
+.loading-skeleton__row > span {
   display: grid;
-  place-items: center;
-  border-radius: 20px;
-  color: #fff;
-  background: var(--green);
+  gap: 8px;
 }
 
-.auth-onboarding-spinner {
-  color: var(--green);
-  animation: auth-onboarding-spin 0.9s linear infinite;
+.loading-skeleton__row b,
+.loading-skeleton__row em {
+  height: 12px;
+  display: block;
+  border-radius: 6px;
 }
 
-@keyframes auth-onboarding-spin {
+.loading-skeleton__row b {
+  width: min(62%, 190px);
+}
+
+.loading-skeleton__row em {
+  width: min(42%, 130px);
+}
+
+.loading-skeleton--cards {
+  padding: 0 16px 4px;
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.loading-skeleton__card {
+  width: 160px;
+  min-width: 160px;
+  display: grid;
+  gap: 8px;
+}
+
+.loading-skeleton__card i {
+  width: 160px;
+  height: 116px;
+  display: block;
+  border-radius: 8px;
+}
+
+.loading-skeleton__card b,
+.loading-skeleton__card em {
+  height: 12px;
+  display: block;
+  border-radius: 6px;
+}
+
+.loading-skeleton__card b {
+  width: 78%;
+}
+
+.loading-skeleton__card em {
+  width: 56%;
+}
+
+.loading-skeleton--metrics {
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.loading-skeleton__metric {
+  min-height: 104px;
+  padding: 14px;
+  display: grid;
+  align-content: space-between;
+  border-radius: 10px;
+}
+
+.loading-skeleton__metric i,
+.loading-skeleton__metric b,
+.loading-skeleton__metric em {
+  display: block;
+  border-radius: 6px;
+}
+
+.loading-skeleton__metric i {
+  width: 20px;
+  height: 20px;
+  justify-self: end;
+}
+
+.loading-skeleton__metric b {
+  width: 44px;
+  height: 25px;
+}
+
+.loading-skeleton__metric em {
+  width: 72px;
+  height: 11px;
+}
+
+.loading-skeleton--page {
+  padding: 48px 16px 24px;
+}
+
+.loading-skeleton__title,
+.loading-skeleton__hero,
+.loading-skeleton__heading {
+  display: block;
+}
+
+.loading-skeleton__title {
+  width: 42%;
+  height: 34px;
+  margin-bottom: 28px;
+  border-radius: 10px;
+}
+
+.loading-skeleton__hero {
+  width: 100%;
+  height: 128px;
+  margin-bottom: 30px;
+  border-radius: 14px;
+}
+
+.loading-skeleton__heading {
+  width: 34%;
+  height: 20px;
+  margin-bottom: 8px;
+  border-radius: 7px;
+}
+
+.loading-skeleton__page-rows .loading-skeleton__row {
+  padding: 0;
+}
+
+.loading-skeleton__row > i,
+.loading-skeleton__row b,
+.loading-skeleton__row em,
+.loading-skeleton__card i,
+.loading-skeleton__card b,
+.loading-skeleton__card em,
+.loading-skeleton__metric,
+.loading-skeleton__metric i,
+.loading-skeleton__metric b,
+.loading-skeleton__metric em,
+.loading-skeleton__title,
+.loading-skeleton__hero,
+.loading-skeleton__heading {
+  background: linear-gradient(
+    100deg,
+    var(--skeleton-base) 20%,
+    var(--skeleton-highlight) 38%,
+    var(--skeleton-base) 56%
+  );
+  background-size: 220% 100%;
+  animation: loading-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.analytics-section > .loading-skeleton {
+  padding-inline: 0;
+}
+
+.search-page > .loading-skeleton {
+  margin-top: 18px;
+}
+
+@keyframes loading-skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
   to {
-    transform: rotate(360deg);
+    background-position: -100% 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-onboarding-spinner {
+  .loading-skeleton__row > i,
+  .loading-skeleton__row b,
+  .loading-skeleton__row em,
+  .loading-skeleton__card i,
+  .loading-skeleton__card b,
+  .loading-skeleton__card em,
+  .loading-skeleton__metric,
+  .loading-skeleton__metric i,
+  .loading-skeleton__metric b,
+  .loading-skeleton__metric em,
+  .loading-skeleton__title,
+  .loading-skeleton__hero,
+  .loading-skeleton__heading {
     animation: none;
   }
 }

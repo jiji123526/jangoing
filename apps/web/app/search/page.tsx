@@ -10,6 +10,7 @@ import {
   getInventoryData,
   getShoppingListData,
 } from "../../lib/api";
+import { LoadingSkeleton } from "../LoadingSkeleton";
 
 type SearchScope = "inventory" | "shopping";
 type SearchTag =
@@ -431,7 +432,13 @@ export default function SearchPage() {
 
       {error && <p className="message error search-message">{error}</p>}
 
-      {!submittedQuery ? (
+      {loading ? (
+        <LoadingSkeleton
+          variant="search"
+          rows={5}
+          label="Loading kitchen search"
+        />
+      ) : !submittedQuery ? (
         <section className="search-start-section">
           <h2>{recentSearches.length ? "Recent Searches" : "Try Searching"}</h2>
           <div className="search-suggestion-list">
@@ -461,8 +468,6 @@ export default function SearchPage() {
             </button>
           )}
         </section>
-      ) : loading ? (
-        <p className="search-empty">Loading kitchen search…</p>
       ) : resultCount === 0 ? (
         <p className="search-empty">
           No results for “{submittedQuery}” in {scope}.

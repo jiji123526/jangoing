@@ -5,7 +5,6 @@ import {
   Check,
   ChevronLeft,
   KeyRound,
-  LoaderCircle,
   PackageOpen,
   UsersRound,
 } from "lucide-react";
@@ -22,9 +21,11 @@ import {
   getCurrentHousehold,
   joinHousehold,
 } from "../lib/api";
+import { LoadingSkeleton } from "./LoadingSkeleton";
 
 type OnboardingStep = "choice" | "join" | "create" | "complete";
 type HouseholdChoice = "join" | "create";
+type HouseholdAccessState = "checking" | "needs_setup" | "ready";
 
 function formatJoinCode(value: string): string {
   const normalized = value
@@ -39,12 +40,12 @@ function formatJoinCode(value: string): string {
 function LoadingScreen(): ReactNode {
   return (
     <main className="auth-onboarding-shell" aria-busy="true">
-      <section className="auth-onboarding-loading" aria-live="polite">
-        <span className="auth-onboarding-mark" aria-hidden="true">
-          <PackageOpen size={34} strokeWidth={1.7} />
-        </span>
-        <LoaderCircle className="auth-onboarding-spinner" size={24} />
-        <p>Opening your kitchen…</p>
+      <section className="auth-onboarding-loading">
+        <LoadingSkeleton
+          variant="page"
+          rows={4}
+          label="Opening your kitchen"
+        />
       </section>
     </main>
   );
@@ -52,7 +53,8 @@ function LoadingScreen(): ReactNode {
 
 function Gate({ children }: { children: ReactNode }) {
   const { status } = useSession();
-  const [accessReady, setAccessReady] = useState(false);
+  const [accessState, setAccessState] =
+    useState<HouseholdAccessState>("checking");
   const [step, setStep] = useState<OnboardingStep>("choice");
   const [choice, setChoice] = useState<HouseholdChoice | null>(null);
   const [householdName, setHouseholdName] = useState("");
@@ -66,23 +68,25 @@ function Gate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status !== "authenticated") {
-      setAccessReady(false);
+      setAccessState("checking");
       return;
     }
 
+    setAccessState("checking");
     let cancelled = false;
     void getCurrentHousehold()
       .then((result) => {
         if (cancelled) return;
         if (result.household) {
-          setAccessReady(true);
+          setAccessState("ready");
         } else {
-          setAccessReady(false);
+          setAccessState("needs_setup");
           setStep("choice");
         }
       })
       .catch((caught) => {
         if (cancelled) return;
+        setAccessState("needs_setup");
         setError(
           caught instanceof Error
             ? caught.message
@@ -96,12 +100,17 @@ function Gate({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status === "authenticated" && !accessReady) {
+    if (status === "authenticated" && accessState === "needs_setup") {
       titleRef.current?.focus();
     }
-  }, [accessReady, status, step]);
+  }, [accessState, status, step]);
 
-  if (status === "loading") return <LoadingScreen />;
+  if (
+    status === "loading" ||
+    (status === "authenticated" && accessState === "checking")
+  ) {
+    return <LoadingScreen />;
+  }
 
   if (status === "unauthenticated") {
     return (
@@ -134,7 +143,7 @@ function Gate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (accessReady) return children;
+  if (accessState === "ready") return children;
 
   async function submitJoin(): Promise<void> {
     setSubmitting(true);
@@ -361,7 +370,7 @@ function Gate({ children }: { children: ReactNode }) {
             </button>
           )}
           {step === "complete" && (
-            <button type="button" onClick={() => setAccessReady(true)}>
+            <button type="button" onClick={() => setAccessState("ready")}>
               Open My Kitchen
             </button>
           )}

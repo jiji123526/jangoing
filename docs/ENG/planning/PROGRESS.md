@@ -2,6 +2,34 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-02 - Shared loading skeletons added
+
+### Completed
+
+- Added reusable page, row, card, metric, and search-result skeleton variants.
+- Replaced text-only loading states across Home, Inventory, Shopping, Search,
+  Analytics, and the authentication/household gate.
+- Preserved accessible loading labels and disabled shimmer motion when reduced
+  motion is requested.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
+## 2026-09-02 - Household refresh flash removed
+
+### Completed
+
+- Split household access into checking, setup-required, and ready states.
+- Kept the authenticated loading screen visible while the current household
+  request is pending.
+- Showed household setup only after the API explicitly reports no membership,
+  preventing the setup screen from flashing during refresh.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
 ## 2026-09-02 - Phase-1 bilingual docs tree added
 
 ### Completed

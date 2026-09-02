@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getEventsData } from "../../lib/api";
+import { LoadingSkeleton } from "../LoadingSkeleton";
 
 const weekInMilliseconds = 7 * 24 * 60 * 60 * 1_000;
 
@@ -116,7 +117,11 @@ export default function AnalyticsPage() {
 
         {error && <p className="message error analytics-message">{error}</p>}
         {loading ? (
-          <p className="analytics-empty">Loading weekly activity…</p>
+          <LoadingSkeleton
+            variant="metrics"
+            rows={4}
+            label="Loading weekly activity"
+          />
         ) : (
           <div className="analytics-metric-grid">
             {metrics.map(({ label, value, icon: Icon, tone }) => (
@@ -138,7 +143,13 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {!loading && activeItems.length === 0 ? (
+        {loading ? (
+          <LoadingSkeleton
+            variant="rows"
+            rows={4}
+            label="Loading active items"
+          />
+        ) : activeItems.length === 0 ? (
           <p className="analytics-empty">
             Weekly item activity will appear after actions are recorded.
           </p>

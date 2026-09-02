@@ -49,6 +49,7 @@ import {
 } from "../lib/api";
 import { FridgeSetupDialog } from "./FridgeSetupDialog";
 import { AccountButton } from "./AccountButton";
+import { LoadingSkeleton } from "./LoadingSkeleton";
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
@@ -1607,7 +1608,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="today-heading">Today</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Checking today’s priorities…</p>
+              <LoadingSkeleton
+                variant="rows"
+                rows={3}
+                label="Loading today's priorities"
+              />
             ) : homeToday.length === 0 ? (
               <p className="home-empty">Nothing needs immediate attention.</p>
             ) : (
@@ -1634,7 +1639,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="leftovers-heading">Leftovers First</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Checking what to finish first…</p>
+              <LoadingSkeleton
+                variant="cards"
+                rows={2}
+                label="Loading leftovers"
+              />
             ) : homeLeftoverItems.length === 0 ? (
               <p className="home-empty">
                 Mark prepared meals as Leftovers to prioritize them here.
@@ -1685,7 +1694,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="briefing-heading">Kitchen Briefing</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Loading kitchen status…</p>
+              <LoadingSkeleton
+                variant="cards"
+                rows={2}
+                label="Loading kitchen status"
+              />
             ) : (
               <div className="home-feature-scroll">
                 {homeBriefing.map((briefing) => (
@@ -1708,7 +1721,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="suggested-heading">Suggested Actions</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Preparing suggestions…</p>
+              <LoadingSkeleton
+                variant="rows"
+                rows={2}
+                label="Loading suggested actions"
+              />
             ) : homeRestockSuggestions.length === 0 &&
               homeThresholdSuggestion === null ? (
               <p className="home-empty">No actions to suggest right now.</p>
@@ -1774,7 +1791,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="snapshot-heading">Inventory Snapshot</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Counting inventory status…</p>
+              <LoadingSkeleton
+                variant="metrics"
+                rows={4}
+                label="Loading inventory status"
+              />
             ) : (
               <a className="home-snapshot" href="/inventory">
                 <span>
@@ -1802,7 +1823,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="waste-heading">Waste Prevention</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Checking dated inventory…</p>
+              <LoadingSkeleton
+                variant="rows"
+                rows={2}
+                label="Loading dated inventory"
+              />
             ) : homeWasteItems.length === 0 ? (
               <p className="home-empty">
                 Add expiry dates to see what should be used first.
@@ -1830,7 +1855,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <h2 id="recent-heading">Recently Updated</h2>
             </div>
             {loading ? (
-              <p className="home-loading">Loading recent updates…</p>
+              <LoadingSkeleton
+                variant="cards"
+                rows={2}
+                label="Loading recent updates"
+              />
             ) : recentlyUpdated.length === 0 ? (
               <p className="home-empty">
                 Confirmed inventory and shopping actions will appear here.
@@ -2215,7 +2244,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           )}
 
           {loading ? (
-            <p className="empty-state inventory-empty">Loading inventory...</p>
+            <LoadingSkeleton
+              variant="rows"
+              rows={6}
+              label="Loading inventory"
+            />
           ) : dashboard.inventory.length === 0 ? (
             <p className="empty-state inventory-empty">No inventory actions yet.</p>
           ) : (
@@ -2441,7 +2474,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           </dialog>
 
           {loading ? (
-            <p className="empty-state shopping-empty">Loading shopping list...</p>
+            <LoadingSkeleton
+              variant="rows"
+              rows={6}
+              label="Loading shopping list"
+            />
           ) : dashboard.shoppingList.length === 0 &&
             recommendedShoppingItems.length === 0 ? (
             <p className="empty-state shopping-empty">Nothing to buy yet.</p>
