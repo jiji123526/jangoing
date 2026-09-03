@@ -28,6 +28,7 @@ import {
   joinHousehold,
 } from "../lib/api";
 import { HouseholdProvider } from "./HouseholdContext";
+import { KitchenDataProvider } from "./KitchenDataContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { PublicServiceHome } from "./PublicServiceHome";
 
@@ -73,7 +74,7 @@ function Gate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(true);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const sharedJoinCode = formatJoinCode(searchParams.get("joinCode") ?? "");
   const returnTo = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`
@@ -83,9 +84,6 @@ function Gate({ children }: { children: ReactNode }) {
     if (status !== "authenticated") {
       setAccessState("checking");
       setHouseholdAccess(null);
-      if (status === "unauthenticated") {
-        setOnboardingOpen(true);
-      }
       return;
     }
 
@@ -166,7 +164,7 @@ function Gate({ children }: { children: ReactNode }) {
   if (ready && householdAccess?.household) {
     return (
       <HouseholdProvider value={householdAccess}>
-        {children}
+        <KitchenDataProvider>{children}</KitchenDataProvider>
       </HouseholdProvider>
     );
   }

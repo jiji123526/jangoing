@@ -7,8 +7,8 @@ import {
   ShoppingBag,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { getEventsData } from "../../lib/api";
+import { useMemo, useState } from "react";
+import { useKitchenData } from "../KitchenDataContext";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 
 const weekInMilliseconds = 7 * 24 * 60 * 60 * 1_000;
@@ -163,34 +163,12 @@ function eventSummary(event: EventRecord): string {
 }
 
 export default function AnalyticsPage() {
-  const [events, setEvents] = useState<EventRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    dashboard: { events },
+    loading,
+    loadError: error,
+  } = useKitchenData();
   const [selectedMetric, setSelectedMetric] = useState<MetricFilter | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    const since = new Date(Date.now() - weekInMilliseconds).toISOString();
-    getEventsData(since)
-      .then((result) => {
-        if (active) setEvents(result);
-      })
-      .catch((caught: unknown) => {
-        if (!active) return;
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not load weekly activity.",
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const weeklyEvents = useMemo(() => {
     const cutoff = Date.now() - weekInMilliseconds;

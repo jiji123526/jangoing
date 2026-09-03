@@ -7,14 +7,11 @@ import type {
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  getInventoryData,
-  getShoppingListData,
-} from "../../lib/api";
-import {
   legacySearchHistoryStorageKey,
   searchHistoryStorageKey,
 } from "../../lib/search-history";
 import { useCurrentHousehold } from "../HouseholdContext";
+import { useKitchenData } from "../KitchenDataContext";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 
 type SearchScope = "inventory" | "shopping";
@@ -161,41 +158,23 @@ function SearchArtwork({
 
 export default function SearchPage() {
   const { user } = useCurrentHousehold();
+  const {
+    dashboard: { inventory, shoppingList: shopping },
+    loading,
+    loadError: error,
+  } = useKitchenData();
   const recentSearchStorageKey = searchHistoryStorageKey(user.id);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [shopping, setShopping] = useState<ShoppingListItem[]>([]);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [scope, setScope] = useState<SearchScope>("inventory");
   const [selectedTag, setSelectedTag] = useState<SearchTag>("top");
   const [focused, setFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [tagPill, setTagPill] = useState({ left: 0, width: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
   const tagScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([getInventoryData(), getShoppingListData()])
-      .then(([inventoryResult, shoppingResult]) => {
-        if (!active) return;
-        setInventory(inventoryResult);
-        setShopping(shoppingResult);
-      })
-      .catch((caught: unknown) => {
-        if (!active) return;
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not load search data.",
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
     setRecentSearches([]);
     window.localStorage.removeItem(legacySearchHistoryStorageKey);
     const stored = window.localStorage.getItem(recentSearchStorageKey);
@@ -213,9 +192,6 @@ export default function SearchPage() {
         window.localStorage.removeItem(recentSearchStorageKey);
       }
     }
-    return () => {
-      active = false;
-    };
   }, [recentSearchStorageKey]);
 
   const results = useMemo(() => {

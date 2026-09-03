@@ -8,7 +8,6 @@ import type {
   InventoryItem,
   LoggedInterpretation,
   ShoppingListItem,
-  FridgeSetupStatus,
 } from "@jangoing/contracts";
 import {
   CalendarDays,
@@ -35,8 +34,6 @@ import {
   addShoppingItem,
   createEvent,
   deleteShoppingItem,
-  getDashboardData,
-  getFridgeSetupStatus,
   getInventoryData,
   getShoppingListData,
   interpretCommand,
@@ -45,10 +42,10 @@ import {
   restoreShoppingItem,
   updateInventoryItem,
   updateInferenceOutcome,
-  type DashboardData,
 } from "../lib/api";
 import { FridgeSetupDialog } from "./FridgeSetupDialog";
 import { AccountButton } from "./AccountButton";
+import { useKitchenData } from "./KitchenDataContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
@@ -101,12 +98,6 @@ function toEditable(interpretation: LoggedInterpretation): EditableInterpretatio
     expirationDate: interpretation.slots.expiration_date ?? "",
   };
 }
-
-const emptyDashboard: DashboardData = {
-  inventory: [],
-  events: [],
-  shoppingList: [],
-};
 
 function titleCase(value: string): string {
   return value
@@ -944,20 +935,26 @@ function InventoryItemRow({
 export type DashboardViewName = "home" | "inventory" | "shopping" | "search";
 
 export function DashboardView({ view }: { view: DashboardViewName }) {
+  const {
+    dashboard,
+    setDashboard,
+    fridgeSetupStatus,
+    setFridgeSetupStatus,
+    loading,
+    loadError,
+    refresh,
+  } = useKitchenData();
   const [command, setCommand] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [interpretation, setInterpretation] =
     useState<LoggedInterpretation | null>(null);
   const [edited, setEdited] = useState<EditableInterpretation | null>(null);
-  const [dashboard, setDashboard] = useState(emptyDashboard);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setError] = useState<string | null>(null);
+  const error = localError ?? loadError;
   const [notice, setNotice] = useState<string | null>(null);
   const [homeQuickUpdateOpen, setHomeQuickUpdateOpen] = useState(false);
   const [fridgeSetupOpen, setFridgeSetupOpen] = useState(false);
-  const [fridgeSetupStatus, setFridgeSetupStatus] =
-    useState<FridgeSetupStatus | null>(null);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
   const [editingInventory, setEditingInventory] = useState(false);
@@ -1210,38 +1207,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   }, [dashboard.events]);
 
   async function loadDashboard() {
-    setLoading(true);
     setError(null);
     try {
-      if (view === "inventory" || view === "search") {
-        const inventory = await getInventoryData();
-        setDashboard({ ...emptyDashboard, inventory });
-      } else if (view === "shopping") {
-        const [inventory, shoppingList] = await Promise.all([
-          getInventoryData(),
-          getShoppingListData(),
-        ]);
-        setDashboard({ ...emptyDashboard, inventory, shoppingList });
-      } else {
-        const [nextDashboard, setupStatus] = await Promise.all([
-          getDashboardData(),
-          getFridgeSetupStatus(),
-        ]);
-        setDashboard(nextDashboard);
-        setFridgeSetupStatus(setupStatus);
-      }
+      await refresh();
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not load kitchen data.",
       );
-    } finally {
-      setLoading(false);
     }
   }
-
-  useEffect(() => {
-    void loadDashboard();
-  }, [view]);
 
   useEffect(() => {
     if (view !== "home" || !homeQuickUpdateOpen) return;
@@ -1282,11 +1256,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setInventorySaving(itemName);
     setError(null);
     try {
-      await updateInventoryItem(itemName, update);
+      const event = await updateInventoryItem(itemName, update);
       const inventory = await getInventoryData();
       const updatedItem = inventory.find((item) => item.item_name === itemName);
       setDashboard((current) => ({
         ...current,
+        events: [event, ...current.events],
         inventory: updatedItem
           ? current.inventory.map((item) =>
               item.item_name === itemName ? updatedItem : item,
@@ -1355,6 +1330,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         : await restoreShoppingItem(itemName);
       setDashboard((current) => ({
         ...current,
+        events: [result.event, ...current.events],
         inventory: result.inventory,
         shoppingList: result.items,
       }));
@@ -1377,6 +1353,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       const result = await deleteShoppingItem(itemName);
       setDashboard((current) => ({
         ...current,
+        events: [result.event, ...current.events],
         inventory: result.inventory,
         shoppingList: result.items,
       }));
@@ -1403,14 +1380,18 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setShoppingSaving(item.item_name);
     setError(null);
     try {
-      await addShoppingItem(item.item_name, {
+      const event = await addShoppingItem(item.item_name, {
         quantity: 1,
         unit: item.unit,
         location: item.location,
         expiration_date: null,
       });
       const shoppingList = await getShoppingListData();
-      setDashboard((current) => ({ ...current, shoppingList }));
+      setDashboard((current) => ({
+        ...current,
+        events: [event, ...current.events],
+        shoppingList,
+      }));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -1431,14 +1412,18 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setShoppingSaving(itemName);
     setError(null);
     try {
-      await addShoppingItem(itemName, {
+      const event = await addShoppingItem(itemName, {
         quantity,
         unit: shoppingUnitDraft.trim() || null,
         location: shoppingLocationDraft || null,
         expiration_date: shoppingExpiryDraft || null,
       });
       const shoppingList = await getShoppingListData();
-      setDashboard((current) => ({ ...current, shoppingList }));
+      setDashboard((current) => ({
+        ...current,
+        events: [event, ...current.events],
+        shoppingList,
+      }));
       resetShoppingDraft();
       setShoppingAddOpen(false);
     } catch (caught) {

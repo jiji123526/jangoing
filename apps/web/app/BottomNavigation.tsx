@@ -9,8 +9,8 @@ import {
   type MouseEvent,
 } from "react";
 
-const tabFadeOutMs = 90;
 const tabFadeInMs = 120;
+const tabPaths = ["/", "/inventory", "/analytics", "/shopping", "/search"];
 
 const mainTabs = [
   {
@@ -56,10 +56,15 @@ export default function BottomNavigation() {
   const router = useRouter();
   const previousPathnameRef = useRef(pathname);
   const navigatingRef = useRef(false);
-  const navigationTimerRef = useRef<number | null>(null);
   const cleanupTimerRef = useRef<number | null>(null);
 
   const isActive = (tabPathname: string) => pathname === tabPathname;
+
+  useEffect(() => {
+    for (const path of tabPaths) {
+      if (path !== pathname) router.prefetch(path);
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     if (previousPathnameRef.current === pathname) return;
@@ -82,9 +87,6 @@ export default function BottomNavigation() {
 
   useEffect(() => {
     return () => {
-      if (navigationTimerRef.current !== null) {
-        window.clearTimeout(navigationTimerRef.current);
-      }
       if (cleanupTimerRef.current !== null) {
         window.clearTimeout(cleanupTimerRef.current);
       }
@@ -120,15 +122,12 @@ export default function BottomNavigation() {
     event.preventDefault();
     navigatingRef.current = true;
     document.documentElement.classList.add("household-tab-fade-out");
-    navigationTimerRef.current = window.setTimeout(() => {
-      router.push(href);
-      navigationTimerRef.current = null;
-      cleanupTimerRef.current = window.setTimeout(() => {
-        document.documentElement.classList.remove("household-tab-fade-out");
-        navigatingRef.current = false;
-        cleanupTimerRef.current = null;
-      }, 800);
-    }, tabFadeOutMs);
+    router.push(href);
+    cleanupTimerRef.current = window.setTimeout(() => {
+      document.documentElement.classList.remove("household-tab-fade-out");
+      navigatingRef.current = false;
+      cleanupTimerRef.current = null;
+    }, 800);
   }
 
   const renderTab = (
