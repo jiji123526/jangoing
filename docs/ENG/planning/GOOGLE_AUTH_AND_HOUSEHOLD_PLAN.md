@@ -509,8 +509,10 @@ An invalid, expired, or revoked code must keep the user in onboarding and show a
 generic error. The UI must not reveal the household name or member list before
 the join succeeds.
 
-The signed-out screen should be a functional authentication gate, not a
-marketing landing page.
+The signed-out experience uses an API-independent public service home beneath
+the authentication dialog. It may explain and preview current product
+capabilities, but it must not render private app pages, bottom navigation, or
+household data before membership is resolved.
 
 ## Onboarding UI Plan
 
@@ -555,9 +557,10 @@ Adapt the sample's introductory subscription sheet:
 - show progress while OAuth is starting and prevent duplicate submissions;
 - show a retryable error without losing the intended return location.
 
-The recommended authenticated MVP is not dismissible because consumer routes
-require a household identity. A close button is appropriate only if an explicit
-anonymous demo mode is added with isolated, non-production data.
+The sign-in dialog may be dismissed to the public service home. Dismissal does
+not create anonymous app access: private routes, consumer API requests, and
+bottom navigation remain unavailable until authentication and household
+membership are resolved.
 
 ### Screen 2: Household Choice
 
@@ -679,10 +682,17 @@ enter a household.
 
 ### Onboarding Implementation Status
 
-Implemented on 2026-09-02:
+Implemented through 2026-09-03:
 
-- Google authentication is mandatory and the onboarding gate cannot be
-  dismissed into anonymous app access;
+- Google authentication remains mandatory for private app access;
+- signed-out users see an API-independent Apple Music-style service home with
+  feature shelves, an explicitly labeled example kitchen, household sharing,
+  waste-prevention previews, and a privacy statement;
+- sign-in and household setup render as native modal dialogs above the public
+  home and may be dismissed without exposing private app pages;
+- the public profile control and all preview actions reopen the relevant
+  onboarding state, while signed-in users without membership receive a
+  `Finish household setup` state;
 - any valid Google account may sign in; no subject or email allowlist is
   applied;
 - signed-out, membership-resolution, household-choice, join, create,

@@ -497,8 +497,10 @@ Web app에 다음을 적용한다.
 Invalid, expired, revoked code는 user를 onboarding에 유지하고 동일한 generic error를
 표시한다. Join 성공 전에는 household name이나 member list를 노출하지 않는다.
 
-Signed-out screen은 marketing landing page가 아니라 실제 authentication gate로
-구현한다.
+Signed-out experience는 authentication dialog 아래에 API-independent public
+service home을 표시한다. 현재 product capability를 설명하고 preview할 수 있지만,
+membership resolution 전에는 private app page, bottom navigation, household
+data를 render하지 않는다.
 
 ## Onboarding UI 계획
 
@@ -543,9 +545,9 @@ Sample의 introductory subscription sheet를 다음과 같이 적용한다.
 - OAuth 시작 중 progress를 표시하고 duplicate submit 방지
 - Intended return location을 잃지 않는 retry 가능한 error 표시
 
-권장 authenticated MVP에서는 consumer route에 household identity가 필요하므로
-dismiss할 수 없게 한다. Close button은 isolated non-production data를 사용하는
-명시적 anonymous demo mode를 추가하는 경우에만 적절하다.
+Sign-in dialog는 public service home으로 dismiss할 수 있다. Dismiss는 anonymous
+app access를 만들지 않는다. Authentication과 household membership이 resolve되기
+전에는 private route, consumer API request, bottom navigation을 사용할 수 없다.
 
 ### Screen 2: Household 선택
 
@@ -665,10 +667,17 @@ account surface가 담당하며, onboarding에는 household에 들어가기 위�
 
 ### Onboarding 구현 상태
 
-2026-09-02 구현 완료:
+2026-09-03까지 구현 완료:
 
-- Google authentication은 mandatory이며 onboarding gate를 dismiss해 anonymous
-  app access로 들어갈 수 없다.
+- Private app access에는 Google authentication이 계속 mandatory다.
+- Signed-out user에게 feature shelf, 명시적으로 표시된 example kitchen,
+  household sharing, waste-prevention preview, privacy statement를 포함한
+  API-independent Apple Music-style service home을 표시한다.
+- Sign-in과 household setup은 public home 위 native modal dialog로 render되며,
+  private app page를 노출하지 않고 dismiss할 수 있다.
+- Public profile control과 모든 preview action은 관련 onboarding state를 다시
+  열고, membership이 없는 signed-in user에게는 `Finish household setup` state를
+  제공한다.
 - 모든 valid Google account가 sign in할 수 있으며 subject 또는 email allowlist를
   적용하지 않는다.
 - Signed-out, membership-resolution, household-choice, join, create,

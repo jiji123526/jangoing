@@ -2,6 +2,26 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-03 - Public service home and modal onboarding added
+
+### Completed
+
+- Added an API-independent Apple Music-style public home for signed-out users
+  and authenticated users who have not joined a household.
+- Added feature shelves, an example kitchen, household sharing, waste
+  prevention, and privacy content without adding the proposed mini player.
+- Moved Google sign-in and household setup into a native modal dialog above the
+  public home.
+- Allowed the dialog to close without granting access to private pages,
+  consumer API requests, or bottom navigation.
+- Preserved join-code deep links, household resolution, and existing-member
+  onboarding bypass behavior.
+
+### Validation
+
+- Added server-render coverage for the public content and setup account state.
+- Web type checking and the full Web test suite pass.
+
 ## 2026-09-02 - Household profile customization added
 
 ### Completed

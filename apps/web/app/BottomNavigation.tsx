@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { CSSProperties } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
+
+const tabFadeOutMs = 90;
+const tabFadeInMs = 120;
 
 const mainTabs = [
   {
@@ -45,8 +53,83 @@ function TabIcon({ src }: { src: string }) {
 
 export default function BottomNavigation() {
   const pathname = usePathname();
+  const router = useRouter();
+  const previousPathnameRef = useRef(pathname);
+  const navigatingRef = useRef(false);
+  const navigationTimerRef = useRef<number | null>(null);
+  const cleanupTimerRef = useRef<number | null>(null);
 
   const isActive = (tabPathname: string) => pathname === tabPathname;
+
+  useEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+    previousPathnameRef.current = pathname;
+
+    const root = document.documentElement;
+    root.classList.remove("household-tab-fade-out");
+    void root.offsetWidth;
+    root.classList.add("household-tab-fade-in");
+
+    if (cleanupTimerRef.current !== null) {
+      window.clearTimeout(cleanupTimerRef.current);
+    }
+    cleanupTimerRef.current = window.setTimeout(() => {
+      root.classList.remove("household-tab-fade-in");
+      navigatingRef.current = false;
+      cleanupTimerRef.current = null;
+    }, tabFadeInMs);
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+      if (cleanupTimerRef.current !== null) {
+        window.clearTimeout(cleanupTimerRef.current);
+      }
+      document.documentElement.classList.remove(
+        "household-tab-fade-out",
+        "household-tab-fade-in",
+      );
+    };
+  }, []);
+
+  function switchTab(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+    active: boolean,
+  ): void {
+    if (active || navigatingRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigatingRef.current = true;
+    document.documentElement.classList.add("household-tab-fade-out");
+    navigationTimerRef.current = window.setTimeout(() => {
+      router.push(href);
+      navigationTimerRef.current = null;
+      cleanupTimerRef.current = window.setTimeout(() => {
+        document.documentElement.classList.remove("household-tab-fade-out");
+        navigatingRef.current = false;
+        cleanupTimerRef.current = null;
+      }, 800);
+    }, tabFadeOutMs);
+  }
 
   const renderTab = (
     tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
@@ -59,6 +142,7 @@ export default function BottomNavigation() {
         href={tab.href}
         key={tab.label}
         aria-current={active ? "page" : undefined}
+        onClick={(event) => switchTab(event, tab.href, active)}
       >
         <TabIcon src={tab.icon} />
         <span>{tab.label}</span>
@@ -77,6 +161,9 @@ export default function BottomNavigation() {
           }`}
           href="/analytics"
           aria-current={pathname === "/analytics" ? "page" : undefined}
+          onClick={(event) =>
+            switchTab(event, "/analytics", pathname === "/analytics")
+          }
         >
           <TabIcon src="/apple-music-tabbar/annotate.png" />
           <span>Analytics</span>

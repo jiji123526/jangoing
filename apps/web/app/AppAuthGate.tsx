@@ -16,6 +16,7 @@ import type { Session } from "next-auth";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -28,6 +29,7 @@ import {
 } from "../lib/api";
 import { HouseholdProvider } from "./HouseholdContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
+import { PublicServiceHome } from "./PublicServiceHome";
 
 type OnboardingStep = "choice" | "join" | "create" | "complete";
 type HouseholdChoice = "join" | "create";
@@ -43,17 +45,13 @@ function formatJoinCode(value: string): string {
     .join("-");
 }
 
-function LoadingScreen(): ReactNode {
+function LoadingDialogContent(): ReactNode {
   return (
-    <main className="auth-onboarding-shell is-loading" aria-busy="true">
-      <section className="auth-onboarding-loading">
-        <LoadingSkeleton
-          variant="page"
-          rows={4}
-          label="Opening your kitchen"
-        />
-      </section>
-    </main>
+    <section className="auth-onboarding-sheet auth-onboarding-loading-sheet" aria-busy="true">
+      <div className="auth-onboarding-loading">
+        <LoadingSkeleton variant="page" rows={4} label="Opening your kitchen" />
+      </div>
+    </section>
   );
 }
 
@@ -76,6 +74,8 @@ function Gate({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(true);
   const sharedJoinCode = formatJoinCode(searchParams.get("joinCode") ?? "");
   const returnTo = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`
@@ -85,10 +85,14 @@ function Gate({ children }: { children: ReactNode }) {
     if (status !== "authenticated") {
       setAccessState("checking");
       setHouseholdAccess(null);
+      if (status === "unauthenticated") {
+        setOnboardingOpen(true);
+      }
       return;
     }
 
     setAccessState("checking");
+    setOnboardingOpen(true);
     let cancelled = false;
     void getCurrentHousehold()
       .then((result) => {
@@ -99,11 +103,13 @@ function Gate({ children }: { children: ReactNode }) {
         } else {
           setAccessState("needs_setup");
           setStep("choice");
+          setOnboardingOpen(true);
         }
       })
       .catch((caught) => {
         if (cancelled) return;
         setAccessState("needs_setup");
+        setOnboardingOpen(true);
         setError(
           caught instanceof Error
             ? caught.message
@@ -117,10 +123,14 @@ function Gate({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status === "authenticated" && accessState === "needs_setup") {
+    if (
+      onboardingOpen &&
+      status === "authenticated" &&
+      accessState === "needs_setup"
+    ) {
       titleRef.current?.focus();
     }
-  }, [accessState, status, step]);
+  }, [accessState, onboardingOpen, status, step]);
 
   useEffect(() => {
     if (accessState !== "needs_setup" || !sharedJoinCode) return;
@@ -128,49 +138,30 @@ function Gate({ children }: { children: ReactNode }) {
     setJoinCode(sharedJoinCode);
     setStep("join");
     setError(null);
+    setOnboardingOpen(true);
   }, [accessState, sharedJoinCode]);
 
-  if (
+  const resolvingAccess =
     status === "loading" ||
-    (status === "authenticated" && accessState === "checking")
-  ) {
-    return <LoadingScreen />;
-  }
+    (status === "authenticated" && accessState === "checking");
+  const ready =
+    status === "authenticated" &&
+    accessState === "ready" &&
+    householdAccess?.household !== null &&
+    householdAccess?.household !== undefined;
 
-  if (status === "unauthenticated") {
-    return (
-      <main className="auth-onboarding-shell">
-        <section className="auth-onboarding-sheet auth-onboarding-intro">
-          <div className="auth-onboarding-art" aria-hidden="true">
-            <span><PackageOpen size={44} strokeWidth={1.55} /></span>
-            <i />
-            <i />
-          </div>
-          <div className="auth-onboarding-copy">
-            <p className="auth-onboarding-eyebrow">JANGOING</p>
-            <h1>Your kitchen, shared</h1>
-            <p>
-              Keep inventory, shopping, and household updates together in one
-              private kitchen.
-            </p>
-            <p className="auth-onboarding-signin-note">
-              Sign-in is required to use Jangoing.
-            </p>
-          </div>
-          <footer className="auth-onboarding-footer">
-            <button
-              type="button"
-              onClick={() => void signIn("google", { redirectTo: returnTo })}
-            >
-              Continue with Google
-            </button>
-          </footer>
-        </section>
-      </main>
-    );
-  }
+  useLayoutEffect(() => {
+    if (ready) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (onboardingOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!onboardingOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [onboardingOpen, ready, resolvingAccess, status]);
 
-  if (accessState === "ready" && householdAccess?.household) {
+  if (ready && householdAccess?.household) {
     return (
       <HouseholdProvider value={householdAccess}>
         {children}
@@ -245,196 +236,286 @@ function Gate({ children }: { children: ReactNode }) {
           : completedHousehold?.role === "owner"
             ? "Your household is ready"
             : `You joined ${completedHousehold?.name ?? "your household"}`;
+  const accountLabel = resolvingAccess
+    ? "Checking account"
+    : status === "authenticated"
+      ? "Finish household setup"
+      : "Sign in to Jangoing";
+
+  function dismissOnboarding(): void {
+    if (submitting || resolvingAccess) return;
+    setOnboardingOpen(false);
+  }
 
   return (
-    <main className="auth-onboarding-shell">
-      <section className="auth-onboarding-sheet">
-        <header className="auth-onboarding-header">
-          {step === "choice" ? (
-            <span />
-          ) : step === "complete" ? (
-            <span />
-          ) : (
+    <>
+      <PublicServiceHome
+        accountLabel={accountLabel}
+        needsSetup={status === "authenticated" && accessState === "needs_setup"}
+        onStart={() => setOnboardingOpen(true)}
+      />
+
+      <dialog
+        className="auth-onboarding-dialog"
+        ref={dialogRef}
+        aria-labelledby={
+          resolvingAccess
+            ? undefined
+            : status === "unauthenticated"
+              ? "auth-signin-title"
+              : "auth-household-title"
+        }
+        onCancel={(event) => {
+          event.preventDefault();
+          dismissOnboarding();
+        }}
+        onClose={() => setOnboardingOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            dismissOnboarding();
+          }
+        }}
+      >
+        {resolvingAccess ? (
+          <LoadingDialogContent />
+        ) : status === "unauthenticated" ? (
+          <section className="auth-onboarding-sheet auth-onboarding-intro">
             <button
-              className="auth-onboarding-back"
+              className="auth-onboarding-dismiss"
               type="button"
-              aria-label="Back to household choice"
-              onClick={goBack}
-              disabled={submitting}
+              aria-label="Close sign in"
+              onClick={dismissOnboarding}
             >
-              <ChevronLeft size={25} />
-              <span>Back</span>
+              <X size={21} strokeWidth={2.5} />
             </button>
-          )}
-          <span>HOUSEHOLD SETUP</span>
-          <button
-            className="auth-onboarding-close"
-            type="button"
-            aria-label="Close household setup and sign out"
-            onClick={() => void signOut({ redirectTo: "/" })}
-            disabled={submitting}
-          >
-            <X size={22} strokeWidth={3} />
-          </button>
-        </header>
-
-        <div className="auth-onboarding-body">
-          <div className="auth-onboarding-heading">
-            <h1 ref={titleRef} tabIndex={-1}>{title}</h1>
-            {step === "choice" && (
-              <p>Join the kitchen you share, or start a new one.</p>
-            )}
-            {step === "join" && (
+            <div className="auth-onboarding-art" aria-hidden="true">
+              <span><PackageOpen size={44} strokeWidth={1.55} /></span>
+              <i />
+              <i />
+            </div>
+            <div className="auth-onboarding-copy">
+              <p className="auth-onboarding-eyebrow">JANGOING</p>
+              <h1 id="auth-signin-title">Your kitchen, shared</h1>
               <p>
-                {sharedJoinCode
-                  ? "Your invite code is ready below."
-                  : "Ask someone at home for their current household code."}
+                Keep inventory, shopping, and household updates together in one
+                private kitchen.
               </p>
-            )}
-            {step === "create" && (
-              <p>This name will be visible to everyone who joins.</p>
-            )}
-          </div>
-
-          {step === "choice" && (
-            <div className="auth-onboarding-options">
+              <p className="auth-onboarding-signin-note">
+                Sign-in is required to use Jangoing.
+              </p>
+            </div>
+            <footer className="auth-onboarding-footer">
               <button
                 type="button"
-                className={choice === "join" ? "is-selected" : ""}
-                aria-pressed={choice === "join"}
-                onClick={() => setChoice("join")}
+                onClick={() => void signIn("google", { redirectTo: returnTo })}
               >
-                <span className="auth-onboarding-option-icon">
-                  <KeyRound size={22} />
-                </span>
-                <span>
-                  <strong>Join an existing household</strong>
-                  <small>Use a code shared by someone at home</small>
-                </span>
-                <i>{choice === "join" && <Check size={16} />}</i>
+                Continue with Google
               </button>
-              <button
-                type="button"
-                className={choice === "create" ? "is-selected" : ""}
-                aria-pressed={choice === "create"}
-                onClick={() => setChoice("create")}
-              >
-                <span className="auth-onboarding-option-icon">
-                  <UsersRound size={22} />
-                </span>
-                <span>
-                  <strong>Create a new household</strong>
-                  <small>Start a new inventory and shopping list</small>
-                </span>
-                <i>{choice === "create" && <Check size={16} />}</i>
-              </button>
-            </div>
-          )}
-
-          {step === "join" && (
-            <div className="auth-onboarding-form-group">
-              <label htmlFor="household-code">Household Code</label>
-              <input
-                id="household-code"
-                value={joinCode}
-                onChange={(event) => setJoinCode(formatJoinCode(event.target.value))}
-                placeholder="ABCD-EFGH-JK"
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                inputMode="text"
-                autoFocus
-              />
-              <small>Codes contain ten letters or numbers.</small>
-            </div>
-          )}
-
-          {step === "create" && (
-            <div className="auth-onboarding-form-group">
-              <label htmlFor="household-name">Household Name</label>
-              <input
-                id="household-name"
-                value={householdName}
-                onChange={(event) => setHouseholdName(event.target.value)}
-                placeholder="My Home"
-                maxLength={80}
-                autoComplete="organization"
-                autoFocus
-              />
-              <small>You can manage sharing from your profile later.</small>
-            </div>
-          )}
-
-          {step === "complete" && completedHousehold && (
-            <div className="auth-onboarding-complete">
-              <span><Check size={34} strokeWidth={2} /></span>
-              <strong>{completedHousehold.name}</strong>
-              <p>
-                {createdJoinCode
-                  ? "Share this code with people in your household."
-                  : "Your shared inventory is ready."}
-              </p>
-              {createdJoinCode && (
+            </footer>
+          </section>
+        ) : (
+          <section className="auth-onboarding-sheet">
+            <header className="auth-onboarding-header">
+              {step === "choice" || step === "complete" ? (
+                <span />
+              ) : (
                 <button
+                  className="auth-onboarding-back"
                   type="button"
-                  onClick={() => void copyCreatedJoinCode()}
+                  aria-label="Back to household choice"
+                  onClick={goBack}
+                  disabled={submitting}
                 >
-                  <small>HOUSEHOLD CODE</small>
-                  <b>{createdJoinCode}</b>
-                  <em>{createdCodeCopied ? "Copied" : "Tap to copy"}</em>
+                  <ChevronLeft size={25} />
+                  <span>Back</span>
                 </button>
               )}
+              <span>HOUSEHOLD SETUP</span>
+              <button
+                className="auth-onboarding-close"
+                type="button"
+                aria-label="Close household setup"
+                onClick={dismissOnboarding}
+                disabled={submitting}
+              >
+                <X size={22} strokeWidth={3} />
+              </button>
+            </header>
+
+            <div className="auth-onboarding-body">
+              <div className="auth-onboarding-heading">
+                <h1 id="auth-household-title" ref={titleRef} tabIndex={-1}>
+                  {title}
+                </h1>
+                {step === "choice" && (
+                  <p>Join the kitchen you share, or start a new one.</p>
+                )}
+                {step === "join" && (
+                  <p>
+                    {sharedJoinCode
+                      ? "Your invite code is ready below."
+                      : "Ask someone at home for their current household code."}
+                  </p>
+                )}
+                {step === "create" && (
+                  <p>This name will be visible to everyone who joins.</p>
+                )}
+              </div>
+
+              {step === "choice" && (
+                <div className="auth-onboarding-options">
+                  <button
+                    type="button"
+                    className={choice === "join" ? "is-selected" : ""}
+                    aria-pressed={choice === "join"}
+                    onClick={() => setChoice("join")}
+                  >
+                    <span className="auth-onboarding-option-icon">
+                      <KeyRound size={22} />
+                    </span>
+                    <span>
+                      <strong>Join an existing household</strong>
+                      <small>Use a code shared by someone at home</small>
+                    </span>
+                    <i>{choice === "join" && <Check size={16} />}</i>
+                  </button>
+                  <button
+                    type="button"
+                    className={choice === "create" ? "is-selected" : ""}
+                    aria-pressed={choice === "create"}
+                    onClick={() => setChoice("create")}
+                  >
+                    <span className="auth-onboarding-option-icon">
+                      <UsersRound size={22} />
+                    </span>
+                    <span>
+                      <strong>Create a new household</strong>
+                      <small>Start a new inventory and shopping list</small>
+                    </span>
+                    <i>{choice === "create" && <Check size={16} />}</i>
+                  </button>
+                </div>
+              )}
+
+              {step === "join" && (
+                <div className="auth-onboarding-form-group">
+                  <label htmlFor="household-code">Household Code</label>
+                  <input
+                    id="household-code"
+                    value={joinCode}
+                    onChange={(event) =>
+                      setJoinCode(formatJoinCode(event.target.value))
+                    }
+                    placeholder="ABCD-EFGH-JK"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    autoFocus
+                  />
+                  <small>Codes contain ten letters or numbers.</small>
+                </div>
+              )}
+
+              {step === "create" && (
+                <div className="auth-onboarding-form-group">
+                  <label htmlFor="household-name">Household Name</label>
+                  <input
+                    id="household-name"
+                    value={householdName}
+                    onChange={(event) => setHouseholdName(event.target.value)}
+                    placeholder="My Home"
+                    maxLength={80}
+                    autoComplete="organization"
+                    autoFocus
+                  />
+                  <small>You can manage sharing from your profile later.</small>
+                </div>
+              )}
+
+              {step === "complete" && completedHousehold && (
+                <div className="auth-onboarding-complete">
+                  <span><Check size={34} strokeWidth={2} /></span>
+                  <strong>{completedHousehold.name}</strong>
+                  <p>
+                    {createdJoinCode
+                      ? "Share this code with people in your household."
+                      : "Your shared inventory is ready."}
+                  </p>
+                  {createdJoinCode && (
+                    <button
+                      type="button"
+                      onClick={() => void copyCreatedJoinCode()}
+                    >
+                      <small>HOUSEHOLD CODE</small>
+                      <b>{createdJoinCode}</b>
+                      <em>{createdCodeCopied ? "Copied" : "Tap to copy"}</em>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <p className="auth-onboarding-error" role="alert">{error}</p>
+              )}
             </div>
-          )}
 
-          {error && (
-            <p className="auth-onboarding-error" role="alert">{error}</p>
-          )}
-        </div>
-
-        <footer className="auth-onboarding-footer">
-          {step === "choice" && (
-            <button
-              type="button"
-              disabled={!choice}
-              onClick={() => {
-                setError(null);
-                if (choice) setStep(choice);
-              }}
-            >
-              {choice === "join"
-                ? "Enter Household Code"
-                : choice === "create"
-                  ? "Create Household"
-                  : "Continue"}
-            </button>
-          )}
-          {step === "join" && (
-            <button
-              type="button"
-              disabled={joinCode.replaceAll("-", "").length !== 10 || submitting}
-              onClick={() => void submitJoin()}
-            >
-              {submitting ? "Joining…" : "Join Household"}
-            </button>
-          )}
-          {step === "create" && (
-            <button
-              type="button"
-              disabled={!householdName.trim() || submitting}
-              onClick={() => void submitCreate()}
-            >
-              {submitting ? "Creating…" : "Create Household"}
-            </button>
-          )}
-          {step === "complete" && (
-            <button type="button" onClick={() => setAccessState("ready")}>
-              Open My Kitchen
-            </button>
-          )}
-        </footer>
-      </section>
-    </main>
+            <footer className="auth-onboarding-footer">
+              {step === "choice" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={!choice}
+                    onClick={() => {
+                      setError(null);
+                      if (choice) setStep(choice);
+                    }}
+                  >
+                    {choice === "join"
+                      ? "Enter Household Code"
+                      : choice === "create"
+                        ? "Create Household"
+                        : "Continue"}
+                  </button>
+                  <button
+                    className="auth-onboarding-secondary-action"
+                    type="button"
+                    onClick={() => void signOut({ redirectTo: "/" })}
+                  >
+                    Use a different Google account
+                  </button>
+                </>
+              )}
+              {step === "join" && (
+                <button
+                  type="button"
+                  disabled={
+                    joinCode.replaceAll("-", "").length !== 10 || submitting
+                  }
+                  onClick={() => void submitJoin()}
+                >
+                  {submitting ? "Joining…" : "Join Household"}
+                </button>
+              )}
+              {step === "create" && (
+                <button
+                  type="button"
+                  disabled={!householdName.trim() || submitting}
+                  onClick={() => void submitCreate()}
+                >
+                  {submitting ? "Creating…" : "Create Household"}
+                </button>
+              )}
+              {step === "complete" && (
+                <button type="button" onClick={() => setAccessState("ready")}>
+                  Open My Kitchen
+                </button>
+              )}
+            </footer>
+          </section>
+        )}
+      </dialog>
+    </>
   );
 }
 
