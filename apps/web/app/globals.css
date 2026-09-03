@@ -306,14 +306,6 @@ main#search {
   font-weight: 650;
 }
 
-.auth-onboarding-footer small {
-  display: block;
-  margin-top: 10px;
-  color: rgba(60, 60, 67, 0.55);
-  font-size: 12px;
-  text-align: center;
-}
-
 .auth-onboarding-intro {
   justify-content: flex-end;
   padding-top: 0;
@@ -384,6 +376,14 @@ main#search {
 
 .auth-onboarding-copy > p:last-child {
   margin-left: 0;
+}
+
+.auth-onboarding-copy > .auth-onboarding-signin-note {
+  margin: 4px 0 0;
+  color: #ef3d45;
+  font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
 }
 
 .auth-onboarding-complete {

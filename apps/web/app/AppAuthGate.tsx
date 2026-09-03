@@ -153,6 +153,9 @@ function Gate({ children }: { children: ReactNode }) {
               Keep inventory, shopping, and household updates together in one
               private kitchen.
             </p>
+            <p className="auth-onboarding-signin-note">
+              Sign-in is required to use Jangoing.
+            </p>
           </div>
           <footer className="auth-onboarding-footer">
             <button
@@ -161,7 +164,6 @@ function Gate({ children }: { children: ReactNode }) {
             >
               Continue with Google
             </button>
-            <small>Sign-in is required to use Jangoing.</small>
           </footer>
         </section>
       </main>
