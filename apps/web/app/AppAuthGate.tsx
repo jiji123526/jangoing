@@ -74,7 +74,9 @@ function Gate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const onboardingFrameRef = useRef<number | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
   const sharedJoinCode = formatJoinCode(searchParams.get("joinCode") ?? "");
   const returnTo = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`
@@ -152,10 +154,28 @@ function Gate({ children }: { children: ReactNode }) {
     if (!dialog) return;
     if (onboardingOpen && !dialog.open) {
       dialog.showModal();
+      void dialog.offsetHeight;
+      onboardingFrameRef.current = window.requestAnimationFrame(() => {
+        setOnboardingVisible(true);
+        onboardingFrameRef.current = null;
+      });
     } else if (!onboardingOpen && dialog.open) {
+      if (onboardingFrameRef.current !== null) {
+        window.cancelAnimationFrame(onboardingFrameRef.current);
+        onboardingFrameRef.current = null;
+      }
+      setOnboardingVisible(false);
       dialog.close();
     }
   }, [onboardingOpen, ready, resolvingAccess, status]);
+
+  useEffect(() => {
+    return () => {
+      if (onboardingFrameRef.current !== null) {
+        window.cancelAnimationFrame(onboardingFrameRef.current);
+      }
+    };
+  }, []);
 
   if (resolvingAccess) {
     return <LoadingScreen />;
@@ -256,7 +276,9 @@ function Gate({ children }: { children: ReactNode }) {
       />
 
       <dialog
-        className="auth-onboarding-dialog"
+        className={`auth-onboarding-dialog${
+          onboardingVisible ? " is-visible" : ""
+        }`}
         ref={dialogRef}
         aria-labelledby={
           resolvingAccess
@@ -269,7 +291,10 @@ function Gate({ children }: { children: ReactNode }) {
           event.preventDefault();
           dismissOnboarding();
         }}
-        onClose={() => setOnboardingOpen(false)}
+        onClose={() => {
+          setOnboardingOpen(false);
+          setOnboardingVisible(false);
+        }}
         onClick={(event) => {
           if (event.target === event.currentTarget) {
             dismissOnboarding();

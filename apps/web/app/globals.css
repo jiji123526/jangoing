@@ -668,12 +668,21 @@ html.household-tab-fade-in main#search {
   max-height: none;
   margin: 0;
   padding: max(58px, env(safe-area-inset-top, 0px)) 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   overflow: hidden;
   border: 0;
   color: #000;
   background: transparent;
   font-family: "SF Pro Text", "SF Pro Display", -apple-system,
     BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  opacity: 0.98;
+  transform: translateY(calc(100% + 16px));
+  transition:
+    opacity 260ms ease-out,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 .auth-access-loading {
@@ -685,9 +694,12 @@ html.household-tab-fade-in main#search {
 }
 
 .auth-onboarding-dialog[open] {
-  display: grid;
-  align-items: end;
-  justify-items: center;
+  display: flex;
+}
+
+.auth-onboarding-dialog.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .auth-onboarding-dialog::backdrop {
@@ -706,8 +718,6 @@ html.household-tab-fade-in main#search {
   border-radius: 20px 20px 0 0;
   background: #fff;
   box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.14);
-  animation: auth-sheet-enter 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
 }
 
 .auth-onboarding-sheet:not(.auth-onboarding-intro):not(.auth-onboarding-loading-sheet) {
@@ -1093,17 +1103,6 @@ html.household-tab-fade-in main#search {
   min-height: min(500px, calc(100dvh - max(58px, env(safe-area-inset-top, 0px))));
 }
 
-@keyframes auth-sheet-enter {
-  from {
-    opacity: 0.98;
-    transform: translateY(calc(100% + 16px));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .loading-skeleton {
   --skeleton-base: rgba(118, 118, 128, 0.12);
   --skeleton-highlight: rgba(255, 255, 255, 0.72);
@@ -1303,6 +1302,10 @@ html.household-tab-fade-in main#search {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .auth-onboarding-dialog {
+    transition: none;
+  }
+
   .loading-skeleton__row > i,
   .loading-skeleton__row b,
   .loading-skeleton__row em,
