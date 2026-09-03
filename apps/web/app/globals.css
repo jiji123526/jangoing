@@ -21,6 +21,7 @@
 html {
   background: var(--canvas);
   color: var(--ink);
+  color-scheme: light;
   font-family: "Manrope Variable", sans-serif;
 }
 
