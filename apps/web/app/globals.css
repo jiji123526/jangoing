@@ -4635,6 +4635,15 @@ h1 {
   gap: 12px;
 }
 
+.inventory-item-row-actions {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .inventory-item-added-at {
   flex: 0 0 auto;
   color: rgba(60, 60, 67, 0.52);
@@ -4643,6 +4652,35 @@ h1 {
   letter-spacing: -0.08px;
   text-align: right;
   white-space: nowrap;
+}
+
+.inventory-add-to-shopping {
+  min-width: 58px;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 999px;
+  color: #ff2d55;
+  background: rgba(255, 45, 85, 0.1);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.inventory-add-to-shopping:disabled {
+  color: rgba(60, 60, 67, 0.48);
+  background: rgba(118, 118, 128, 0.1);
+}
+
+.inventory-add-to-shopping:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
 }
 
 .inventory-attention {

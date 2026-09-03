@@ -599,6 +599,8 @@ function InventoryItemRow({
   onCancel,
   onSave,
   onRemove,
+  shoppingState,
+  onAddToShopping,
 }: {
   item: InventoryItem;
   editing?: boolean;
@@ -617,6 +619,8 @@ function InventoryItemRow({
     category: InventoryItem["category"];
   }) => Promise<void>;
   onRemove?: () => Promise<void>;
+  shoppingState?: "available" | "adding" | "added";
+  onAddToShopping?: () => Promise<void>;
 }) {
   const attention = attentionLabel(item);
   const [quantity, setQuantity] = useState(String(item.quantity));
@@ -922,11 +926,37 @@ function InventoryItemRow({
           ) : (
             <span aria-hidden="true" />
           )}
-          {item.added_at && (
-            <small className="inventory-item-added-at">
-              {inventoryAddedDateLabel(item.added_at)}
-            </small>
-          )}
+          <span className="inventory-item-row-actions">
+            {item.added_at && (
+              <small className="inventory-item-added-at">
+                {inventoryAddedDateLabel(item.added_at)}
+              </small>
+            )}
+            {shoppingState && !selecting && (
+              <button
+                className="inventory-add-to-shopping"
+                type="button"
+                aria-label={
+                  shoppingState === "added"
+                    ? `${titleCase(item.item_name)} is on the shopping list`
+                    : `Add ${titleCase(item.item_name)} to shopping list`
+                }
+                disabled={shoppingState !== "available"}
+                onClick={() => void onAddToShopping?.()}
+              >
+                {shoppingState === "added" ? (
+                  <>
+                    <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+                    On List
+                  </>
+                ) : shoppingState === "adding" ? (
+                  "Adding…"
+                ) : (
+                  "+ Add"
+                )}
+              </button>
+            )}
+          </span>
         </div>
       </div>
     </article>
@@ -1016,6 +1046,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   );
   const shoppingItemNames = new Set(
     dashboard.shoppingList.map((item) => item.item_name),
+  );
+  const activeShoppingItemNames = new Set(
+    dashboard.shoppingList
+      .filter((item) => item.status === "active")
+      .map((item) => item.item_name),
   );
   const recommendedShoppingItems = dashboard.inventory.filter(
     (item) => item.status === "low" && !shoppingItemNames.has(item.item_name),
@@ -2480,6 +2515,16 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           }
                           onRemove={() =>
                             handleRemoveInventoryItem(item.item_name)
+                          }
+                          shoppingState={
+                            activeShoppingItemNames.has(item.item_name)
+                              ? "added"
+                              : shoppingSaving === item.item_name
+                                ? "adding"
+                                : "available"
+                          }
+                          onAddToShopping={() =>
+                            handleAddRecommendation(item)
                           }
                         />
                       ))}
