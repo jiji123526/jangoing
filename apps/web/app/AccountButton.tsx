@@ -85,7 +85,6 @@ export function AccountButton() {
   const [profileColor, setProfileColor] = useState("#1F6B45");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -155,7 +154,6 @@ export function AccountButton() {
     setProfileColor("#1F6B45");
     setProfileSaving(false);
     setProfileError(null);
-    setNotice(null);
     setError(null);
   }
 
@@ -184,7 +182,6 @@ export function AccountButton() {
     }
 
     setBusy("generate");
-    setNotice(null);
     setError(null);
     try {
       setJoinCode(await createHouseholdJoinCode());
@@ -202,7 +199,6 @@ export function AccountButton() {
   async function loadInviteCode(): Promise<void> {
     if (!household || busy !== null) return;
     setBusy("load");
-    setNotice(null);
     setError(null);
     try {
       const currentCode = await getCurrentHouseholdJoinCode();
@@ -229,7 +225,6 @@ export function AccountButton() {
     try {
       await navigator.clipboard.writeText(joinCode.code);
       setCodeCopied(true);
-      setNotice(null);
       setError(null);
     } catch {
       setError("Could not copy the household code.");
@@ -244,7 +239,6 @@ export function AccountButton() {
       try {
         await navigator.clipboard.writeText(invite.text);
         setInviteCopied(true);
-        setNotice(null);
         setError(null);
       } catch {
         setError("Could not copy the household invitation.");
@@ -258,7 +252,6 @@ export function AccountButton() {
         text: invite.text,
         url: invite.url,
       });
-      setNotice("Household invitation shared.");
       setError(null);
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -276,12 +269,10 @@ export function AccountButton() {
     }
 
     setBusy("revoke");
-    setNotice(null);
     setError(null);
     try {
       await revokeHouseholdJoinCode();
       setJoinCode(null);
-      setNotice("Household sharing stopped.");
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -295,7 +286,6 @@ export function AccountButton() {
 
   function openInviteScreen(): void {
     setScreen("invite");
-    setNotice(null);
     setError(null);
     void loadInviteCode();
   }
@@ -443,7 +433,6 @@ export function AccountButton() {
                 disabled={modalBusy}
                 onClick={() => {
                   setScreen("overview");
-                  setNotice(null);
                   setError(null);
                 }}
               >
@@ -546,7 +535,6 @@ export function AccountButton() {
                   type="button"
                   onClick={() => {
                     setScreen("members");
-                    setNotice(null);
                     setError(null);
                     if (members === null && !membersLoading) {
                       void loadMembers();
@@ -708,9 +696,6 @@ export function AccountButton() {
                 </section>
               )}
 
-              {notice && (
-                <p className="account-feedback" role="status">{notice}</p>
-              )}
               {error && (
                 <p className="account-feedback is-error" role="alert">{error}</p>
               )}
