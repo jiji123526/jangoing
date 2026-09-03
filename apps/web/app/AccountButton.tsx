@@ -9,7 +9,6 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
-  CircleUserRound,
   Copy,
   RotateCcw,
   Share2,
@@ -401,11 +400,17 @@ export function AccountButton() {
       <button
         className="home-profile-placeholder"
         type="button"
-        aria-label="Open account"
+        aria-label={`Open ${household?.name ?? "household"} account`}
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <CircleUserRound size={30} strokeWidth={1.75} />
+        <span
+          className="home-profile-avatar"
+          style={{ backgroundColor: household?.icon_color ?? "#1F6B45" }}
+          aria-hidden="true"
+        >
+          {household?.profile_emoji ?? "🏠"}
+        </span>
       </button>
 
       <dialog

@@ -27,7 +27,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px));
   background: #fff;
 }
 
@@ -751,11 +751,12 @@ main#search {
 }
 
 .home-titlebar {
-  position: relative;
   min-height: 59px;
   padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .home-titlebar h1 {
@@ -769,17 +770,28 @@ main#search {
 }
 
 .home-profile-placeholder {
-  position: absolute;
-  right: 9px;
-  bottom: 4px;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 0;
-  color: #ff2d55;
   background: transparent;
+  transform: translateY(-3px);
+}
+
+.home-profile-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  box-shadow:
+    0 0 0 0.5px rgba(15, 23, 42, 0.08),
+    0 8px 20px rgba(15, 23, 42, 0.14);
+  font-size: 21px;
+  line-height: 1;
 }
 
 .account-modal {
@@ -3363,11 +3375,10 @@ h1 {
 }
 
 .inventory-titlebar {
-  position: relative;
   min-height: 59px;
   padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -3383,9 +3394,6 @@ h1 {
 }
 
 .inventory-edit-toggle {
-  position: absolute;
-  top: 11px;
-  right: 16px;
   height: 22px;
   padding: 0;
   border: 0;
@@ -3397,6 +3405,7 @@ h1 {
   font-weight: 400;
   line-height: 22px;
   letter-spacing: -0.408px;
+  transform: translateY(-6px);
 }
 
 .inventory-edit-toggle:focus-visible {
@@ -3964,11 +3973,10 @@ h1 {
 }
 
 .shopping-titlebar {
-  position: relative;
   min-height: 59px;
   padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -3984,9 +3992,6 @@ h1 {
 }
 
 .shopping-add-trigger {
-  position: absolute;
-  top: 11px;
-  right: 16px;
   width: 75px;
   height: 28px;
   padding: 0;
@@ -3999,6 +4004,7 @@ h1 {
   font-weight: 500;
   line-height: 20px;
   letter-spacing: -0.24px;
+  transform: translateY(-4px);
 }
 
 .shopping-add-trigger:focus-visible {
@@ -4498,201 +4504,64 @@ h1 {
   z-index: 100;
   bottom: 0;
   left: 50%;
-  width: min(
-    calc(var(--consumer-max-width) - 14px),
-    calc(100% - 18px)
-  );
-  height: calc(120px + env(safe-area-inset-bottom, 0px));
-  padding: 0 0 calc(16px + env(safe-area-inset-bottom, 0px));
-  background: transparent;
-  border: 0;
+  width: min(var(--consumer-max-width), 100%);
+  height: calc(49px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #fafafa;
+  border-top: 0.5px solid #c6c6c8;
+  border-inline: 1px solid rgba(217, 222, 215, 0.72);
+  backdrop-filter: blur(15px);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .bottom-navigation-inner {
   width: 100%;
-  height: 90px;
+  height: 49px;
   margin: 0 auto;
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
   pointer-events: auto;
 }
 
-.bottom-navigation-capsule {
-  position: relative;
-  min-width: 0;
-  flex: 1;
-  padding: 6px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 42px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(231, 237, 248, 0.72)),
-    rgba(245, 246, 250, 0.62);
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    inset 0 0 0 0.5px rgba(60, 60, 67, 0.08);
-  -webkit-backdrop-filter: saturate(180%) blur(34px);
-  backdrop-filter: saturate(180%) blur(34px);
-}
-
-.bottom-navigation-capsule::before {
-  position: absolute;
-  inset: 1px;
-  border-radius: 41px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 34%),
-    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.48), transparent 24%);
-  content: "";
-  pointer-events: none;
-}
-
-.bottom-navigation-pill {
-  position: absolute;
-  z-index: 0;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  width: calc((100% - 12px) / 4);
-  border-radius: 36px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.92), transparent 58%),
-    linear-gradient(180deg, rgba(248, 251, 255, 0.92), rgba(219, 231, 249, 0.72));
-  box-shadow:
-    0 8px 20px rgba(81, 106, 143, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  transition:
-    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 160ms ease;
-  will-change: transform;
-}
-
-.bottom-navigation-pill::before {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent 44%),
-    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.5), transparent 38%);
-  content: "";
-}
-
-.bottom-navigation-pill.is-hidden {
-  opacity: 0;
-}
-
 .bottom-navigation-tab {
-  position: relative;
-  z-index: 1;
   min-width: 0;
-  height: 78px;
-  padding: 10px 0 8px;
+  height: 49px;
+  padding: 4px 0 2px;
   display: flex;
   align-items: center;
   flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  color: #111216;
+  gap: 1px;
+  color: #979798;
   text-decoration: none;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11.5px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 14px;
-  letter-spacing: -0.08px;
+  line-height: 12px;
+  letter-spacing: 0.07px;
   transition: color 120ms ease;
 }
 
-.bottom-navigation-tab span {
-  white-space: nowrap;
-}
-
 .bottom-navigation-tab:hover {
-  color: #111216;
+  color: #ff2d55;
 }
 
 .bottom-navigation-tab.is-active {
-  color: #da3344;
+  color: #ff2d55;
 }
 
 .bottom-navigation-icon {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  display: grid;
-  place-items: center;
-}
-
-.bottom-navigation-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.bottom-navigation-search {
-  position: relative;
-  width: 90px;
-  height: 90px;
-  flex: 0 0 90px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
-  color: #15335f;
-  background:
-    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.88), transparent 42%),
-    linear-gradient(180deg, rgba(228, 241, 255, 0.94), rgba(195, 222, 252, 0.82));
-  box-shadow:
-    0 18px 40px rgba(67, 95, 138, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 0 0 0.5px rgba(98, 145, 205, 0.14);
-  -webkit-backdrop-filter: saturate(180%) blur(34px);
-  backdrop-filter: saturate(180%) blur(34px);
-  transition:
-    color 180ms ease,
-    background-color 180ms ease,
-    transform 180ms ease;
-}
-
-.bottom-navigation-search::before {
-  position: absolute;
-  inset: 1px;
-  border-radius: 50%;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent 38%),
-    radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.46), transparent 26%);
-  content: "";
-  pointer-events: none;
-}
-
-.bottom-navigation-search-icon {
-  position: relative;
-  z-index: 1;
-  width: 42px;
-  height: 42px;
-  flex-basis: 42px;
-}
-
-.bottom-navigation-search.is-active {
-  color: #0d2d59;
-  background:
-    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.92), transparent 42%),
-    linear-gradient(180deg, rgba(236, 245, 255, 0.98), rgba(202, 228, 255, 0.9));
-}
-
-.bottom-navigation-search:active {
-  transform: scale(0.965);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bottom-navigation-pill,
-  .bottom-navigation-search {
-    transition: none;
-  }
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 @keyframes spin {
