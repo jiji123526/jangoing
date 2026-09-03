@@ -45,13 +45,11 @@ function formatJoinCode(value: string): string {
     .join("-");
 }
 
-function LoadingDialogContent(): ReactNode {
+function LoadingScreen(): ReactNode {
   return (
-    <section className="auth-onboarding-sheet auth-onboarding-loading-sheet" aria-busy="true">
-      <div className="auth-onboarding-loading">
-        <LoadingSkeleton variant="page" rows={4} label="Opening your kitchen" />
-      </div>
-    </section>
+    <main className="auth-access-loading" aria-busy="true">
+      <LoadingSkeleton variant="page" rows={4} label="Opening your kitchen" />
+    </main>
   );
 }
 
@@ -160,6 +158,10 @@ function Gate({ children }: { children: ReactNode }) {
       dialog.close();
     }
   }, [onboardingOpen, ready, resolvingAccess, status]);
+
+  if (resolvingAccess) {
+    return <LoadingScreen />;
+  }
 
   if (ready && householdAccess?.household) {
     return (
@@ -276,9 +278,7 @@ function Gate({ children }: { children: ReactNode }) {
           }
         }}
       >
-        {resolvingAccess ? (
-          <LoadingDialogContent />
-        ) : status === "unauthenticated" ? (
+        {status === "unauthenticated" ? (
           <section className="auth-onboarding-sheet auth-onboarding-intro">
             <button
               className="auth-onboarding-dismiss"

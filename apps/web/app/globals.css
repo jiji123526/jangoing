@@ -676,6 +676,14 @@ html.household-tab-fade-in main#search {
     BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
 
+.auth-access-loading {
+  width: min(var(--consumer-max-width), 100%);
+  min-height: 100dvh;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 16px
+    calc(24px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+}
+
 .auth-onboarding-dialog[open] {
   display: grid;
   align-items: end;
