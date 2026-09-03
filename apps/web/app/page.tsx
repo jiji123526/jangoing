@@ -12,6 +12,7 @@ import type {
 import {
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronUp,
   ChevronRight,
   Lightbulb,
@@ -988,6 +989,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     for (const item of dashboard.inventory) {
       const category = resolvedInventoryCategory(item);
       if (inventoryFilter !== "All" && category !== inventoryFilter) continue;
+      if (item.status === "out" || item.quantity <= 0) continue;
       groups.set(category, [...(groups.get(category) ?? []), item]);
     }
     return inventoryCategories
@@ -995,6 +997,17 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       .map((category) => ({ category, items: groups.get(category) ?? [] }))
       .filter((group) => group.items.length > 0);
   }, [dashboard.inventory, inventoryFilter]);
+  const outOfStockItems = useMemo(
+    () =>
+      dashboard.inventory.filter((item) => {
+        if (item.status !== "out" && item.quantity > 0) return false;
+        return (
+          inventoryFilter === "All" ||
+          resolvedInventoryCategory(item) === inventoryFilter
+        );
+      }),
+    [dashboard.inventory, inventoryFilter],
+  );
   const activeShoppingItems = dashboard.shoppingList.filter(
     (item) => item.status === "active",
   );
@@ -2370,7 +2383,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               </div>
 
               <div className="inventory-category-groups">
-                {inventoryGroups.length === 0 ? (
+                {inventoryGroups.length === 0 &&
+                outOfStockItems.length === 0 ? (
                   <p className="empty-state inventory-empty">No items in this category.</p>
                 ) : inventoryGroups.map(({ category, items }) => (
                   <section
@@ -2422,6 +2436,56 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     </div>
                   </section>
                 ))}
+
+                {outOfStockItems.length > 0 && (
+                  <details className="inventory-out-of-stock">
+                    <summary className="inventory-section-heading">
+                      <h3>Out of Stock</h3>
+                      <span>
+                        <b>{outOfStockItems.length}</b>
+                        <ChevronDown size={18} aria-hidden="true" />
+                      </span>
+                    </summary>
+                    <div className="inventory-list">
+                      {outOfStockItems.map((item) => (
+                        <InventoryItemRow
+                          item={item}
+                          key={`out-${item.item_name}`}
+                          editing={
+                            !editingInventory &&
+                            selectedInventoryItemName === item.item_name
+                          }
+                          selecting={editingInventory}
+                          selected={selectedInventoryItems.has(item.item_name)}
+                          busy={inventorySaving === item.item_name}
+                          onOpen={() =>
+                            setSelectedInventoryItemName((current) =>
+                              current === item.item_name ? null : item.item_name,
+                            )
+                          }
+                          onSelect={() =>
+                            setSelectedInventoryItems((current) => {
+                              const next = new Set(current);
+                              if (next.has(item.item_name)) {
+                                next.delete(item.item_name);
+                              } else {
+                                next.add(item.item_name);
+                              }
+                              return next;
+                            })
+                          }
+                          onCancel={() => setSelectedInventoryItemName(null)}
+                          onSave={(update) =>
+                            handleSaveInventoryItem(item.item_name, update)
+                          }
+                          onRemove={() =>
+                            handleRemoveInventoryItem(item.item_name)
+                          }
+                        />
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             </div>
           )}
