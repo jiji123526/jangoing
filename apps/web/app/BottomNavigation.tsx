@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -56,7 +56,9 @@ function TabIcon({ src }: { src: string }) {
 export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
-  const previousPathnameRef = useRef(pathname);
+  const searchParams = useSearchParams();
+  const locationKey = `${pathname}?${searchParams.toString()}`;
+  const previousLocationRef = useRef(locationKey);
   const cleanupTimerRef = useRef<number | null>(null);
 
   const isActive = (tabPathname: string) => pathname === tabPathname;
@@ -68,8 +70,8 @@ export default function BottomNavigation() {
   }, [pathname, router]);
 
   useEffect(() => {
-    if (previousPathnameRef.current === pathname) return;
-    previousPathnameRef.current = pathname;
+    if (previousLocationRef.current === locationKey) return;
+    previousLocationRef.current = locationKey;
 
     const root = document.documentElement;
     completeRouteTransition();
@@ -83,7 +85,7 @@ export default function BottomNavigation() {
       root.classList.remove("household-tab-fade-in");
       cleanupTimerRef.current = null;
     }, tabFadeInMs);
-  }, [pathname]);
+  }, [locationKey]);
 
   useEffect(() => {
     return () => {
@@ -101,12 +103,14 @@ export default function BottomNavigation() {
     tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
   ) => {
     const active = isActive(tab.pathname);
+    const activeDestination =
+      active && searchParams.toString().length === 0;
 
     return (
       <RouteTransitionLink
         className={`bottom-navigation-tab${active ? " is-active" : ""}`}
         href={tab.href}
-        active={active}
+        active={activeDestination}
         key={tab.label}
         aria-current={active ? "page" : undefined}
       >
@@ -126,7 +130,10 @@ export default function BottomNavigation() {
             pathname === "/analytics" ? " is-active" : ""
           }`}
           href="/analytics"
-          active={pathname === "/analytics"}
+          active={
+            pathname === "/analytics" &&
+            searchParams.toString().length === 0
+          }
           aria-current={pathname === "/analytics" ? "page" : undefined}
         >
           <TabIcon src="/apple-music-tabbar/annotate.png" />

@@ -4161,10 +4161,6 @@ h1 {
   outline-offset: 2px;
 }
 
-.inventory-scope-filters {
-  margin-bottom: 10px;
-}
-
 .inventory-category + .inventory-category {
   margin-top: 24px;
 }

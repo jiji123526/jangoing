@@ -23,7 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   useEffect,
   useLayoutEffect,
@@ -47,7 +47,6 @@ import {
 } from "../lib/api";
 import {
   inventoryHref,
-  inventoryScopes,
   parseInventoryNavigation,
   type InventoryScope,
 } from "../lib/inventory-navigation";
@@ -173,14 +172,6 @@ const inventoryUnitOptions = [
 type InventoryCategory = (typeof inventoryCategories)[number];
 type ItemCategory = Exclude<InventoryCategory, "All">;
 type StoredInventoryCategory = NonNullable<InventoryItem["category"]>;
-
-const inventoryScopeLabels: Record<InventoryScope, string> = {
-  all: "All Items",
-  low: "Low",
-  out: "Out",
-  expiring: "Expiring",
-  restock: "Restock",
-};
 
 const storedCategoryLabels: Record<StoredInventoryCategory, ItemCategory> = {
   leftovers: "Leftovers",
@@ -1030,7 +1021,6 @@ function InventoryItemRow({
 export type DashboardViewName = "home" | "inventory" | "shopping" | "search";
 
 export function DashboardView({ view }: { view: DashboardViewName }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const inventoryNavigation = useMemo(
     () => parseInventoryNavigation(searchParams),
@@ -2635,34 +2625,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   </div>
                 </section>
               )}
-
-              <div
-                className="inventory-filters inventory-scope-filters"
-                role="group"
-                aria-label="Filter inventory by status"
-              >
-                {inventoryScopes.map((scope) => (
-                  <button
-                    className={inventoryScope === scope ? "is-selected" : undefined}
-                    key={scope}
-                    type="button"
-                    aria-pressed={inventoryScope === scope}
-                    onClick={() => {
-                      setInventoryScope(scope);
-                      setSelectedInventoryItemName(null);
-                      setNavigationTargetItemName(null);
-                      if (scope === "out" || scope === "restock") {
-                        setOutOfStockOpen(true);
-                      }
-                      router.replace(inventoryHref({ scope }), {
-                        scroll: false,
-                      });
-                    }}
-                  >
-                    {inventoryScopeLabels[scope]}
-                  </button>
-                ))}
-              </div>
 
               <div
                 className="inventory-filters inventory-category-filters"
