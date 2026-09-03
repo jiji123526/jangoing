@@ -229,7 +229,7 @@ export function AccountButton() {
     try {
       await navigator.clipboard.writeText(joinCode.code);
       setCodeCopied(true);
-      setNotice("Household code copied.");
+      setNotice(null);
       setError(null);
     } catch {
       setError("Could not copy the household code.");
@@ -244,7 +244,7 @@ export function AccountButton() {
       try {
         await navigator.clipboard.writeText(invite.text);
         setInviteCopied(true);
-        setNotice("Household invitation copied.");
+        setNotice(null);
         setError(null);
       } catch {
         setError("Could not copy the household invitation.");
