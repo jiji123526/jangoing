@@ -6,6 +6,7 @@ import type {
 } from "@jangoing/contracts";
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { inventoryHref } from "../../lib/inventory-navigation";
 import {
   legacySearchHistoryStorageKey,
   searchHistoryStorageKey,
@@ -13,6 +14,7 @@ import {
 import { useCurrentHousehold } from "../HouseholdContext";
 import { useKitchenData } from "../KitchenDataContext";
 import { LoadingSkeleton } from "../LoadingSkeleton";
+import { RouteTransitionLink } from "../RouteTransitionLink";
 
 type SearchScope = "inventory" | "shopping";
 type SearchTag =
@@ -472,13 +474,16 @@ export default function SearchPage() {
             <section aria-labelledby="inventory-results-heading">
               <h2 id="inventory-results-heading">In Inventory</h2>
               {filteredInventory.map((item) => (
-                <a href="/inventory" key={item.item_name}>
+                <RouteTransitionLink
+                  href={inventoryHref({ item: item.item_name })}
+                  key={item.item_name}
+                >
                   <SearchArtwork itemName={item.item_name} source="inventory" />
                   <span>
                     <strong>{titleCase(item.item_name)}</strong>
                     <small>{inventoryMetadata(item)}</small>
                   </span>
-                </a>
+                </RouteTransitionLink>
               ))}
             </section>
           )}
