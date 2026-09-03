@@ -19,13 +19,13 @@ const mainTabs = [
     label: "Home",
     href: "/",
     pathname: "/",
-    icon: "/apple-music-tabbar/home.png",
+    icon: "/apple-music-tabbar/home.svg",
   },
   {
     label: "Inventory",
     href: "/inventory",
     pathname: "/inventory",
-    icon: "/apple-music-tabbar/inventory.png",
+    icon: "/apple-music-tabbar/inventory.svg",
   },
 ] as const;
 
@@ -34,13 +34,13 @@ const trailingTabs = [
     label: "Shopping",
     href: "/shopping",
     pathname: "/shopping",
-    icon: "/apple-music-tabbar/shopping.png",
+    icon: "/apple-music-tabbar/shopping.svg",
   },
   {
     label: "Search",
     href: "/search",
     pathname: "/search",
-    icon: "/apple-music-tabbar/search.png",
+    icon: "/apple-music-tabbar/search.svg",
   },
 ] as const;
 
@@ -136,7 +136,7 @@ export default function BottomNavigation() {
           }
           aria-current={pathname === "/analytics" ? "page" : undefined}
         >
-          <TabIcon src="/apple-music-tabbar/annotate.png" />
+          <TabIcon src="/apple-music-tabbar/annotate.svg" />
           <span>Analytics</span>
         </RouteTransitionLink>
 
