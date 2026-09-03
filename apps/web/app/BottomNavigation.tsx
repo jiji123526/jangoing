@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
-const mainTabs = [
+const capsuleTabs = [
   {
     label: "Home",
     href: "/",
@@ -17,22 +17,26 @@ const mainTabs = [
     pathname: "/inventory",
     icon: "/apple-music-tabbar/inventory.png",
   },
-] as const;
-
-const trailingTabs = [
+  {
+    label: "Analytics",
+    href: "/analytics",
+    pathname: "/analytics",
+    icon: "/apple-music-tabbar/annotate.png",
+  },
   {
     label: "Shopping",
     href: "/shopping",
     pathname: "/shopping",
     icon: "/apple-music-tabbar/shopping.png",
   },
-  {
-    label: "Search",
-    href: "/search",
-    pathname: "/search",
-    icon: "/apple-music-tabbar/search.png",
-  },
 ] as const;
+
+const searchTab = {
+  label: "Search",
+  href: "/search",
+  pathname: "/search",
+  icon: "/apple-music-tabbar/search.png",
+} as const;
 
 function TabIcon({ src }: { src: string }) {
   const maskStyle: CSSProperties = {
@@ -45,13 +49,23 @@ function TabIcon({ src }: { src: string }) {
 
 export default function BottomNavigation() {
   const pathname = usePathname();
+  const activeCapsuleIndex = capsuleTabs.findIndex(
+    (tab) => tab.pathname === pathname,
+  );
+  const lastCapsuleIndex = useRef(
+    activeCapsuleIndex >= 0 ? activeCapsuleIndex : 0,
+  );
+  useEffect(() => {
+    if (activeCapsuleIndex >= 0) {
+      lastCapsuleIndex.current = activeCapsuleIndex;
+    }
+  }, [activeCapsuleIndex]);
+  const pillIndex = activeCapsuleIndex >= 0
+    ? activeCapsuleIndex
+    : lastCapsuleIndex.current;
 
-  const isActive = (tabPathname: string) => pathname === tabPathname;
-
-  const renderTab = (
-    tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
-  ) => {
-    const active = isActive(tab.pathname);
+  const renderTab = (tab: (typeof capsuleTabs)[number]) => {
+    const active = pathname === tab.pathname;
 
     return (
       <Link
@@ -69,20 +83,24 @@ export default function BottomNavigation() {
   return (
     <nav className="bottom-navigation" aria-label="Primary navigation">
       <div className="bottom-navigation-inner">
-        {mainTabs.map(renderTab)}
-
+        <div className="bottom-navigation-capsule">
+          <span
+            className={`bottom-navigation-pill${activeCapsuleIndex < 0 ? " is-hidden" : ""}`}
+            style={{
+              transform: `translate3d(${pillIndex * 100}%, 0, 0)`,
+            }}
+            aria-hidden="true"
+          />
+          {capsuleTabs.map(renderTab)}
+        </div>
         <Link
-          className={`bottom-navigation-tab analytics-tab${
-            pathname === "/analytics" ? " is-active" : ""
-          }`}
-          href="/analytics"
-          aria-current={pathname === "/analytics" ? "page" : undefined}
+          className={`bottom-navigation-search${pathname === searchTab.pathname ? " is-active" : ""}`}
+          href={searchTab.href}
+          aria-label="Search"
+          aria-current={pathname === searchTab.pathname ? "page" : undefined}
         >
-          <TabIcon src="/apple-music-tabbar/annotate.png" />
-          <span>Analytics</span>
+          <TabIcon src={searchTab.icon} />
         </Link>
-
-        {trailingTabs.map(renderTab)}
       </div>
     </nav>
   );
