@@ -10,6 +10,7 @@ import {
   KeyRound,
   PackageOpen,
   UsersRound,
+  X,
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
@@ -235,13 +236,7 @@ function Gate({ children }: { children: ReactNode }) {
       <section className="auth-onboarding-sheet">
         <header className="auth-onboarding-header">
           {step === "choice" ? (
-            <button
-              className="auth-onboarding-text-action"
-              type="button"
-              onClick={() => void signOut({ redirectTo: "/" })}
-            >
-              Sign Out
-            </button>
+            <span />
           ) : step === "complete" ? (
             <span />
           ) : (
@@ -253,10 +248,19 @@ function Gate({ children }: { children: ReactNode }) {
               disabled={submitting}
             >
               <ChevronLeft size={25} />
+              <span>Back</span>
             </button>
           )}
           <span>HOUSEHOLD SETUP</span>
-          <span />
+          <button
+            className="auth-onboarding-close"
+            type="button"
+            aria-label="Close household setup and sign out"
+            onClick={() => void signOut({ redirectTo: "/" })}
+            disabled={submitting}
+          >
+            <X size={22} strokeWidth={3} />
+          </button>
         </header>
 
         <div className="auth-onboarding-body">
