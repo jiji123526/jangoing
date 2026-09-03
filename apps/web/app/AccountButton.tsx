@@ -208,8 +208,10 @@ export function AccountButton() {
       const currentCode = await getCurrentHouseholdJoinCode();
       if (currentCode) {
         setJoinCode(currentCode);
-      } else {
+      } else if (household.role === "owner") {
         setJoinCode(await createHouseholdJoinCode());
+      } else {
+        setJoinCode(null);
       }
     } catch (caught) {
       setError(
@@ -460,7 +462,9 @@ export function AccountButton() {
               {screen === "overview"
                 ? household?.name ?? "Household"
                 : screen === "invite"
-                  ? "Household Invite"
+                  ? isOwner
+                    ? "Household Invite"
+                    : "Current Kitchen Code"
                   : screen === "members"
                     ? "Household Members"
                     : "Edit Household"}
@@ -510,7 +514,11 @@ export function AccountButton() {
                     <ChevronRight size={20} aria-hidden="true" />
                   </button>
                 ) : (
-                  <div className="account-household-row">
+                  <button
+                    className="account-household-row is-actionable"
+                    type="button"
+                    onClick={openInviteScreen}
+                  >
                     <span
                       className="account-household-emoji"
                       style={{ backgroundColor: household?.icon_color }}
@@ -518,11 +526,12 @@ export function AccountButton() {
                     >
                       {household?.profile_emoji ?? "🏠"}
                     </span>
-                    <div>
+                    <span>
                       <strong>{household?.name}</strong>
-                      <small>Member</small>
-                    </div>
-                  </div>
+                      <small>Member · View current code</small>
+                    </span>
+                    <ChevronRight size={20} aria-hidden="true" />
+                  </button>
                 )}
               </section>
 
@@ -593,10 +602,15 @@ export function AccountButton() {
                 <span aria-hidden="true">
                   <UserPlus size={28} />
                 </span>
-                <h3>Invite someone to {household?.name}</h3>
+                <h3>
+                  {isOwner
+                    ? `Invite someone to ${household?.name}`
+                    : `${household?.name} entry code`}
+                </h3>
                 <p>
-                  Generate a temporary code for people who should share this
-                  inventory and shopping list.
+                  {isOwner
+                    ? "Generate a temporary code for people who should share this inventory and shopping list."
+                    : "This is the current code used to enter your shared kitchen."}
                 </p>
               </div>
 
@@ -625,7 +639,7 @@ export function AccountButton() {
                     </button>
                   </div>
 
-                  <section className="account-group">
+                  {isOwner && <section className="account-group">
                     <button
                       className="account-settings-row"
                       type="button"
@@ -662,16 +676,17 @@ export function AccountButton() {
                         <small>Invalidates the current code</small>
                       </span>
                     </button>
-                  </section>
+                  </section>}
                 </>
               ) : (
                 <section className="account-invite-empty">
                   <strong>No code is displayed yet</strong>
                   <p>
-                    Creating a code invalidates any previous household code.
-                    The new code expires after seven days.
+                    {isOwner
+                      ? "Creating a code invalidates any previous household code. The new code expires after seven days."
+                      : "There is no active entry code. Ask the kitchen owner to create one."}
                   </p>
-                  <button
+                  {isOwner && <button
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void generateCode()}
@@ -679,8 +694,8 @@ export function AccountButton() {
                     {busy === "generate"
                       ? "Generating Code…"
                       : "Generate Invite Code"}
-                  </button>
-                  <button
+                  </button>}
+                  {isOwner && <button
                     className="account-stop-existing"
                     type="button"
                     disabled={busy !== null}
@@ -689,7 +704,7 @@ export function AccountButton() {
                     {busy === "revoke"
                       ? "Stopping Existing Invites…"
                       : "Stop Existing Invites"}
-                  </button>
+                  </button>}
                 </section>
               )}
 

@@ -211,6 +211,33 @@ describe("household lifecycle", () => {
     });
   });
 
+  it("returns the current active join code to a household member", async () => {
+    const owner = identity("owner-1");
+    const member = identity("member-1");
+    insertUser(owner);
+    insertUser(member);
+    const created = await createHousehold(
+      env,
+      owner,
+      { name: "Our Kitchen" },
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    await joinHousehold(
+      env,
+      member,
+      { code: created.join_code.code },
+      new Date("2026-09-02T12:01:00.000Z"),
+    );
+
+    await expect(
+      getCurrentHouseholdJoinCode(
+        env,
+        identity("member-1", created.household.id, "member"),
+        new Date("2026-09-03T12:00:00.000Z"),
+      ),
+    ).resolves.toEqual({ join_code: created.join_code });
+  });
+
   it("joins an existing household with a normalized valid code", async () => {
     const owner = identity("owner-1");
     const member = identity("member-1");

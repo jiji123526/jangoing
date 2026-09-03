@@ -509,7 +509,13 @@ export async function getCurrentHouseholdJoinCode(
   identity: RequestIdentity,
   now = new Date(),
 ): Promise<{ join_code: HouseholdJoinCode | null }> {
-  assertOwner(identity);
+  if (!identity.householdId) {
+    throw new HouseholdError(
+      403,
+      "household_required",
+      "Household access is required",
+    );
+  }
   const row = await env.DB.prepare(
     `SELECT code_ciphertext, expires_at
      FROM household_join_codes
@@ -525,7 +531,9 @@ export async function getCurrentHouseholdJoinCode(
   }
 
   if (!row.code_ciphertext) {
-    return rotateHouseholdJoinCode(env, identity, now);
+    return identity.role === "owner"
+      ? rotateHouseholdJoinCode(env, identity, now)
+      : { join_code: null };
   }
 
   return {
