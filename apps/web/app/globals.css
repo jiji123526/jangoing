@@ -752,10 +752,10 @@ main#search {
 
 .home-titlebar {
   position: relative;
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 59px;
+  padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .home-titlebar h1 {
@@ -2454,10 +2454,10 @@ main#search {
 }
 
 .analytics-titlebar {
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 59px;
+  padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .analytics-titlebar h1 {
@@ -2644,10 +2644,10 @@ main#search {
 }
 
 .search-titlebar {
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 59px;
+  padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .search-titlebar h1 {
@@ -3364,10 +3364,10 @@ h1 {
 
 .inventory-titlebar {
   position: relative;
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 59px;
+  padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -3965,10 +3965,10 @@ h1 {
 
 .shopping-titlebar {
   position: relative;
-  min-height: 95px;
-  padding: 47px 16px 7px;
+  min-height: 59px;
+  padding: 11px 16px 7px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
