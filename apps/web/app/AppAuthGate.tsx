@@ -72,6 +72,7 @@ function Gate({ children }: { children: ReactNode }) {
   const [completedHousehold, setCompletedHousehold] =
     useState<HouseholdSummary | null>(null);
   const [createdJoinCode, setCreatedJoinCode] = useState<string | null>(null);
+  const [createdCodeCopied, setCreatedCodeCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -205,6 +206,7 @@ function Gate({ children }: { children: ReactNode }) {
         current ? { ...current, household: result.household } : current,
       );
       setCreatedJoinCode(result.join_code.code);
+      setCreatedCodeCopied(false);
       setStep("complete");
     } catch (caught) {
       setError(
@@ -218,6 +220,17 @@ function Gate({ children }: { children: ReactNode }) {
   function goBack(): void {
     setError(null);
     setStep("choice");
+  }
+
+  async function copyCreatedJoinCode(): Promise<void> {
+    if (!createdJoinCode) return;
+    try {
+      await navigator.clipboard.writeText(createdJoinCode);
+      setCreatedCodeCopied(true);
+      setError(null);
+    } catch {
+      setError("Could not copy the household code.");
+    }
   }
 
   const title =
@@ -362,11 +375,11 @@ function Gate({ children }: { children: ReactNode }) {
               {createdJoinCode && (
                 <button
                   type="button"
-                  onClick={() => void navigator.clipboard.writeText(createdJoinCode)}
+                  onClick={() => void copyCreatedJoinCode()}
                 >
                   <small>HOUSEHOLD CODE</small>
                   <b>{createdJoinCode}</b>
-                  <em>Tap to copy</em>
+                  <em>{createdCodeCopied ? "Copied" : "Tap to copy"}</em>
                 </button>
               )}
             </div>

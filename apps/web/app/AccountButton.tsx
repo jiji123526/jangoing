@@ -73,6 +73,8 @@ export function AccountButton() {
   const [visible, setVisible] = useState(false);
   const [screen, setScreen] = useState<AccountScreen>("overview");
   const [joinCode, setJoinCode] = useState<HouseholdJoinCode | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [busy, setBusy] = useState<"generate" | "revoke" | "load" | null>(null);
   const [members, setMembers] = useState<HouseholdMember[] | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -85,6 +87,11 @@ export function AccountButton() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCodeCopied(false);
+    setInviteCopied(false);
+  }, [joinCode?.code]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -137,6 +144,8 @@ export function AccountButton() {
     membersRequestRef.current += 1;
     setScreen("overview");
     setJoinCode(null);
+    setCodeCopied(false);
+    setInviteCopied(false);
     setBusy(null);
     setMembersLoading(false);
     setRemovingMemberId(null);
@@ -217,6 +226,7 @@ export function AccountButton() {
     if (!joinCode) return;
     try {
       await navigator.clipboard.writeText(joinCode.code);
+      setCodeCopied(true);
       setNotice("Household code copied.");
       setError(null);
     } catch {
@@ -231,6 +241,7 @@ export function AccountButton() {
     if (!navigator.share) {
       try {
         await navigator.clipboard.writeText(invite.text);
+        setInviteCopied(true);
         setNotice("Household invitation copied.");
         setError(null);
       } catch {
@@ -606,11 +617,11 @@ export function AccountButton() {
                   <div className="account-code-actions">
                     <button type="button" onClick={() => void copyCode()}>
                       <Copy size={20} />
-                      Copy Code
+                      {codeCopied ? "Copied" : "Copy Code"}
                     </button>
                     <button type="button" onClick={() => void shareCode()}>
                       <Share2 size={20} />
-                      Share
+                      {inviteCopied ? "Copied" : "Share"}
                     </button>
                   </div>
 
