@@ -176,17 +176,19 @@ main#search {
   grid-template-columns: 42px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 12px;
-  border: 2px solid rgba(31, 107, 69, 0.48);
+  border: 2px solid transparent;
   border-radius: 18px;
-  color: var(--green);
-  background: #fff;
+  color: #d76392;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(120deg, #d86492, #8c76e7, #63b7df) border-box;
   text-align: left;
 }
 
 .auth-onboarding-options > button.is-selected {
-  border-color: var(--green);
+  border-color: transparent;
   color: #fff;
-  background: var(--green);
+  background: linear-gradient(115deg, #c959ba, #7f8edc) padding-box;
   box-shadow: none;
 }
 
@@ -235,7 +237,7 @@ main#search {
 
 .auth-onboarding-options .is-selected i {
   border-color: #fff;
-  color: var(--green);
+  color: #857fd8;
   background: #fff;
 }
 
