@@ -4240,21 +4240,6 @@ h1 {
   background: rgba(255, 45, 85, 0.04);
 }
 
-.inventory-item-row.is-navigation-target {
-  background: rgba(255, 45, 85, 0.08);
-  box-shadow: inset 3px 0 #ff2d55;
-  outline: 0;
-  transition:
-    background-color 180ms ease-out,
-    box-shadow 180ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .inventory-item-row.is-navigation-target {
-    transition: none;
-  }
-}
-
 .inventory-selection-control {
   width: 22px;
   height: 22px;

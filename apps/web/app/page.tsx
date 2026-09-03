@@ -633,7 +633,6 @@ function InventoryItemRow({
   acknowledging = false,
   onAcknowledge,
   domId,
-  navigationTarget = false,
 }: {
   item: InventoryItem;
   editing?: boolean;
@@ -657,7 +656,6 @@ function InventoryItemRow({
   acknowledging?: boolean;
   onAcknowledge?: () => Promise<void>;
   domId?: string;
-  navigationTarget?: boolean;
 }) {
   const attention = attentionLabel(item);
   const [quantity, setQuantity] = useState(String(item.quantity));
@@ -710,9 +708,7 @@ function InventoryItemRow({
 
     return (
       <article
-        className={`inventory-item-row is-editing${
-          navigationTarget ? " is-navigation-target" : ""
-        }`}
+        className="inventory-item-row is-editing"
         id={domId}
         tabIndex={domId ? -1 : undefined}
       >
@@ -937,7 +933,7 @@ function InventoryItemRow({
 
   return (
     <article
-      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}${navigationTarget ? " is-navigation-target" : ""}`}
+      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}`}
       id={domId}
       tabIndex={domId ? -1 : undefined}
     >
@@ -1057,10 +1053,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [editingInventory, setEditingInventory] = useState(false);
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
     useState<string | null>(null);
-  const [navigationTargetItemName, setNavigationTargetItemName] =
-    useState<string | null>(() =>
-      view === "inventory" ? inventoryNavigation.item : null,
-    );
   const [outOfStockOpen, setOutOfStockOpen] = useState(
     () =>
       view === "inventory" &&
@@ -1086,7 +1078,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const shoppingAddDialogRef = useRef<HTMLDialogElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const homeQuickUpdateRef = useRef<HTMLElement>(null);
-  const inventoryNavigationTimerRef = useRef<number | null>(null);
 
   const attentionItems = useMemo(
     () =>
@@ -1100,10 +1091,13 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
   const scopedInventoryItems = useMemo(
     () =>
-      dashboard.inventory.filter((item) =>
-        matchesInventoryScope(item, inventoryScope)
+      dashboard.inventory.filter(
+        (item) =>
+          matchesInventoryScope(item, inventoryScope) &&
+          (!inventoryNavigation.item ||
+            item.item_name === inventoryNavigation.item),
       ),
-    [dashboard.inventory, inventoryScope],
+    [dashboard.inventory, inventoryNavigation.item, inventoryScope],
   );
   const inventoryGroups = useMemo(() => {
     const groups = new Map<ItemCategory, InventoryItem[]>();
@@ -1129,7 +1123,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       }),
     [inventoryFilter, scopedInventoryItems],
   );
-  const navigationTargetIsOut = dashboard.inventory.some(
+  const linkedInventoryItemIsOut = dashboard.inventory.some(
     (item) =>
       item.item_name === inventoryNavigation.item &&
       (item.status === "out" || item.quantity <= 0),
@@ -1137,7 +1131,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const outOfStockForcedOpen =
     inventoryScope === "out" ||
     inventoryScope === "restock" ||
-    navigationTargetIsOut;
+    linkedInventoryItemIsOut;
   const showOutOfStock = outOfStockOpen || outOfStockForcedOpen;
   const activeShoppingItems = dashboard.shoppingList.filter(
     (item) => item.status === "active",
@@ -1409,7 +1403,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setInventoryScope(inventoryNavigation.scope);
     setInventoryFilter("All");
     setSelectedInventoryItemName(null);
-    setNavigationTargetItemName(inventoryNavigation.item);
     if (
       inventoryNavigation.scope === "out" ||
       inventoryNavigation.scope === "restock"
@@ -1437,13 +1430,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
     target.scrollIntoView({ behavior: "auto", block: "center" });
     target.focus({ preventScroll: true });
-    if (inventoryNavigationTimerRef.current !== null) {
-      window.clearTimeout(inventoryNavigationTimerRef.current);
-    }
-    inventoryNavigationTimerRef.current = window.setTimeout(() => {
-      setNavigationTargetItemName(null);
-      inventoryNavigationTimerRef.current = null;
-    }, 1400);
   }, [
     inventoryFilter,
     inventoryNavigation.item,
@@ -1451,14 +1437,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     outOfStockItems.length,
     view,
   ]);
-
-  useEffect(() => {
-    return () => {
-      if (inventoryNavigationTimerRef.current !== null) {
-        window.clearTimeout(inventoryNavigationTimerRef.current);
-      }
-    };
-  }, []);
 
   async function handleSaveInventoryItem(
     itemName: string,
@@ -2591,7 +2569,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <p className="empty-state inventory-empty">No inventory actions yet.</p>
           ) : (
             <div className="inventory-library">
-              {attentionItems.length > 0 && !editingInventory && (
+              {attentionItems.length > 0 &&
+                !editingInventory &&
+                !inventoryNavigation.item && (
                 <section className="inventory-attention-section" aria-labelledby="attention-heading">
                   <div className="inventory-section-heading">
                     <h3 id="attention-heading">Needs Attention</h3>
@@ -2685,9 +2665,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           }
                           onRemove={() => handleRemoveInventoryItem(item.item_name)}
                           domId={inventoryItemElementId(item.item_name)}
-                          navigationTarget={
-                            navigationTargetItemName === item.item_name
-                          }
                         />
                       ))}
                     </div>
@@ -2762,9 +2739,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                             handleAddRecommendation(item)
                           }
                           domId={inventoryItemElementId(item.item_name)}
-                          navigationTarget={
-                            navigationTargetItemName === item.item_name
-                          }
                         />
                       ))}
                     </div>
