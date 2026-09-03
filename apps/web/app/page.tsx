@@ -1056,11 +1056,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   );
   const [editingInventory, setEditingInventory] = useState(false);
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
-    useState<string | null>(() =>
-      view === "inventory" && inventoryNavigation.action === "edit"
-        ? inventoryNavigation.item
-        : null,
-    );
+    useState<string | null>(null);
   const [navigationTargetItemName, setNavigationTargetItemName] =
     useState<string | null>(() =>
       view === "inventory" ? inventoryNavigation.item : null,
@@ -1228,7 +1224,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             href: inventoryHref({
               scope: "expiring",
               item: item.item_name,
-              action: "edit",
             }),
           }];
         }
@@ -1244,7 +1239,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             href: inventoryHref({
               scope: item.status === "out" ? "out" : "low",
               item: item.item_name,
-              action: "edit",
             }),
           }];
         }
@@ -1414,11 +1408,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     if (view !== "inventory") return;
     setInventoryScope(inventoryNavigation.scope);
     setInventoryFilter("All");
-    setSelectedInventoryItemName(
-      inventoryNavigation.action === "edit"
-        ? inventoryNavigation.item
-        : null,
-    );
+    setSelectedInventoryItemName(null);
     setNavigationTargetItemName(inventoryNavigation.item);
     if (
       inventoryNavigation.scope === "out" ||
@@ -1427,7 +1417,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setOutOfStockOpen(true);
     }
   }, [
-    inventoryNavigation.action,
     inventoryNavigation.item,
     inventoryNavigation.scope,
     view,
@@ -1460,7 +1449,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     inventoryNavigation.item,
     loading,
     outOfStockItems.length,
-    selectedInventoryItemName,
     view,
   ]);
 
@@ -2146,7 +2134,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     href={inventoryHref({
                       scope: "expiring",
                       item: item.item_name,
-                      action: "edit",
                     })}
                     key={item.item_name}
                   >
@@ -2184,7 +2171,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   <RouteTransitionLink
                     href={inventoryHref({
                       item: item.item_name,
-                      action: "edit",
                     })}
                     key={item.item_name}
                   >

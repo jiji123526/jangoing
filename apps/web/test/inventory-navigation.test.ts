@@ -5,7 +5,7 @@ import {
 } from "../lib/inventory-navigation";
 
 describe("inventory navigation", () => {
-  it("parses allowlisted scope and item edit actions", () => {
+  it("parses allowlisted scope and item without opening edit mode", () => {
     const intent = parseInventoryNavigation(
       new URLSearchParams("scope=out&item=oat_milk&action=edit"),
     );
@@ -13,7 +13,6 @@ describe("inventory navigation", () => {
     expect(intent).toEqual({
       scope: "out",
       item: "oat_milk",
-      action: "edit",
     });
   });
 
@@ -25,7 +24,6 @@ describe("inventory navigation", () => {
     ).toEqual({
       scope: "all",
       item: null,
-      action: null,
     });
   });
 
@@ -34,8 +32,8 @@ describe("inventory navigation", () => {
       "/inventory?scope=expiring",
     );
     expect(
-      inventoryHref({ scope: "low", item: "oat milk", action: "edit" }),
-    ).toBe("/inventory?scope=low&item=oat+milk&action=edit");
+      inventoryHref({ scope: "low", item: "oat milk" }),
+    ).toBe("/inventory?scope=low&item=oat+milk");
     expect(inventoryHref()).toBe("/inventory");
   });
 });

@@ -11,7 +11,6 @@ export type InventoryScope = (typeof inventoryScopes)[number];
 export interface InventoryNavigationIntent {
   scope: InventoryScope;
   item: string | null;
-  action: "edit" | null;
 }
 
 export function parseInventoryNavigation(
@@ -26,7 +25,6 @@ export function parseInventoryNavigation(
   return {
     scope,
     item,
-    action: item && searchParams.get("action") === "edit" ? "edit" : null,
   };
 }
 
@@ -38,9 +36,6 @@ export function inventoryHref(
     searchParams.set("scope", intent.scope);
   }
   if (intent.item) searchParams.set("item", intent.item);
-  if (intent.item && intent.action === "edit") {
-    searchParams.set("action", "edit");
-  }
   const query = searchParams.toString();
   return query ? `/inventory?${query}` : "/inventory";
 }
