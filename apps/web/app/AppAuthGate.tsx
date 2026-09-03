@@ -45,7 +45,7 @@ function formatJoinCode(value: string): string {
 
 function LoadingScreen(): ReactNode {
   return (
-    <main className="auth-onboarding-shell" aria-busy="true">
+    <main className="auth-onboarding-shell is-loading" aria-busy="true">
       <section className="auth-onboarding-loading">
         <LoadingSkeleton
           variant="page"

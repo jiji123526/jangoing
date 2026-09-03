@@ -83,6 +83,11 @@ main#search {
     BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
 
+.auth-onboarding-shell.is-loading {
+  padding-top: 0;
+  background: #fff;
+}
+
 .auth-onboarding-sheet {
   height: calc(100dvh - max(52px, env(safe-area-inset-top, 0px)));
   min-height: 0;
@@ -440,6 +445,7 @@ main#search {
 .auth-onboarding-loading {
   min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
+  background: #fff;
 }
 
 .loading-skeleton {
