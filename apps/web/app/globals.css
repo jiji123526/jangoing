@@ -2661,16 +2661,24 @@ html.household-tab-fade-in main#search {
   text-decoration: none;
 }
 
-.home-snapshot > span {
+.home-snapshot > a {
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  color: #000;
+  text-decoration: none;
 }
 
-.home-snapshot > span + span {
+.home-snapshot > a + a {
   border-left: 0.5px solid rgba(60, 60, 67, 0.25);
+}
+
+.home-snapshot > a:focus-visible {
+  outline: 2px solid #007aff;
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 
 .home-snapshot strong {
@@ -4153,6 +4161,10 @@ h1 {
   outline-offset: 2px;
 }
 
+.inventory-scope-filters {
+  margin-bottom: 10px;
+}
+
 .inventory-category + .inventory-category {
   margin-top: 24px;
 }
@@ -4228,6 +4240,21 @@ h1 {
 
 .inventory-item-row.is-selected {
   background: rgba(255, 45, 85, 0.04);
+}
+
+.inventory-item-row.is-navigation-target {
+  background: rgba(255, 45, 85, 0.08);
+  box-shadow: inset 3px 0 #ff2d55;
+  outline: 0;
+  transition:
+    background-color 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-item-row.is-navigation-target {
+    transition: none;
+  }
 }
 
 .inventory-selection-control {

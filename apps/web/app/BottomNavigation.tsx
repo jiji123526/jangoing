@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
   type CSSProperties,
-  type MouseEvent,
 } from "react";
+import {
+  completeRouteTransition,
+  RouteTransitionLink,
+} from "./RouteTransitionLink";
 
 const tabFadeInMs = 120;
 const tabPaths = ["/", "/inventory", "/analytics", "/shopping", "/search"];
@@ -55,7 +57,6 @@ export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const previousPathnameRef = useRef(pathname);
-  const navigatingRef = useRef(false);
   const cleanupTimerRef = useRef<number | null>(null);
 
   const isActive = (tabPathname: string) => pathname === tabPathname;
@@ -71,7 +72,7 @@ export default function BottomNavigation() {
     previousPathnameRef.current = pathname;
 
     const root = document.documentElement;
-    root.classList.remove("household-tab-fade-out");
+    completeRouteTransition();
     void root.offsetWidth;
     root.classList.add("household-tab-fade-in");
 
@@ -80,7 +81,6 @@ export default function BottomNavigation() {
     }
     cleanupTimerRef.current = window.setTimeout(() => {
       root.classList.remove("household-tab-fade-in");
-      navigatingRef.current = false;
       cleanupTimerRef.current = null;
     }, tabFadeInMs);
   }, [pathname]);
@@ -97,55 +97,22 @@ export default function BottomNavigation() {
     };
   }, []);
 
-  function switchTab(
-    event: MouseEvent<HTMLAnchorElement>,
-    href: string,
-    active: boolean,
-  ): void {
-    if (active || navigatingRef.current) {
-      event.preventDefault();
-      return;
-    }
-
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-    navigatingRef.current = true;
-    document.documentElement.classList.add("household-tab-fade-out");
-    router.push(href);
-    cleanupTimerRef.current = window.setTimeout(() => {
-      document.documentElement.classList.remove("household-tab-fade-out");
-      navigatingRef.current = false;
-      cleanupTimerRef.current = null;
-    }, 800);
-  }
-
   const renderTab = (
     tab: (typeof mainTabs)[number] | (typeof trailingTabs)[number],
   ) => {
     const active = isActive(tab.pathname);
 
     return (
-      <Link
+      <RouteTransitionLink
         className={`bottom-navigation-tab${active ? " is-active" : ""}`}
         href={tab.href}
+        active={active}
         key={tab.label}
         aria-current={active ? "page" : undefined}
-        onClick={(event) => switchTab(event, tab.href, active)}
       >
         <TabIcon src={tab.icon} />
         <span>{tab.label}</span>
-      </Link>
+      </RouteTransitionLink>
     );
   };
 
@@ -154,19 +121,17 @@ export default function BottomNavigation() {
       <div className="bottom-navigation-inner">
         {mainTabs.map(renderTab)}
 
-        <Link
+        <RouteTransitionLink
           className={`bottom-navigation-tab analytics-tab${
             pathname === "/analytics" ? " is-active" : ""
           }`}
           href="/analytics"
+          active={pathname === "/analytics"}
           aria-current={pathname === "/analytics" ? "page" : undefined}
-          onClick={(event) =>
-            switchTab(event, "/analytics", pathname === "/analytics")
-          }
         >
           <TabIcon src="/apple-music-tabbar/annotate.png" />
           <span>Analytics</span>
-        </Link>
+        </RouteTransitionLink>
 
         {trailingTabs.map(renderTab)}
       </div>

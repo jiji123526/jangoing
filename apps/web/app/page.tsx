@@ -23,6 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useEffect,
   useLayoutEffect,
@@ -44,10 +45,17 @@ import {
   updateInventoryItem,
   updateInferenceOutcome,
 } from "../lib/api";
+import {
+  inventoryHref,
+  inventoryScopes,
+  parseInventoryNavigation,
+  type InventoryScope,
+} from "../lib/inventory-navigation";
 import { FridgeSetupDialog } from "./FridgeSetupDialog";
 import { AccountButton } from "./AccountButton";
 import { useKitchenData } from "./KitchenDataContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
+import { RouteTransitionLink } from "./RouteTransitionLink";
 
 const eventTypeByIntent: Partial<Record<Intent, EventType>> = {
   add_item: "item_added",
@@ -166,6 +174,14 @@ type InventoryCategory = (typeof inventoryCategories)[number];
 type ItemCategory = Exclude<InventoryCategory, "All">;
 type StoredInventoryCategory = NonNullable<InventoryItem["category"]>;
 
+const inventoryScopeLabels: Record<InventoryScope, string> = {
+  all: "All Items",
+  low: "Low",
+  out: "Out",
+  expiring: "Expiring",
+  restock: "Restock",
+};
+
 const storedCategoryLabels: Record<StoredInventoryCategory, ItemCategory> = {
   leftovers: "Leftovers",
   frozen: "Frozen",
@@ -229,6 +245,28 @@ function resolvedInventoryCategory(item: InventoryItem): ItemCategory {
   return item.category
     ? storedCategoryLabels[item.category]
     : inventoryCategory(item.item_name);
+}
+
+function matchesInventoryScope(
+  item: InventoryItem,
+  scope: InventoryScope,
+): boolean {
+  if (scope === "low") return item.status === "low";
+  if (scope === "out") return item.status === "out" || item.quantity <= 0;
+  if (scope === "expiring") {
+    return (
+      item.expiry_state === "expired" ||
+      item.expiry_state === "expiring_soon"
+    );
+  }
+  if (scope === "restock") {
+    return item.status === "low" || item.status === "out" || item.quantity <= 0;
+  }
+  return true;
+}
+
+function inventoryItemElementId(itemName: string): string {
+  return `inventory-item-${encodeURIComponent(itemName)}`;
 }
 
 function quantityLabel(item: InventoryItem): string {
@@ -603,6 +641,8 @@ function InventoryItemRow({
   onAddToShopping,
   acknowledging = false,
   onAcknowledge,
+  domId,
+  navigationTarget = false,
 }: {
   item: InventoryItem;
   editing?: boolean;
@@ -625,6 +665,8 @@ function InventoryItemRow({
   onAddToShopping?: () => Promise<void>;
   acknowledging?: boolean;
   onAcknowledge?: () => Promise<void>;
+  domId?: string;
+  navigationTarget?: boolean;
 }) {
   const attention = attentionLabel(item);
   const [quantity, setQuantity] = useState(String(item.quantity));
@@ -676,7 +718,13 @@ function InventoryItemRow({
     }
 
     return (
-      <article className="inventory-item-row is-editing">
+      <article
+        className={`inventory-item-row is-editing${
+          navigationTarget ? " is-navigation-target" : ""
+        }`}
+        id={domId}
+        tabIndex={domId ? -1 : undefined}
+      >
         <InventoryArtwork itemName={item.item_name} />
         <form
           className="inventory-edit-form"
@@ -898,7 +946,9 @@ function InventoryItemRow({
 
   return (
     <article
-      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}`}
+      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}${navigationTarget ? " is-navigation-target" : ""}`}
+      id={domId}
+      tabIndex={domId ? -1 : undefined}
     >
       {(onOpen || onSelect) && (
         <button
@@ -980,6 +1030,12 @@ function InventoryItemRow({
 export type DashboardViewName = "home" | "inventory" | "shopping" | "search";
 
 export function DashboardView({ view }: { view: DashboardViewName }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const inventoryNavigation = useMemo(
+    () => parseInventoryNavigation(searchParams),
+    [searchParams],
+  );
   const {
     dashboard,
     setDashboard,
@@ -1005,9 +1061,26 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [fridgeSetupOpen, setFridgeSetupOpen] = useState(false);
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryCategory>("All");
+  const [inventoryScope, setInventoryScope] = useState<InventoryScope>(
+    () => view === "inventory" ? inventoryNavigation.scope : "all",
+  );
   const [editingInventory, setEditingInventory] = useState(false);
   const [selectedInventoryItemName, setSelectedInventoryItemName] =
-    useState<string | null>(null);
+    useState<string | null>(() =>
+      view === "inventory" && inventoryNavigation.action === "edit"
+        ? inventoryNavigation.item
+        : null,
+    );
+  const [navigationTargetItemName, setNavigationTargetItemName] =
+    useState<string | null>(() =>
+      view === "inventory" ? inventoryNavigation.item : null,
+    );
+  const [outOfStockOpen, setOutOfStockOpen] = useState(
+    () =>
+      view === "inventory" &&
+      (inventoryNavigation.scope === "out" ||
+        inventoryNavigation.scope === "restock"),
+  );
   const [selectedInventoryItems, setSelectedInventoryItems] = useState<Set<string>>(
     () => new Set(),
   );
@@ -1027,6 +1100,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const shoppingAddDialogRef = useRef<HTMLDialogElement>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const homeQuickUpdateRef = useRef<HTMLElement>(null);
+  const inventoryNavigationTimerRef = useRef<number | null>(null);
 
   const attentionItems = useMemo(
     () =>
@@ -1038,9 +1112,16 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     [acknowledgedAttentionItems, dashboard.inventory],
   );
 
+  const scopedInventoryItems = useMemo(
+    () =>
+      dashboard.inventory.filter((item) =>
+        matchesInventoryScope(item, inventoryScope)
+      ),
+    [dashboard.inventory, inventoryScope],
+  );
   const inventoryGroups = useMemo(() => {
     const groups = new Map<ItemCategory, InventoryItem[]>();
-    for (const item of dashboard.inventory) {
+    for (const item of scopedInventoryItems) {
       const category = resolvedInventoryCategory(item);
       if (inventoryFilter !== "All" && category !== inventoryFilter) continue;
       if (item.status === "out" || item.quantity <= 0) continue;
@@ -1050,18 +1131,28 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       .filter((category): category is ItemCategory => category !== "All")
       .map((category) => ({ category, items: groups.get(category) ?? [] }))
       .filter((group) => group.items.length > 0);
-  }, [dashboard.inventory, inventoryFilter]);
+  }, [inventoryFilter, scopedInventoryItems]);
   const outOfStockItems = useMemo(
     () =>
-      dashboard.inventory.filter((item) => {
+      scopedInventoryItems.filter((item) => {
         if (item.status !== "out" && item.quantity > 0) return false;
         return (
           inventoryFilter === "All" ||
           resolvedInventoryCategory(item) === inventoryFilter
         );
       }),
-    [dashboard.inventory, inventoryFilter],
+    [inventoryFilter, scopedInventoryItems],
   );
+  const navigationTargetIsOut = dashboard.inventory.some(
+    (item) =>
+      item.item_name === inventoryNavigation.item &&
+      (item.status === "out" || item.quantity <= 0),
+  );
+  const outOfStockForcedOpen =
+    inventoryScope === "out" ||
+    inventoryScope === "restock" ||
+    navigationTargetIsOut;
+  const showOutOfStock = outOfStockOpen || outOfStockForcedOpen;
   const activeShoppingItems = dashboard.shoppingList.filter(
     (item) => item.status === "active",
   );
@@ -1104,7 +1195,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         detail: expiring.length
           ? expiring.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
           : "Your dated items look current.",
-        href: "/inventory",
+        href: inventoryHref({ scope: "expiring" }),
         tone: "expiry",
       },
       {
@@ -1115,7 +1206,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         detail: restock.length
           ? restock.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
           : "No low or out-of-stock items.",
-        href: "/inventory",
+        href: inventoryHref({ scope: "restock" }),
         tone: "restock",
       },
       {
@@ -1144,7 +1235,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             detail: expiryLabel(item) ?? "Expiry needs attention",
             tone: item.expiry_state === "expired" ? "urgent" : "warning",
             priority: item.expiry_state === "expired" ? 0 : 1,
-            href: "/inventory",
+            href: inventoryHref({
+              scope: "expiring",
+              item: item.item_name,
+              action: "edit",
+            }),
           }];
         }
         if (item.status === "out" || item.status === "low") {
@@ -1156,7 +1251,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               : `Low · ${quantityLabel(item)} left`,
             tone: item.status,
             priority: item.status === "out" ? 2 : 3,
-            href: "/inventory",
+            href: inventoryHref({
+              scope: item.status === "out" ? "out" : "low",
+              item: item.item_name,
+              action: "edit",
+            }),
           }];
         }
         return [];
@@ -1320,6 +1419,68 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       dialog.close();
     }
   }, [shoppingAddOpen]);
+
+  useLayoutEffect(() => {
+    if (view !== "inventory") return;
+    setInventoryScope(inventoryNavigation.scope);
+    setInventoryFilter("All");
+    setSelectedInventoryItemName(
+      inventoryNavigation.action === "edit"
+        ? inventoryNavigation.item
+        : null,
+    );
+    setNavigationTargetItemName(inventoryNavigation.item);
+    if (
+      inventoryNavigation.scope === "out" ||
+      inventoryNavigation.scope === "restock"
+    ) {
+      setOutOfStockOpen(true);
+    }
+  }, [
+    inventoryNavigation.action,
+    inventoryNavigation.item,
+    inventoryNavigation.scope,
+    view,
+  ]);
+
+  useLayoutEffect(() => {
+    if (
+      view !== "inventory" ||
+      loading ||
+      !inventoryNavigation.item
+    ) {
+      return;
+    }
+    const target = document.getElementById(
+      inventoryItemElementId(inventoryNavigation.item),
+    );
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: "auto", block: "center" });
+    target.focus({ preventScroll: true });
+    if (inventoryNavigationTimerRef.current !== null) {
+      window.clearTimeout(inventoryNavigationTimerRef.current);
+    }
+    inventoryNavigationTimerRef.current = window.setTimeout(() => {
+      setNavigationTargetItemName(null);
+      inventoryNavigationTimerRef.current = null;
+    }, 1400);
+  }, [
+    inventoryFilter,
+    inventoryNavigation.item,
+    loading,
+    outOfStockItems.length,
+    selectedInventoryItemName,
+    view,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (inventoryNavigationTimerRef.current !== null) {
+        window.clearTimeout(inventoryNavigationTimerRef.current);
+      }
+    };
+  }, []);
 
   async function handleSaveInventoryItem(
     itemName: string,
@@ -1762,7 +1923,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             ) : (
               <div className="home-priority-list">
                 {homeToday.map((item) => (
-                  <a href={item.href} key={item.id}>
+                  <RouteTransitionLink href={item.href} key={item.id}>
                     <span
                       className={`home-priority-indicator tone-${item.tone}`}
                       aria-hidden="true"
@@ -1772,7 +1933,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <small>{item.detail}</small>
                     </span>
                     <ChevronRight size={18} aria-hidden="true" />
-                  </a>
+                  </RouteTransitionLink>
                 ))}
               </div>
             )}
@@ -1846,7 +2007,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             ) : (
               <div className="home-feature-scroll">
                 {homeBriefing.map((briefing) => (
-                  <a
+                  <RouteTransitionLink
                     className={`home-feature-card tone-${briefing.tone}`}
                     href={briefing.href}
                     key={briefing.eyebrow}
@@ -1854,7 +2015,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     <span>{briefing.eyebrow}</span>
                     <strong>{briefing.title}</strong>
                     <p>{briefing.detail}</p>
-                  </a>
+                  </RouteTransitionLink>
                 ))}
               </div>
             )}
@@ -1941,24 +2102,36 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 label="Loading inventory status"
               />
             ) : (
-              <a className="home-snapshot" href="/inventory">
-                <span>
+              <div className="home-snapshot">
+                <RouteTransitionLink
+                  href={inventoryHref()}
+                  aria-label={`View all ${homeSnapshot.total} tracked inventory items`}
+                >
                   <strong>{homeSnapshot.total}</strong>
                   <small>Tracked</small>
-                </span>
-                <span>
+                </RouteTransitionLink>
+                <RouteTransitionLink
+                  href={inventoryHref({ scope: "low" })}
+                  aria-label={`View ${homeSnapshot.low} low inventory items`}
+                >
                   <strong>{homeSnapshot.low}</strong>
                   <small>Low</small>
-                </span>
-                <span>
+                </RouteTransitionLink>
+                <RouteTransitionLink
+                  href={inventoryHref({ scope: "out" })}
+                  aria-label={`View ${homeSnapshot.out} out-of-stock inventory items`}
+                >
                   <strong>{homeSnapshot.out}</strong>
                   <small>Out</small>
-                </span>
-                <span>
+                </RouteTransitionLink>
+                <RouteTransitionLink
+                  href={inventoryHref({ scope: "expiring" })}
+                  aria-label={`View ${homeSnapshot.expiring} expiring inventory items`}
+                >
                   <strong>{homeSnapshot.expiring}</strong>
                   <small>Expiring</small>
-                </span>
-              </a>
+                </RouteTransitionLink>
+              </div>
             )}
           </section>
 
@@ -1979,7 +2152,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             ) : (
               <div className="home-waste-list">
                 {homeWasteItems.map((item) => (
-                  <a href="/inventory" key={item.item_name}>
+                  <RouteTransitionLink
+                    href={inventoryHref({
+                      scope: "expiring",
+                      item: item.item_name,
+                      action: "edit",
+                    })}
+                    key={item.item_name}
+                  >
                     <HomeArtwork itemName={item.item_name} />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>
@@ -1988,7 +2168,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       </small>
                     </span>
                     <ChevronRight size={18} aria-hidden="true" />
-                  </a>
+                  </RouteTransitionLink>
                 ))}
               </div>
             )}
@@ -2011,7 +2191,13 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             ) : (
               <div className="home-waste-list">
                 {homeOldItems.map((item) => (
-                  <a href="/inventory" key={item.item_name}>
+                  <RouteTransitionLink
+                    href={inventoryHref({
+                      item: item.item_name,
+                      action: "edit",
+                    })}
+                    key={item.item_name}
+                  >
                     <HomeArtwork itemName={item.item_name} />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>
@@ -2020,7 +2206,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       </small>
                     </span>
                     <ChevronRight size={18} aria-hidden="true" />
-                  </a>
+                  </RouteTransitionLink>
                 ))}
               </div>
             )}
@@ -2450,7 +2636,39 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 </section>
               )}
 
-              <div className="inventory-filters" role="group" aria-label="Filter inventory by category">
+              <div
+                className="inventory-filters inventory-scope-filters"
+                role="group"
+                aria-label="Filter inventory by status"
+              >
+                {inventoryScopes.map((scope) => (
+                  <button
+                    className={inventoryScope === scope ? "is-selected" : undefined}
+                    key={scope}
+                    type="button"
+                    aria-pressed={inventoryScope === scope}
+                    onClick={() => {
+                      setInventoryScope(scope);
+                      setSelectedInventoryItemName(null);
+                      setNavigationTargetItemName(null);
+                      if (scope === "out" || scope === "restock") {
+                        setOutOfStockOpen(true);
+                      }
+                      router.replace(inventoryHref({ scope }), {
+                        scroll: false,
+                      });
+                    }}
+                  >
+                    {inventoryScopeLabels[scope]}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className="inventory-filters inventory-category-filters"
+                role="group"
+                aria-label="Filter inventory by category"
+              >
                 {inventoryCategories.map((category) => (
                   <button
                     className={inventoryFilter === category ? "is-selected" : undefined}
@@ -2470,7 +2688,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <div className="inventory-category-groups">
                 {inventoryGroups.length === 0 &&
                 outOfStockItems.length === 0 ? (
-                  <p className="empty-state inventory-empty">No items in this category.</p>
+                  <p className="empty-state inventory-empty">
+                    No items match these filters.
+                  </p>
                 ) : inventoryGroups.map(({ category, items }) => (
                   <section
                     className="inventory-category"
@@ -2516,6 +2736,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                             handleSaveInventoryItem(item.item_name, update)
                           }
                           onRemove={() => handleRemoveInventoryItem(item.item_name)}
+                          domId={inventoryItemElementId(item.item_name)}
+                          navigationTarget={
+                            navigationTargetItemName === item.item_name
+                          }
                         />
                       ))}
                     </div>
@@ -2523,8 +2747,21 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 ))}
 
                 {outOfStockItems.length > 0 && (
-                  <details className="inventory-out-of-stock">
-                    <summary className="inventory-section-heading">
+                  <details
+                    className="inventory-out-of-stock"
+                    open={showOutOfStock}
+                    onToggle={(event) => {
+                      if (!outOfStockForcedOpen) {
+                        setOutOfStockOpen(event.currentTarget.open);
+                      }
+                    }}
+                  >
+                    <summary
+                      className="inventory-section-heading"
+                      onClick={(event) => {
+                        if (outOfStockForcedOpen) event.preventDefault();
+                      }}
+                    >
                       <h3>Out of Stock</h3>
                       <span>
                         <b>{outOfStockItems.length}</b>
@@ -2575,6 +2812,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           }
                           onAddToShopping={() =>
                             handleAddRecommendation(item)
+                          }
+                          domId={inventoryItemElementId(item.item_name)}
+                          navigationTarget={
+                            navigationTargetItemName === item.item_name
                           }
                         />
                       ))}
