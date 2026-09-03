@@ -6,6 +6,7 @@ import type {
 } from "@jangoing/contracts";
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { resolvedInventoryCategory } from "../../lib/inventory-category";
 import { inventoryHref } from "../../lib/inventory-navigation";
 import {
   legacySearchHistoryStorageKey,
@@ -88,6 +89,7 @@ function inventorySearchValues(item: InventoryItem): string[] {
 
   return [
     item.item_name,
+    resolvedInventoryCategory(item),
     stockStatus,
     expiryStatus,
     item.location ?? "",
