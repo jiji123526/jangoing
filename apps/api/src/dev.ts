@@ -39,6 +39,10 @@ import {
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { inventoryMutationEventType } from "./domain/inventory-mutation";
 import {
+  inventoryAttentionSnapshot,
+  inventoryNeedsAttention,
+} from "./domain/inventory-attention";
+import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
@@ -843,6 +847,9 @@ async function route(
   }
 
   const inventoryMutation = path.match(/^\/inventory\/([^/]+)\/(edit|remove)$/);
+  const inventoryAttentionAcknowledgement = path.match(
+    /^\/inventory\/([^/]+)\/attention\/acknowledge$/,
+  );
   const shoppingMutation = path.match(
     /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
@@ -1059,6 +1066,74 @@ async function route(
       event.created_at,
     );
     sendJson(response, origin, event, 201);
+    return;
+  }
+
+  if (
+    request.method === "POST" &&
+    inventoryAttentionAcknowledgement
+  ) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(
+        inventoryAttentionAcknowledgement[1],
+      ).trim();
+    } catch {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+    const item = projectInventory(events()).find(
+      (candidate) => candidate.item_name === itemName,
+    );
+    if (!item) {
+      sendJson(response, origin, { error: "Inventory item not found" }, 404);
+      return;
+    }
+    if (!inventoryNeedsAttention(item)) {
+      sendJson(response, origin, { error: "Item does not need attention" }, 409);
+      return;
+    }
+
+    const acknowledgedAt = new Date().toISOString();
+    database.prepare(
+      `INSERT INTO app_state (key, value, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         value = excluded.value,
+         updated_at = excluded.updated_at`,
+    ).run(
+      `inventory_attention_ack:${itemName}`,
+      inventoryAttentionSnapshot(item),
+      acknowledgedAt,
+    );
+    sendJson(response, origin, {
+      item_name: itemName,
+      acknowledged_at: acknowledgedAt,
+    });
+    return;
+  }
+
+  if (
+    request.method === "GET" &&
+    path === "/inventory/attention-acknowledgements"
+  ) {
+    const currentItems = new Map(
+      projectInventory(events()).map((item) => [item.item_name, item]),
+    );
+    const rows = database.prepare(
+      `SELECT key, value FROM app_state
+       WHERE key LIKE 'inventory_attention_ack:%'`,
+    ).all() as Array<{ key: string; value: string }>;
+    const itemNames = rows.flatMap((row) => {
+      const itemName = row.key.slice("inventory_attention_ack:".length);
+      const item = currentItems.get(itemName);
+      return item &&
+        inventoryNeedsAttention(item) &&
+        inventoryAttentionSnapshot(item) === row.value
+        ? [itemName]
+        : [];
+    });
+    sendJson(response, origin, { item_names: itemNames });
     return;
   }
 

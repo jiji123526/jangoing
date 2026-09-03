@@ -14,8 +14,10 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  acknowledgeInventoryAttention,
   getDashboardData,
   getFridgeSetupStatus,
+  getInventoryAttentionAcknowledgements,
   type DashboardData,
 } from "../lib/api";
 
@@ -32,6 +34,9 @@ interface KitchenDataContextValue {
   setFridgeSetupStatus: Dispatch<SetStateAction<FridgeSetupStatus | null>>;
   loading: boolean;
   loadError: string | null;
+  acknowledgedAttentionItems: ReadonlySet<string>;
+  acknowledgeAttentionItem: (itemName: string) => Promise<void>;
+  clearAttentionAcknowledgement: (itemName: string) => void;
   refresh: () => Promise<void>;
 }
 
@@ -43,18 +48,22 @@ export function KitchenDataProvider({ children }: { children: ReactNode }) {
     useState<FridgeSetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [acknowledgedAttentionItems, setAcknowledgedAttentionItems] =
+    useState<Set<string>>(() => new Set());
   const hasLoadedRef = useRef(false);
 
   async function refresh(): Promise<void> {
     if (!hasLoadedRef.current) setLoading(true);
     setLoadError(null);
     try {
-      const [nextDashboard, setupStatus] = await Promise.all([
+      const [nextDashboard, setupStatus, acknowledgedItems] = await Promise.all([
         getDashboardData(),
         getFridgeSetupStatus(),
+        getInventoryAttentionAcknowledgements(),
       ]);
       setDashboard(nextDashboard);
       setFridgeSetupStatus(setupStatus);
+      setAcknowledgedAttentionItems(new Set(acknowledgedItems));
       hasLoadedRef.current = true;
     } catch (caught) {
       const message =
@@ -72,6 +81,24 @@ export function KitchenDataProvider({ children }: { children: ReactNode }) {
     void refresh().catch(() => undefined);
   }, []);
 
+  async function acknowledgeAttentionItem(itemName: string): Promise<void> {
+    await acknowledgeInventoryAttention(itemName);
+    setAcknowledgedAttentionItems((current) => {
+      const next = new Set(current);
+      next.add(itemName);
+      return next;
+    });
+  }
+
+  function clearAttentionAcknowledgement(itemName: string): void {
+    setAcknowledgedAttentionItems((current) => {
+      if (!current.has(itemName)) return current;
+      const next = new Set(current);
+      next.delete(itemName);
+      return next;
+    });
+  }
+
   return (
     <KitchenDataContext.Provider
       value={{
@@ -81,6 +108,9 @@ export function KitchenDataProvider({ children }: { children: ReactNode }) {
         setFridgeSetupStatus,
         loading,
         loadError,
+        acknowledgedAttentionItems,
+        acknowledgeAttentionItem,
+        clearAttentionAcknowledgement,
         refresh,
       }}
     >

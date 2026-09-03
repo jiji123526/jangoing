@@ -11,6 +11,8 @@ import {
   HouseholdJoinCodeResponseSchema,
   HouseholdMemberRemovalResponseSchema,
   HouseholdMembersResponseSchema,
+  InventoryAttentionAcknowledgementResponseSchema,
+  InventoryAttentionAcknowledgementsResponseSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   JoinedHouseholdResponseSchema,
@@ -334,6 +336,21 @@ export type ShoppingMutationResult = z.infer<
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
   return InventoryResponseSchema.parse(body).inventory;
+}
+
+export async function getInventoryAttentionAcknowledgements(): Promise<string[]> {
+  const body = await apiRequest("/inventory/attention-acknowledgements");
+  return InventoryAttentionAcknowledgementsResponseSchema.parse(body).item_names;
+}
+
+export async function acknowledgeInventoryAttention(
+  itemName: string,
+): Promise<void> {
+  const body = await apiRequest(
+    `/inventory/${encodeURIComponent(itemName)}/attention/acknowledge`,
+    { method: "POST" },
+  );
+  InventoryAttentionAcknowledgementResponseSchema.parse(body);
 }
 
 export async function getCurrentHousehold(): Promise<CurrentHouseholdResponse> {

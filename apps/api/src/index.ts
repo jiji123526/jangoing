@@ -34,6 +34,10 @@ import {
 import { projectInventory, projectShoppingList } from "./domain/projections";
 import { inventoryMutationEventType } from "./domain/inventory-mutation";
 import {
+  inventoryAttentionSnapshot,
+  inventoryNeedsAttention,
+} from "./domain/inventory-attention";
+import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
@@ -717,6 +721,82 @@ async function handleInventoryMutation(
   return json(request, env, event, 201);
 }
 
+async function readInventoryAttentionAcknowledgements(
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<string[]> {
+  if (!scope) return [];
+
+  const inventory = projectInventory(await readEvents(env, scope));
+  const currentItems = new Map(
+    inventory.map((item) => [item.item_name, item]),
+  );
+  const result = await env.DB.prepare(
+    `SELECT item_name, state_snapshot
+     FROM inventory_attention_acknowledgements
+     WHERE household_id = ?`,
+  ).bind(scope.householdId).all<{
+    item_name: string;
+    state_snapshot: string;
+  }>();
+
+  return result.results.flatMap((row) => {
+    const item = currentItems.get(row.item_name);
+    if (
+      !item ||
+      !inventoryNeedsAttention(item) ||
+      inventoryAttentionSnapshot(item) !== row.state_snapshot
+    ) {
+      return [];
+    }
+    return [row.item_name];
+  });
+}
+
+async function acknowledgeInventoryAttention(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope | null,
+  itemName: string,
+): Promise<Response> {
+  if (!scope) {
+    return json(request, env, { error: "Household setup is required" }, 409);
+  }
+
+  const item = projectInventory(await readEvents(env, scope)).find(
+    (candidate) => candidate.item_name === itemName,
+  );
+  if (!item) {
+    return json(request, env, { error: "Inventory item not found" }, 404);
+  }
+  if (!inventoryNeedsAttention(item)) {
+    return json(request, env, { error: "Item does not need attention" }, 409);
+  }
+
+  const acknowledgedAt = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO inventory_attention_acknowledgements (
+      household_id, item_name, state_snapshot,
+      acknowledged_by_user_id, acknowledged_at
+    ) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(household_id, item_name) DO UPDATE SET
+      state_snapshot = excluded.state_snapshot,
+      acknowledged_by_user_id = excluded.acknowledged_by_user_id,
+      acknowledged_at = excluded.acknowledged_at`,
+  ).bind(
+    scope.householdId,
+    itemName,
+    inventoryAttentionSnapshot(item),
+    scope.userId,
+    acknowledgedAt,
+  ).run();
+
+  return json(request, env, {
+    item_name: itemName,
+    acknowledged_at: acknowledgedAt,
+  });
+}
+
 async function readFridgeSetupCompletedAt(
   env: Env,
   scope: ConsumerScope | null,
@@ -1088,6 +1168,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   const inventoryMutation = url.pathname.match(
     /^\/inventory\/([^/]+)\/(edit|remove)$/,
   );
+  const inventoryAttentionAcknowledgement = url.pathname.match(
+    /^\/inventory\/([^/]+)\/attention\/acknowledge$/,
+  );
   const shoppingMutation = url.pathname.match(
     /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
@@ -1144,6 +1227,29 @@ async function route(request: Request, env: Env): Promise<Response> {
       consumerScope,
       itemName,
       inventoryMutation[2] as "edit" | "remove",
+    );
+  }
+
+  if (
+    request.method === "POST" &&
+    inventoryAttentionAcknowledgement
+  ) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(
+        inventoryAttentionAcknowledgement[1],
+      ).trim();
+    } catch {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+    if (!itemName) {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+    return acknowledgeInventoryAttention(
+      request,
+      env,
+      consumerScope,
+      itemName,
     );
   }
 
@@ -1216,6 +1322,18 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/inventory") {
     return json(request, env, {
       inventory: projectInventory(await readEvents(env, consumerScope)),
+    });
+  }
+
+  if (
+    request.method === "GET" &&
+    url.pathname === "/inventory/attention-acknowledgements"
+  ) {
+    return json(request, env, {
+      item_names: await readInventoryAttentionAcknowledgements(
+        env,
+        consumerScope,
+      ),
     });
   }
 

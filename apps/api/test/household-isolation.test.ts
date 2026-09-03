@@ -135,6 +135,7 @@ describe("household consumer-data isolation", () => {
       "0013_enforce_single_household_membership.sql",
       "0014_add_household_profile.sql",
       "0015_store_household_join_code_ciphertext.sql",
+      "0016_create_inventory_attention_acknowledgements.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -307,6 +308,71 @@ describe("household consumer-data isolation", () => {
         created_by_user_id: userC,
       },
     ]));
+  });
+
+  it("shares attention acknowledgements and resets them when item state changes", async () => {
+    const markOut = await request(
+      "/inventory/milk/edit",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          quantity: 0,
+          unit: "carton",
+          location: "fridge",
+          expiration_date: null,
+          low_threshold: 1,
+          category: "dairy_eggs",
+        }),
+      },
+      tokenA,
+    );
+    expect(markOut.status).toBe(201);
+
+    const acknowledged = await request(
+      "/inventory/milk/attention/acknowledge",
+      { method: "POST" },
+      tokenA,
+    );
+    expect(acknowledged.status).toBe(200);
+    expect(await acknowledged.json()).toMatchObject({ item_name: "milk" });
+
+    const memberView = await request(
+      "/inventory/attention-acknowledgements",
+      {},
+      tokenC,
+    );
+    expect(await memberView.json()).toEqual({ item_names: ["milk"] });
+
+    const otherHouseholdView = await request(
+      "/inventory/attention-acknowledgements",
+      {},
+      tokenB,
+    );
+    expect(await otherHouseholdView.json()).toEqual({ item_names: [] });
+
+    const changed = await request(
+      "/inventory/milk/edit",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          quantity: 1,
+          unit: "carton",
+          location: "fridge",
+          expiration_date: null,
+          low_threshold: 1,
+          category: "dairy_eggs",
+        }),
+      },
+      tokenC,
+    );
+    expect(changed.status).toBe(201);
+
+    const resetView = await request(
+      "/inventory/attention-acknowledgements",
+      {},
+      tokenA,
+    );
+    expect(await resetView.json()).toEqual({ item_names: [] });
   });
 
   it("lists only household members and permits only owner removal", async () => {

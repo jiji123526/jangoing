@@ -601,6 +601,8 @@ function InventoryItemRow({
   onRemove,
   shoppingState,
   onAddToShopping,
+  acknowledging = false,
+  onAcknowledge,
 }: {
   item: InventoryItem;
   editing?: boolean;
@@ -621,6 +623,8 @@ function InventoryItemRow({
   onRemove?: () => Promise<void>;
   shoppingState?: "available" | "adding" | "added";
   onAddToShopping?: () => Promise<void>;
+  acknowledging?: boolean;
+  onAcknowledge?: () => Promise<void>;
 }) {
   const attention = attentionLabel(item);
   const [quantity, setQuantity] = useState(String(item.quantity));
@@ -927,10 +931,20 @@ function InventoryItemRow({
             <span aria-hidden="true" />
           )}
           <span className="inventory-item-row-actions">
-            {item.added_at && (
+            {item.added_at && !onAcknowledge && (
               <small className="inventory-item-added-at">
                 {inventoryAddedDateLabel(item.added_at)}
               </small>
+            )}
+            {onAcknowledge && (
+              <button
+                className="inventory-acknowledge"
+                type="button"
+                disabled={acknowledging}
+                onClick={() => void onAcknowledge()}
+              >
+                {acknowledging ? "Saving…" : "Acknowledge"}
+              </button>
             )}
             {shoppingState && !selecting && (
               <button
@@ -973,6 +987,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setFridgeSetupStatus,
     loading,
     loadError,
+    acknowledgedAttentionItems,
+    acknowledgeAttentionItem,
+    clearAttentionAcknowledgement,
     refresh,
   } = useKitchenData();
   const [command, setCommand] = useState("");
@@ -996,6 +1013,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   );
   const [inventorySaving, setInventorySaving] = useState<string | null>(null);
   const [shoppingSaving, setShoppingSaving] = useState<string | null>(null);
+  const [acknowledgingItem, setAcknowledgingItem] =
+    useState<string | null>(null);
   const [shoppingAddOpen, setShoppingAddOpen] = useState(false);
   const [shoppingDraft, setShoppingDraft] = useState("");
   const [shoppingQuantityDraft, setShoppingQuantityDraft] = useState("1");
@@ -1010,8 +1029,13 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const homeQuickUpdateRef = useRef<HTMLElement>(null);
 
   const attentionItems = useMemo(
-    () => dashboard.inventory.filter((item) => attentionLabel(item) !== null),
-    [dashboard.inventory],
+    () =>
+      dashboard.inventory.filter(
+        (item) =>
+          attentionLabel(item) !== null &&
+          !acknowledgedAttentionItems.has(item.item_name),
+      ),
+    [acknowledgedAttentionItems, dashboard.inventory],
   );
 
   const inventoryGroups = useMemo(() => {
@@ -1108,7 +1132,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     ];
   }, [dashboard.inventory, dashboard.shoppingList]);
   const homeToday = useMemo(() => {
-    const items = dashboard.inventory
+    const items = attentionItems
       .flatMap((item) => {
         if (
           item.expiry_state === "expired" ||
@@ -1152,7 +1176,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       });
     }
     return items.slice(0, 3);
-  }, [activeShoppingItems.length, dashboard.inventory]);
+  }, [activeShoppingItems.length, attentionItems]);
   const homeRestockSuggestions = useMemo(
     () =>
       dashboard.inventory
@@ -1316,6 +1340,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             )
           : current.inventory.filter((item) => item.item_name !== itemName),
       }));
+      clearAttentionAcknowledgement(itemName);
       setSelectedInventoryItemName(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not update item.");
@@ -1342,6 +1367,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         itemNames.map((itemName) => removeInventoryItem(itemName)),
       );
       await loadDashboard();
+      for (const itemName of itemNames) {
+        clearAttentionAcknowledgement(itemName);
+      }
       setSelectedInventoryItems(new Set());
       setEditingInventory(false);
     } catch (caught) {
@@ -1357,6 +1385,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     try {
       await removeInventoryItem(itemName);
       await loadDashboard();
+      clearAttentionAcknowledgement(itemName);
       setSelectedInventoryItemName(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not remove item.");
@@ -1382,6 +1411,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         inventory: result.inventory,
         shoppingList: result.items,
       }));
+      clearAttentionAcknowledgement(itemName);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -1413,6 +1443,22 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       );
     } finally {
       setShoppingSaving(null);
+    }
+  }
+
+  async function handleAcknowledgeAttention(itemName: string) {
+    setAcknowledgingItem(itemName);
+    setError(null);
+    try {
+      await acknowledgeAttentionItem(itemName);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not acknowledge this item.",
+      );
+    } finally {
+      setAcknowledgingItem(null);
     }
   }
 
@@ -2394,6 +2440,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <InventoryItemRow
                         item={item}
                         key={`attention-${item.item_name}`}
+                        acknowledging={acknowledgingItem === item.item_name}
+                        onAcknowledge={() =>
+                          handleAcknowledgeAttention(item.item_name)
+                        }
                       />
                     ))}
                   </div>

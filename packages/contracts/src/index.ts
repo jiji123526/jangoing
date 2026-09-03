@@ -717,6 +717,15 @@ export const HouseholdMemberRemovalResponseSchema = z.object({
   removed_user_id: z.string().uuid(),
 });
 
+export const InventoryAttentionAcknowledgementsResponseSchema = z.object({
+  item_names: z.array(z.string()),
+});
+
+export const InventoryAttentionAcknowledgementResponseSchema = z.object({
+  item_name: z.string(),
+  acknowledged_at: z.string().datetime(),
+});
+
 export const CurrentHouseholdResponseSchema = z.object({
   user: HouseholdUserProfileSchema,
   household: HouseholdSummarySchema.nullable(),
@@ -800,6 +809,12 @@ export type HouseholdMembersResponse = z.infer<
 >;
 export type HouseholdMemberRemovalResponse = z.infer<
   typeof HouseholdMemberRemovalResponseSchema
+>;
+export type InventoryAttentionAcknowledgementsResponse = z.infer<
+  typeof InventoryAttentionAcknowledgementsResponseSchema
+>;
+export type InventoryAttentionAcknowledgementResponse = z.infer<
+  typeof InventoryAttentionAcknowledgementResponseSchema
 >;
 export type CurrentHouseholdResponse = z.infer<
   typeof CurrentHouseholdResponseSchema
