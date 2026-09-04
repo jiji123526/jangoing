@@ -16,8 +16,6 @@ import {
 import {
   acknowledgeInventoryAttention,
   getDashboardData,
-  getFridgeSetupStatus,
-  getInventoryAttentionAcknowledgements,
   type DashboardData,
 } from "../lib/api";
 
@@ -56,14 +54,12 @@ export function KitchenDataProvider({ children }: { children: ReactNode }) {
     if (!hasLoadedRef.current) setLoading(true);
     setLoadError(null);
     try {
-      const [nextDashboard, setupStatus, acknowledgedItems] = await Promise.all([
-        getDashboardData(),
-        getFridgeSetupStatus(),
-        getInventoryAttentionAcknowledgements(),
-      ]);
-      setDashboard(nextDashboard);
-      setFridgeSetupStatus(setupStatus);
-      setAcknowledgedAttentionItems(new Set(acknowledgedItems));
+      const snapshot = await getDashboardData();
+      setDashboard(snapshot.dashboard);
+      setFridgeSetupStatus(snapshot.fridgeSetupStatus);
+      setAcknowledgedAttentionItems(
+        new Set(snapshot.acknowledgedAttentionItems),
+      );
       hasLoadedRef.current = true;
     } catch (caught) {
       const message =

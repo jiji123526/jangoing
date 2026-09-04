@@ -13,6 +13,7 @@ import {
   HouseholdMembersResponseSchema,
   InventoryAttentionAcknowledgementResponseSchema,
   InventoryAttentionAcknowledgementsResponseSchema,
+  KitchenDashboardResponseSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
   JoinedHouseholdResponseSchema,
@@ -329,6 +330,11 @@ export interface DashboardData {
   events: EventRecord[];
   shoppingList: ShoppingListItem[];
 }
+export interface KitchenDashboardData {
+  dashboard: DashboardData;
+  fridgeSetupStatus: FridgeSetupStatus;
+  acknowledgedAttentionItems: string[];
+}
 export type ShoppingMutationResult = z.infer<
   typeof ShoppingMutationResponseSchema
 >;
@@ -515,16 +521,17 @@ export async function deleteShoppingItem(
   return ShoppingMutationResponseSchema.parse(body);
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
-  const [inventory, events, shoppingList] = await Promise.all([
-    getInventoryData(),
-    getEventsData(),
-    getShoppingListData(),
-  ]);
-
+export async function getDashboardData(): Promise<KitchenDashboardData> {
+  const body = KitchenDashboardResponseSchema.parse(
+    await apiRequest("/dashboard"),
+  );
   return {
-    inventory,
-    events,
-    shoppingList,
+    dashboard: {
+      inventory: body.inventory,
+      events: body.events,
+      shoppingList: body.shopping_list,
+    },
+    fridgeSetupStatus: body.fridge_setup,
+    acknowledgedAttentionItems: body.acknowledged_attention_items,
   };
 }

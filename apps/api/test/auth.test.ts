@@ -141,6 +141,7 @@ describe("consumer auth boundary", () => {
   it("recognizes consumer routes without protecting health or annotations", () => {
     expect(isConsumerPath("/events")).toBe(true);
     expect(isConsumerPath("/inventory/milk/edit")).toBe(true);
+    expect(isConsumerPath("/dashboard")).toBe(true);
     expect(isConsumerPath("/shopping-list/milk/purchase")).toBe(true);
     expect(isConsumerPath("/fridge-setup/status")).toBe(true);
     expect(isConsumerPath("/health")).toBe(false);

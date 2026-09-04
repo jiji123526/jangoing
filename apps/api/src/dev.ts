@@ -746,6 +746,42 @@ async function route(
     return;
   }
 
+  if (request.method === "GET" && path === "/dashboard") {
+    const allEvents = events();
+    const inventory = projectInventory(allEvents);
+    const currentItems = new Map(
+      inventory.map((item) => [item.item_name, item]),
+    );
+    const acknowledgementRows = database.prepare(
+      `SELECT key, value FROM app_state
+       WHERE key LIKE 'inventory_attention_ack:%'`,
+    ).all() as Array<{ key: string; value: string }>;
+    const acknowledgedAttentionItems = acknowledgementRows.flatMap((row) => {
+      const itemName = row.key.slice("inventory_attention_ack:".length);
+      const item = currentItems.get(itemName);
+      return item &&
+        inventoryNeedsAttention(item) &&
+        inventoryAttentionSnapshot(item) === row.value
+        ? [itemName]
+        : [];
+    });
+    const setupRow = database.prepare(
+      "SELECT value FROM app_state WHERE key = ?",
+    ).get(fridgeSetupCompletedKey) as { value: string } | undefined;
+
+    sendJson(response, origin, {
+      inventory,
+      events: allEvents.slice(-50).reverse(),
+      shopping_list: projectShoppingList(allEvents),
+      fridge_setup: {
+        completed: setupRow !== undefined,
+        completed_at: setupRow?.value ?? null,
+      },
+      acknowledged_attention_items: acknowledgedAttentionItems,
+    });
+    return;
+  }
+
   if (request.method === "GET" && path === "/fridge-setup/status") {
     const row = database.prepare(
       "SELECT value FROM app_state WHERE key = ?",

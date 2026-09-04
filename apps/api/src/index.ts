@@ -15,6 +15,7 @@ import {
   UpdateHouseholdProfileRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
+  type InventoryItem,
   type Interpretation,
   type ShoppingItemContextRequest,
 } from "@jangoing/contracts";
@@ -724,10 +725,12 @@ async function handleInventoryMutation(
 async function readInventoryAttentionAcknowledgements(
   env: Env,
   scope: ConsumerScope | null,
+  projectedInventory?: InventoryItem[],
 ): Promise<string[]> {
   if (!scope) return [];
 
-  const inventory = projectInventory(await readEvents(env, scope));
+  const inventory =
+    projectedInventory ?? projectInventory(await readEvents(env, scope));
   const currentItems = new Map(
     inventory.map((item) => [item.item_name, item]),
   );
@@ -1316,6 +1319,29 @@ async function route(request: Request, env: Env): Promise<Response> {
         since ? undefined : 50,
         since ? new Date(since).toISOString() : undefined,
       ),
+    });
+  }
+
+  if (request.method === "GET" && url.pathname === "/dashboard") {
+    const [allEvents, completedAt] = await Promise.all([
+      readEvents(env, consumerScope),
+      readFridgeSetupCompletedAt(env, consumerScope),
+    ]);
+    const inventory = projectInventory(allEvents);
+    return json(request, env, {
+      inventory,
+      events: allEvents.slice(-50).reverse(),
+      shopping_list: projectShoppingList(allEvents),
+      fridge_setup: {
+        completed: completedAt !== null,
+        completed_at: completedAt,
+      },
+      acknowledged_attention_items:
+        await readInventoryAttentionAcknowledgements(
+          env,
+          consumerScope,
+          inventory,
+        ),
     });
   }
 

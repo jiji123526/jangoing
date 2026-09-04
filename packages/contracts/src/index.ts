@@ -635,6 +635,14 @@ export const FridgeSetupStatusSchema = z.object({
   completed_at: z.string().nullable(),
 });
 
+export const KitchenDashboardResponseSchema = z.object({
+  inventory: z.array(InventoryItemSchema),
+  events: z.array(EventRecordSchema),
+  shopping_list: z.array(ShoppingListItemSchema),
+  fridge_setup: FridgeSetupStatusSchema,
+  acknowledged_attention_items: z.array(z.string()),
+});
+
 export const FridgeSetupResponseSchema = FridgeSetupStatusSchema.extend({
   events: z.array(EventRecordSchema),
   inventory: z.array(InventoryItemSchema),
@@ -788,6 +796,9 @@ export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
 export type FridgeSetupItem = z.infer<typeof FridgeSetupItemSchema>;
 export type FridgeSetupRequest = z.infer<typeof FridgeSetupRequestSchema>;
 export type FridgeSetupStatus = z.infer<typeof FridgeSetupStatusSchema>;
+export type KitchenDashboardResponse = z.infer<
+  typeof KitchenDashboardResponseSchema
+>;
 export type FridgeSetupResponse = z.infer<typeof FridgeSetupResponseSchema>;
 export type HouseholdRole = z.infer<typeof HouseholdRoleSchema>;
 export type CreateHouseholdRequest = z.infer<

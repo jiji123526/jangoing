@@ -213,6 +213,8 @@ describe("household consumer-data isolation", () => {
     const responseA = await request("/inventory", {}, tokenA);
     const responseB = await request("/inventory", {}, tokenB);
     const legacyResponse = await request("/inventory");
+    const dashboardA = await request("/dashboard", {}, tokenA);
+    const dashboardB = await request("/dashboard", {}, tokenB);
 
     expect(await responseA.json()).toMatchObject({
       inventory: [{ item_name: "milk" }],
@@ -222,6 +224,17 @@ describe("household consumer-data isolation", () => {
     });
     expect(await legacyResponse.json()).toMatchObject({
       inventory: [{ item_name: "bread" }],
+    });
+    expect(await dashboardA.json()).toMatchObject({
+      inventory: [{ item_name: "milk" }],
+      events: [{ item_name: "milk" }],
+      shopping_list: [],
+      fridge_setup: { completed: false, completed_at: null },
+      acknowledged_attention_items: [],
+    });
+    expect(await dashboardB.json()).toMatchObject({
+      inventory: [{ item_name: "egg" }],
+      events: [{ item_name: "egg" }],
     });
   });
 
