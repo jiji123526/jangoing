@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Inventory edit artwork now matches the list card and recent updates are clickable
+
+### Completed
+
+- Removed the separate photo action buttons from the expanded inventory edit
+  panel and reused the same clickable artwork tile interaction already used in
+  the normal inventory list.
+- Kept the inventory thumbnail treatment visually stable between collapsed and
+  expanded states so opening edit options no longer swaps in a different media
+  control block.
+- Made the Home `Recently Updated` cards clickable, routing shopping-related
+  updates to the shopping view and inventory-related updates to the inventory
+  destination that best matches the event.
+
+### Validation
+
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Quick Update can now confirm multiple parsed items from one command
 
 ### Completed

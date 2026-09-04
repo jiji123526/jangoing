@@ -731,6 +731,25 @@ function recentUpdateLabel(
   }
 }
 
+function recentUpdateHref(
+  event: EventRecord,
+  inventoryItem: InventoryItem | undefined,
+): string {
+  switch (event.event_type) {
+    case "item_added_to_buy":
+    case "shopping_item_purchased":
+    case "shopping_item_restored":
+    case "shopping_item_deleted":
+      return "/shopping";
+    case "item_removed":
+      return inventoryHref();
+    default:
+      return inventoryItem
+        ? inventoryHref({ item: event.item_name })
+        : inventoryHref();
+  }
+}
+
 function InventoryItemRow({
   item,
   editing = false,
@@ -873,10 +892,6 @@ function InventoryItemRow({
     });
   }
 
-  async function handleThumbnailFile(file: File | null) {
-    await openThumbnailCrop(file, "edit");
-  }
-
   async function handleQuickThumbnailFile(file: File | null) {
     await openThumbnailCrop(file, "quick");
   }
@@ -949,60 +964,33 @@ function InventoryItemRow({
           id={domId}
           tabIndex={domId ? -1 : undefined}
         >
-          <div className="inventory-edit-artwork-panel">
+          {onReplaceThumbnail ? (
+            <label className="inventory-artwork-button">
+              <InventoryArtwork
+                itemName={item.item_name}
+                thumbnailUrl={thumbnailPreview}
+                interactive
+                showCaptureAffordance
+                uploading={quickThumbnailUploading || busy}
+              />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/*"
+                disabled={busy || quickThumbnailUploading}
+                aria-label={`${item.thumbnail_url ? "Change" : "Add"} photo for ${titleCase(item.item_name)}`}
+                onChange={(event) => {
+                  const [file] = event.target.files ?? [];
+                  event.currentTarget.value = "";
+                  void handleQuickThumbnailFile(file ?? null);
+                }}
+              />
+            </label>
+          ) : (
             <InventoryArtwork
               itemName={item.item_name}
               thumbnailUrl={thumbnailPreview}
             />
-            <div className="inventory-edit-artwork-actions">
-              <label className="inventory-photo-button">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/*"
-                  onChange={(event) => {
-                    const [file] = event.target.files ?? [];
-                    event.currentTarget.value = "";
-                    void handleThumbnailFile(file ?? null);
-                  }}
-                />
-                Choose Photo
-              </label>
-              <label className="inventory-photo-button">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/*"
-                  capture="environment"
-                  onChange={(event) => {
-                    const [file] = event.target.files ?? [];
-                    event.currentTarget.value = "";
-                    void handleThumbnailFile(file ?? null);
-                  }}
-                />
-                Take Photo
-              </label>
-              {thumbnailPreview && (
-                <button
-                  className="inventory-photo-button is-secondary"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    const previous = item.thumbnail_url ?? null;
-                    setThumbnailPreview(null);
-                    void onRemoveThumbnail?.().catch((caught) => {
-                      setThumbnailPreview(previous);
-                      setValidationError(
-                        caught instanceof Error
-                          ? caught.message
-                          : "Could not remove the item photo.",
-                      );
-                    });
-                  }}
-                >
-                  Remove Photo
-                </button>
-              )}
-            </div>
-          </div>
+          )}
           <form
             className="inventory-edit-form"
             onSubmit={(event) => {
@@ -2708,14 +2696,18 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 {recentlyUpdated.map((event) => {
                   const inventoryItem = inventoryByItemName.get(event.item_name);
                   return (
-                    <article className="home-update-card" key={event.id}>
+                    <RouteTransitionLink
+                      className="home-update-card"
+                      href={recentUpdateHref(event, inventoryItem)}
+                      key={event.id}
+                    >
                       <HomeArtwork
                         itemName={event.item_name}
                         thumbnailUrl={inventoryItem?.thumbnail_url}
                       />
                       <strong>{titleCase(event.item_name)}</strong>
                       <p>{recentUpdateLabel(event, inventoryItem)}</p>
-                    </article>
+                    </RouteTransitionLink>
                   );
                 })}
               </div>
