@@ -650,15 +650,30 @@ describe("household consumer-data isolation", () => {
       Uint8Array.from([65, 66, 67, 68]),
     );
 
-    const assetResponse = await worker.fetch(
+    const anonymousAssetResponse = await worker.fetch(
       new Request(uploadedBody.thumbnail_url),
       env,
     );
-    expect(assetResponse.status).toBe(200);
-    expect(assetResponse.headers.get("content-type")).toBe("image/jpeg");
-    expect(new Uint8Array(await assetResponse.arrayBuffer())).toEqual(
+    expect(anonymousAssetResponse.status).toBe(401);
+
+    const assetUrl = new URL(uploadedBody.thumbnail_url);
+    const householdAssetResponse = await request(
+      `${assetUrl.pathname}${assetUrl.search}`,
+      {},
+      tokenA,
+    );
+    expect(householdAssetResponse.status).toBe(200);
+    expect(householdAssetResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(new Uint8Array(await householdAssetResponse.arrayBuffer())).toEqual(
       Uint8Array.from([65, 66, 67, 68]),
     );
+
+    const otherHouseholdAssetResponse = await request(
+      `${assetUrl.pathname}${assetUrl.search}`,
+      {},
+      tokenB,
+    );
+    expect(otherHouseholdAssetResponse.status).toBe(404);
 
     const wrongHousehold = await request(
       "/items/egg/media",

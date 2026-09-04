@@ -21,6 +21,7 @@ import {
   applyUploadedThumbnails,
   setupThumbnailUploads,
 } from "../lib/fridge-setup-thumbnail";
+import { protectedItemMediaUrl } from "../lib/item-media-url";
 import {
   clampSquareThumbnailCrop,
   defaultSquareThumbnailCrop,
@@ -462,8 +463,11 @@ export function FridgeSetupDialog({
               const displayName = titleCase(draft.name) || `Item ${index + 1}`;
               const summary = draftSummary(draft);
               const photoInputId = `fridge-setup-photo-${draft.id}`;
+              const resolvedThumbnailUrl = protectedItemMediaUrl(
+                draft.thumbnailUrl,
+              );
               const thumbnailLoaded =
-                draft.thumbnailUrl !== "" &&
+                Boolean(resolvedThumbnailUrl) &&
                 (thumbnailLoadedByDraftId[draft.id] ?? false);
 
               return (
@@ -496,13 +500,13 @@ export function FridgeSetupDialog({
                         document.getElementById(photoInputId)?.click();
                       }}
                     >
-                      {draft.thumbnailUrl && !thumbnailLoaded && (
+                      {resolvedThumbnailUrl && !thumbnailLoaded && (
                         <span
                           className="fridge-setup-artwork-skeleton"
                           aria-hidden="true"
                         />
                       )}
-                      {draft.thumbnailUrl ? (
+                      {resolvedThumbnailUrl ? (
                         <>
                           <img
                             className={`item-artwork-image${
@@ -510,7 +514,7 @@ export function FridgeSetupDialog({
                                 ? " fridge-setup-artwork-image-visible"
                                 : " fridge-setup-artwork-image-hidden"
                             }`}
-                            src={draft.thumbnailUrl}
+                            src={resolvedThumbnailUrl}
                             alt=""
                             onLoad={() =>
                               setThumbnailLoadedByDraftId((current) => ({

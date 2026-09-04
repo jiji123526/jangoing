@@ -48,6 +48,7 @@ import {
   updateInventoryItem,
   updateInferenceOutcome,
 } from "../lib/api";
+import { protectedItemMediaUrl } from "../lib/item-media-url";
 import {
   clampSquareThumbnailCrop,
   defaultSquareThumbnailCrop,
@@ -362,6 +363,7 @@ function ShoppingArtwork({
   itemName: string;
   thumbnailUrl?: string | null;
 }) {
+  const protectedThumbnailUrl = protectedItemMediaUrl(thumbnailUrl);
   const category = inventoryCategory(itemName);
   const categoryClass = category
     .toLowerCase()
@@ -373,8 +375,8 @@ function ShoppingArtwork({
       className={`shopping-artwork category-${categoryClass}`}
       aria-hidden="true"
     >
-      {thumbnailUrl ? (
-        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+      {protectedThumbnailUrl ? (
+        <img className="item-artwork-image" src={protectedThumbnailUrl} alt="" />
       ) : (
         <ArtworkLabel compact itemName={itemName} />
       )}
@@ -512,14 +514,15 @@ function InventoryArtwork({
   showCaptureAffordance?: boolean;
   uploading?: boolean;
 }) {
+  const protectedThumbnailUrl = protectedItemMediaUrl(thumbnailUrl);
   return (
     <div
       className={`inventory-artwork${interactive ? " inventory-artwork-interactive" : ""}${thumbnailUrl ? " has-photo" : ""}`}
       aria-hidden="true"
     >
-      {thumbnailUrl ? (
+      {protectedThumbnailUrl ? (
         <>
-          <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+          <img className="item-artwork-image" src={protectedThumbnailUrl} alt="" />
           <div className="inventory-artwork-overlay">
             <ArtworkLabel itemName={itemName} />
           </div>
@@ -564,10 +567,11 @@ function HomeArtwork({
   thumbnailUrl?: string | null;
   category?: ItemCategory;
 }) {
-  if (thumbnailUrl) {
+  const protectedThumbnailUrl = protectedItemMediaUrl(thumbnailUrl);
+  if (protectedThumbnailUrl) {
     return (
       <div className="home-update-artwork" aria-hidden="true">
-        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+        <img className="item-artwork-image" src={protectedThumbnailUrl} alt="" />
       </div>
     );
   }

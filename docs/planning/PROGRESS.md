@@ -2,6 +2,31 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Item-media reads now require household access
+
+### Completed
+
+- Locked `GET /item-media/{media_id}/thumbnail` behind authenticated
+  household-scoped access instead of serving thumbnails by media id alone.
+- Added a same-origin Web proxy route for item-media thumbnails so protected
+  images still render in standard `<img>` tags without exposing app tokens to
+  the client.
+- Rewrote consumer image rendering to use the protected proxy path while
+  leaving local `data:` and `blob:` thumbnail previews untouched.
+- Extended household-isolation coverage to verify anonymous thumbnail reads are
+  rejected and cross-household reads do not succeed.
+
+### Validation
+
+- Re-ran API and Web typecheck.
+- Re-ran the focused API and Web tests covering household media isolation and
+  thumbnail rendering flows.
+
+### Deployment
+
+- Deploy the API and Web app together so protected thumbnail reads and the new
+  proxy route land in the same release window.
+
 ## 2026-09-04 - Added planning docs for photo-based item form prefills
 
 ### Completed

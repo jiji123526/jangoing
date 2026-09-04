@@ -8,6 +8,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { resolvedInventoryCategory } from "../../lib/inventory-category";
 import { inventoryHref } from "../../lib/inventory-navigation";
+import { protectedItemMediaUrl } from "../../lib/item-media-url";
 import {
   legacySearchHistoryStorageKey,
   searchHistoryStorageKey,
@@ -149,10 +150,11 @@ function SearchArtwork({
   thumbnailUrl?: string | null;
   source: "inventory" | "shopping";
 }) {
-  if (thumbnailUrl) {
+  const protectedThumbnail = protectedItemMediaUrl(thumbnailUrl);
+  if (protectedThumbnail) {
     return (
       <span className={`search-result-artwork source-${source}`} aria-hidden="true">
-        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+        <img className="item-artwork-image" src={protectedThumbnail} alt="" />
       </span>
     );
   }

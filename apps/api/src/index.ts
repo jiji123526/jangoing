@@ -1090,13 +1090,15 @@ async function deleteItemThumbnail(
 async function serveItemThumbnail(
   request: Request,
   env: Env,
+  scope: ConsumerScope,
   mediaId: string,
 ): Promise<Response> {
   const row = await env.DB.prepare(
     `SELECT object_key, content_type
      FROM item_media
-     WHERE media_id = ?`,
-  ).bind(mediaId).first<{
+     WHERE media_id = ?
+       AND household_id = ?`,
+  ).bind(mediaId, scope.householdId).first<{
     object_key: string | null;
     content_type: string | null;
   }>();
@@ -1603,6 +1605,17 @@ async function route(request: Request, env: Env): Promise<Response> {
   );
 
   if (request.method === "GET" && itemMediaRead) {
+    const identity = await authenticateRequest(request, env, {
+      required: true,
+      requireHousehold: true,
+    });
+    if (!identity?.householdId) {
+      throw new AuthError(
+        409,
+        "household_required",
+        "Household setup is required",
+      );
+    }
     let mediaId: string;
     try {
       mediaId = decodeURIComponent(itemMediaRead[1]).trim();
@@ -1612,7 +1625,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (!mediaId) {
       return json(request, env, { error: "Invalid media id" }, 400);
     }
-    return serveItemThumbnail(request, env, mediaId);
+    return serveItemThumbnail(request, env, {
+      householdId: identity.householdId,
+      userId: identity.user.id,
+    }, mediaId);
   }
 
   if (
