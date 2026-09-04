@@ -11,12 +11,15 @@ import {
   InterpretationSchema,
   InterpretCommandRequestSchema,
   JoinHouseholdRequestSchema,
+  InventoryItemSchema,
+  ShoppingListItemSchema,
   ShoppingItemContextRequestSchema,
   UpdateHouseholdProfileRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
   type InventoryItem,
   type Interpretation,
+  type ShoppingListItem,
   type ShoppingItemContextRequest,
 } from "@jangoing/contracts";
 import {
@@ -84,6 +87,7 @@ const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
+const kitchenProjectionKey = "kitchen_projection_v1";
 const annotationSchemaVersion = "annotation-v3";
 const publicEventColumns = [
   "id",
@@ -191,6 +195,109 @@ async function readEvents(
   const result = await statement.all<Record<string, unknown>>();
 
   return result.results.map((row) => EventRecordSchema.parse(row));
+}
+
+interface KitchenProjection {
+  inventory: InventoryItem[];
+  shoppingList: ShoppingListItem[];
+}
+
+function utcDate(value = new Date()): string {
+  return value.toISOString().slice(0, 10);
+}
+
+async function readKitchenProjection(
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<KitchenProjection | null> {
+  const row = scope
+    ? await env.DB.prepare(
+        `SELECT value FROM household_app_state
+         WHERE household_id = ? AND key = ?`,
+      ).bind(scope.householdId, kitchenProjectionKey).first<{ value: string }>()
+    : await env.DB.prepare(
+        "SELECT value FROM app_state WHERE key = ?",
+      ).bind(kitchenProjectionKey).first<{ value: string }>();
+  if (!row) return null;
+
+  try {
+    const stored = JSON.parse(row.value) as Record<string, unknown>;
+    if (stored.projectedOn !== utcDate()) return null;
+    return {
+      inventory: InventoryItemSchema.array().parse(stored.inventory),
+      shoppingList: ShoppingListItemSchema.array().parse(stored.shoppingList),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeKitchenProjection(
+  env: Env,
+  scope: ConsumerScope | null,
+  projection: KitchenProjection,
+): Promise<void> {
+  const value = JSON.stringify({
+    ...projection,
+    projectedOn: utcDate(),
+  });
+  const updatedAt = new Date().toISOString();
+  if (scope) {
+    await env.DB.prepare(
+      `INSERT INTO household_app_state (household_id, key, value, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(household_id, key) DO UPDATE SET
+         value = excluded.value,
+         updated_at = excluded.updated_at`,
+    ).bind(
+      scope.householdId,
+      kitchenProjectionKey,
+      value,
+      updatedAt,
+    ).run();
+    return;
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO app_state (key, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET
+       value = excluded.value,
+       updated_at = excluded.updated_at`,
+  ).bind(kitchenProjectionKey, value, updatedAt).run();
+}
+
+async function loadKitchenProjection(
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<{ projection: KitchenProjection; sourceEvents: EventRecord[] | null }> {
+  const cached = await readKitchenProjection(env, scope);
+  if (cached) return { projection: cached, sourceEvents: null };
+
+  const sourceEvents = await readEvents(env, scope);
+  const projection = {
+    inventory: projectInventory(sourceEvents),
+    shoppingList: projectShoppingList(sourceEvents),
+  };
+  await writeKitchenProjection(env, scope, projection);
+  return { projection, sourceEvents };
+}
+
+async function invalidateKitchenProjection(
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<void> {
+  if (scope) {
+    await env.DB.prepare(
+      `DELETE FROM household_app_state
+       WHERE household_id = ? AND key = ?`,
+    ).bind(scope.householdId, kitchenProjectionKey).run();
+    return;
+  }
+
+  await env.DB.prepare(
+    "DELETE FROM app_state WHERE key = ?",
+  ).bind(kitchenProjectionKey).run();
 }
 
 async function handleInterpret(
@@ -591,6 +698,7 @@ async function handleCreateEvent(
       scope?.userId ?? null,
     )
     .run();
+  await invalidateKitchenProjection(env, scope);
 
   const correctedInterpretation = {
     intent: Object.entries({
@@ -718,6 +826,7 @@ async function handleInventoryMutation(
     scope?.householdId ?? null,
     scope?.userId ?? null,
   ).run();
+  await invalidateKitchenProjection(env, scope);
 
   return json(request, env, event, 201);
 }
@@ -730,7 +839,7 @@ async function readInventoryAttentionAcknowledgements(
   if (!scope) return [];
 
   const inventory =
-    projectedInventory ?? projectInventory(await readEvents(env, scope));
+    projectedInventory ?? (await loadKitchenProjection(env, scope)).projection.inventory;
   const currentItems = new Map(
     inventory.map((item) => [item.item_name, item]),
   );
@@ -884,6 +993,16 @@ async function handleFridgeSetup(
           "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
         ).bind(fridgeSetupCompletedKey, completedAt, completedAt),
   );
+  statements.push(
+    scope
+      ? env.DB.prepare(
+          `DELETE FROM household_app_state
+           WHERE household_id = ? AND key = ?`,
+        ).bind(scope.householdId, kitchenProjectionKey)
+      : env.DB.prepare(
+          "DELETE FROM app_state WHERE key = ?",
+        ).bind(kitchenProjectionKey),
+  );
 
   await env.DB.batch(statements);
   return json(
@@ -1001,6 +1120,7 @@ async function handleShoppingMutation(
     scope?.householdId ?? null,
     scope?.userId ?? null,
   ).run();
+  await invalidateKitchenProjection(env, scope);
 
   const includeProjections =
     new URL(request.url).searchParams.get("include") === "projections";
@@ -1323,15 +1443,18 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "GET" && url.pathname === "/dashboard") {
-    const [allEvents, completedAt] = await Promise.all([
-      readEvents(env, consumerScope),
+    const [loadedProjection, completedAt] = await Promise.all([
+      loadKitchenProjection(env, consumerScope),
       readFridgeSetupCompletedAt(env, consumerScope),
     ]);
-    const inventory = projectInventory(allEvents);
+    const recentEvents = loadedProjection.sourceEvents
+      ? loadedProjection.sourceEvents.slice(-50).reverse()
+      : await readEvents(env, consumerScope, 50);
+    const { inventory, shoppingList } = loadedProjection.projection;
     return json(request, env, {
       inventory,
-      events: allEvents.slice(-50).reverse(),
-      shopping_list: projectShoppingList(allEvents),
+      events: recentEvents,
+      shopping_list: shoppingList,
       fridge_setup: {
         completed: completedAt !== null,
         completed_at: completedAt,
@@ -1347,7 +1470,8 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/inventory") {
     return json(request, env, {
-      inventory: projectInventory(await readEvents(env, consumerScope)),
+      inventory:
+        (await loadKitchenProjection(env, consumerScope)).projection.inventory,
     });
   }
 
@@ -1365,7 +1489,8 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/shopping-list") {
     return json(request, env, {
-      items: projectShoppingList(await readEvents(env, consumerScope)),
+      items:
+        (await loadKitchenProjection(env, consumerScope)).projection.shoppingList,
     });
   }
 
