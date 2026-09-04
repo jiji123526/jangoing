@@ -2431,18 +2431,49 @@ html.household-tab-fade-in main#search {
 
 .fridge-setup-artwork-overlay {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
+  inset: auto 0 0;
   z-index: 1;
-  padding: 3px 7px;
-  border-radius: 999px;
+  padding: 24px 10px 10px;
   color: #fff;
-  background: rgba(0, 0, 0, 0.42);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 12px;
-  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, rgba(6, 8, 16, 0) 0%, rgba(6, 8, 16, 0.68) 100%);
   pointer-events: none;
+}
+
+.fridge-setup-artwork-overlay > span,
+.inventory-artwork-overlay > span {
+  width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 22px;
+  letter-spacing: 0.35px;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.fridge-setup-artwork-corner-indicator,
+.inventory-artwork-corner-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: rgba(60, 60, 67, 0.72);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  pointer-events: none;
+}
+
+.inventory-artwork-corner-spinner {
+  animation: button-spinner-spin 0.9s linear infinite;
 }
 
 .fridge-setup-item-copy {
@@ -2492,16 +2523,6 @@ html.household-tab-fade-in main#search {
   border: 0;
   border-radius: 8px;
   background: transparent;
-}
-
-.fridge-setup-missing-photo-indicator {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  color: rgba(60, 60, 67, 0.7);
-  background: rgba(60, 60, 67, 0.08);
 }
 
 .fridge-setup-item-actions > button:last-child {
@@ -4576,6 +4597,7 @@ h1 {
 }
 
 .inventory-artwork {
+  position: relative;
   width: 102px;
   height: 102px;
   display: flex;
@@ -4615,6 +4637,16 @@ h1 {
   white-space: nowrap;
 }
 
+.inventory-artwork-overlay {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  padding: 24px 10px 10px;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(6, 8, 16, 0) 0%, rgba(6, 8, 16, 0.68) 100%);
+  pointer-events: none;
+}
+
 .inventory-artwork-button {
   position: relative;
   z-index: 2;
@@ -4630,22 +4662,6 @@ h1 {
 
 .inventory-artwork-button input:disabled {
   cursor: progress;
-}
-
-.inventory-artwork-hint {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 1;
-  padding: 3px 7px;
-  border-radius: 999px;
-  color: rgba(60, 60, 67, 0.88);
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 12px;
-  letter-spacing: 0.02em;
-  pointer-events: none;
 }
 
 .inventory-item-copy {

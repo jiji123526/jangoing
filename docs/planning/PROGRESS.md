@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Item names now stay visible on setup and inventory photo cards
+
+### Completed
+
+- Kept the item name as the default artwork treatment when a setup card or
+  inventory card has no uploaded photo.
+- Replaced the old photo-action text markers on these cards with a lighter
+  corner affordance, so users no longer see `Add Photo`, `Change Photo`, or
+  `Tap to replace` on the artwork itself.
+- Added an item-name gradient overlay on uploaded media for both setup and
+  inventory cards so the item label stays readable on top of the photo.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the focused Web tests for item-thumbnail helpers, fridge-setup
+  thumbnail flow, and household API thumbnail behavior.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Fridge setup photo cards gained crop and skeleton loading
 
 ### Completed

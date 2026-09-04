@@ -10,6 +10,7 @@ import type {
   ShoppingListItem,
 } from "@jangoing/contracts";
 import {
+  Camera,
   CalendarDays,
   Check,
   ChevronDown,
@@ -490,10 +491,14 @@ function InventoryArtwork({
   itemName,
   thumbnailUrl,
   interactive = false,
+  showCaptureAffordance = false,
+  uploading = false,
 }: {
   itemName: string;
   thumbnailUrl?: string | null;
   interactive?: boolean;
+  showCaptureAffordance?: boolean;
+  uploading?: boolean;
 }) {
   return (
     <div
@@ -501,9 +506,29 @@ function InventoryArtwork({
       aria-hidden="true"
     >
       {thumbnailUrl ? (
-        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+        <>
+          <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+          <div className="inventory-artwork-overlay">
+            <ArtworkLabel itemName={itemName} />
+          </div>
+        </>
       ) : (
-        <ArtworkLabel itemName={itemName} />
+        <>
+          <ArtworkLabel itemName={itemName} />
+        </>
+      )}
+      {(uploading || (!thumbnailUrl && showCaptureAffordance)) && (
+        <span className="inventory-artwork-corner-indicator">
+          {uploading ? (
+            <LoaderCircle
+              className="inventory-artwork-corner-spinner"
+              size={14}
+              strokeWidth={2.2}
+            />
+          ) : (
+            <Camera size={14} strokeWidth={2.2} />
+          )}
+        </span>
       )}
     </div>
   );
@@ -1023,14 +1048,9 @@ function InventoryItemRow({
             itemName={item.item_name}
             thumbnailUrl={item.thumbnail_url}
             interactive
+            showCaptureAffordance
+            uploading={quickThumbnailUploading || busy}
           />
-          <span className="inventory-artwork-hint">
-            {quickThumbnailUploading || busy
-              ? "Uploading…"
-              : item.thumbnail_url
-                ? "Change Photo"
-                : "Add Photo"}
-          </span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/*"

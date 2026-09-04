@@ -503,34 +503,44 @@ export function FridgeSetupDialog({
                         />
                       )}
                       {draft.thumbnailUrl ? (
-                        <img
-                          className={`item-artwork-image${
-                            thumbnailLoaded
-                              ? " fridge-setup-artwork-image-visible"
-                              : " fridge-setup-artwork-image-hidden"
-                          }`}
-                          src={draft.thumbnailUrl}
-                          alt=""
-                          onLoad={() =>
-                            setThumbnailLoadedByDraftId((current) => ({
-                              ...current,
-                              [draft.id]: true,
-                            }))
-                          }
-                          onError={() =>
-                            setThumbnailLoadedByDraftId((current) => ({
-                              ...current,
-                              [draft.id]: true,
-                            }))
-                          }
-                        />
+                        <>
+                          <img
+                            className={`item-artwork-image${
+                              thumbnailLoaded
+                                ? " fridge-setup-artwork-image-visible"
+                                : " fridge-setup-artwork-image-hidden"
+                            }`}
+                            src={draft.thumbnailUrl}
+                            alt=""
+                            onLoad={() =>
+                              setThumbnailLoadedByDraftId((current) => ({
+                                ...current,
+                                [draft.id]: true,
+                              }))
+                            }
+                            onError={() =>
+                              setThumbnailLoadedByDraftId((current) => ({
+                                ...current,
+                                [draft.id]: true,
+                              }))
+                            }
+                          />
+                          {thumbnailLoaded && (
+                            <div className="fridge-setup-artwork-overlay">
+                              <SetupArtworkLabel itemName={displayName} />
+                            </div>
+                          )}
+                        </>
                       ) : (
-                        <SetupArtworkLabel itemName={displayName} />
-                      )}
-                      {draft.thumbnailUrl && thumbnailLoaded && (
-                        <small className="fridge-setup-artwork-overlay">
-                          Tap to replace
-                        </small>
+                        <>
+                          <SetupArtworkLabel itemName={displayName} />
+                          <span
+                            className="fridge-setup-artwork-corner-indicator"
+                            aria-hidden="true"
+                          >
+                            <Camera size={14} strokeWidth={2.2} />
+                          </span>
+                        </>
                       )}
                     </label>
                     <div className="inventory-item-copy fridge-setup-item-copy">
@@ -550,14 +560,6 @@ export function FridgeSetupDialog({
                           />
                         </label>
                         <span className="inventory-item-row-actions fridge-setup-item-actions">
-                          {!draft.thumbnailUrl && (
-                            <span
-                              className="fridge-setup-missing-photo-indicator"
-                              aria-label="No photo"
-                            >
-                              <Camera size={14} strokeWidth={2.2} />
-                            </span>
-                          )}
                           <button
                             type="button"
                             className="fridge-setup-toggle"
