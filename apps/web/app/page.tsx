@@ -488,12 +488,17 @@ function attentionLabel(item: InventoryItem): string | null {
 function InventoryArtwork({
   itemName,
   thumbnailUrl,
+  interactive = false,
 }: {
   itemName: string;
   thumbnailUrl?: string | null;
+  interactive?: boolean;
 }) {
   return (
-    <div className="inventory-artwork" aria-hidden="true">
+    <div
+      className={`inventory-artwork${interactive ? " inventory-artwork-interactive" : ""}`}
+      aria-hidden="true"
+    >
       {thumbnailUrl ? (
         <img className="item-artwork-image" src={thumbnailUrl} alt="" />
       ) : (
@@ -638,6 +643,7 @@ function InventoryItemRow({
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
     item.thumbnail_url ?? null,
   );
+  const [quickThumbnailUploading, setQuickThumbnailUploading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
     quantityLabel(item),
@@ -680,6 +686,19 @@ function InventoryItemRow({
           ? caught.message
           : "Could not update the item photo.",
       );
+    }
+  }
+
+  async function handleQuickThumbnailFile(file: File | null) {
+    if (!file || !onReplaceThumbnail) return;
+    setQuickThumbnailUploading(true);
+    try {
+      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
+      await onReplaceThumbnail(thumbnailUrl);
+    } catch {
+      // The parent handler already surfaces the error state.
+    } finally {
+      setQuickThumbnailUploading(false);
     }
   }
 
@@ -997,10 +1016,38 @@ function InventoryItemRow({
           {selected && <Check size={16} strokeWidth={3} />}
         </span>
       )}
-      <InventoryArtwork
-        itemName={item.item_name}
-        thumbnailUrl={item.thumbnail_url}
-      />
+      {onReplaceThumbnail && !selecting ? (
+        <label className="inventory-artwork-button">
+          <InventoryArtwork
+            itemName={item.item_name}
+            thumbnailUrl={item.thumbnail_url}
+            interactive
+          />
+          <span className="inventory-artwork-hint">
+            {quickThumbnailUploading || busy
+              ? "Uploading…"
+              : item.thumbnail_url
+                ? "Change Photo"
+                : "Add Photo"}
+          </span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            disabled={busy || quickThumbnailUploading}
+            aria-label={`${item.thumbnail_url ? "Change" : "Add"} photo for ${titleCase(item.item_name)}`}
+            onChange={(event) => {
+              const [file] = event.target.files ?? [];
+              event.currentTarget.value = "";
+              void handleQuickThumbnailFile(file ?? null);
+            }}
+          />
+        </label>
+      ) : (
+        <InventoryArtwork
+          itemName={item.item_name}
+          thumbnailUrl={item.thumbnail_url}
+        />
+      )}
       <div className="inventory-item-copy">
         <strong>{titleCase(item.item_name)}</strong>
         <p>{metadata.join(" · ")}</p>

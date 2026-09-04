@@ -2,6 +2,26 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Inventory thumbnails can upload without opening item edit
+
+### Completed
+
+- Made inventory-list artwork tiles directly clickable for photo upload so
+  users can add or replace an item thumbnail without opening the item edit
+  form first.
+- Reused the existing client-side thumbnail preparation and household-scoped
+  upload route, while keeping the full edit panel for metadata changes and
+  photo removal.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the household API and fridge-setup thumbnail tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Worker config prepared for item-media R2 binding
 
 ### Completed
