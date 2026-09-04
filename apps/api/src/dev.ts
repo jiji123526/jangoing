@@ -115,6 +115,10 @@ const householdJoinCodeCiphertextMigrationPath = resolve(
   apiDirectory,
   "migrations/0015_store_household_join_code_ciphertext.sql",
 );
+const householdJoinCodeLookupMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0017_optimize_household_join_code_lookup.sql",
+);
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -217,6 +221,14 @@ const householdJoinCodeColumns = database.prepare(
 ).all() as Array<{ name: string }>;
 if (!householdJoinCodeColumns.some((column) => column.name === "code_ciphertext")) {
   database.exec(readFileSync(householdJoinCodeCiphertextMigrationPath, "utf8"));
+}
+const householdJoinCodeLookupIndex = database.prepare(
+  `SELECT name FROM sqlite_master
+   WHERE type = 'index'
+     AND name = 'idx_household_join_codes_active_household_created_at'`,
+).get() as { name?: string } | undefined;
+if (!householdJoinCodeLookupIndex?.name) {
+  database.exec(readFileSync(householdJoinCodeLookupMigrationPath, "utf8"));
 }
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";

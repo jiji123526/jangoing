@@ -105,6 +105,7 @@ describe("household lifecycle", () => {
       "0013_enforce_single_household_membership.sql",
       "0014_add_household_profile.sql",
       "0015_store_household_join_code_ciphertext.sql",
+      "0017_optimize_household_join_code_lookup.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),

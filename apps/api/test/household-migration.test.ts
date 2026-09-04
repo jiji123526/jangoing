@@ -177,4 +177,25 @@ describe("household ownership migration", () => {
       ).get(),
     ).toEqual({ name: "code_ciphertext" });
   });
+
+  it("indexes active household join codes in newest-first order", () => {
+    database.exec(migration("0017_optimize_household_join_code_lookup.sql"));
+
+    expect(
+      database.prepare(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'index'
+           AND name = 'idx_household_join_codes_active_household_created_at'`,
+      ).get(),
+    ).toEqual({
+      name: "idx_household_join_codes_active_household_created_at",
+    });
+    expect(
+      database.prepare(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'index'
+           AND name = 'idx_household_join_codes_household_id'`,
+      ).get(),
+    ).toBeUndefined();
+  });
 });
