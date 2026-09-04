@@ -8,6 +8,7 @@ import type {
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
@@ -121,6 +122,53 @@ function toSetupItems(drafts: SetupDraft[]): FridgeSetupItem[] {
   }));
 }
 
+function SetupArtworkLabel({
+  itemName,
+}: {
+  itemName: string;
+}) {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [fontSize, setFontSize] = useState(20);
+
+  useLayoutEffect(() => {
+    const label = labelRef.current;
+    if (!label) return;
+
+    function fitLabel() {
+      const currentLabel = labelRef.current;
+      if (!currentLabel) return;
+      const renderedSize = Number.parseFloat(getComputedStyle(currentLabel).fontSize);
+      const words = [...currentLabel.querySelectorAll<HTMLElement>(".artwork-word")];
+      const widestWord = Math.max(...words.map((word) => word.scrollWidth), 1);
+      const labelStyle = getComputedStyle(currentLabel);
+      const availableWidth = currentLabel.clientWidth
+        - Number.parseFloat(labelStyle.paddingLeft)
+        - Number.parseFloat(labelStyle.paddingRight);
+      const fittedSize = Math.max(
+        8,
+        Math.min(20, Math.floor(renderedSize * (availableWidth / widestWord))),
+      );
+      setFontSize(fittedSize);
+    }
+
+    fitLabel();
+    const resizeObserver = new ResizeObserver(fitLabel);
+    resizeObserver.observe(label.parentElement ?? label);
+    void document.fonts?.ready.then(fitLabel);
+    return () => resizeObserver.disconnect();
+  }, [itemName]);
+
+  return (
+    <span ref={labelRef} style={{ fontSize: `${fontSize}px` }}>
+      {titleCase(itemName).split(" ").map((word, index) => (
+        <span className="artwork-word" key={`${word}-${index}`}>
+          {word}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function FridgeSetupDialog({
   open,
   inventory,
@@ -205,6 +253,17 @@ export function FridgeSetupDialog({
           : "Could not prepare the selected image.",
       );
     }
+  }
+
+  function draftSummary(draft: SetupDraft): string {
+    const parts = [
+      draft.quantity ? `${draft.quantity}${draft.unit ? ` ${draft.unit}` : ""}` : null,
+      draft.location ? titleCase(draft.location) : null,
+      draft.expirationDate ? `Expires ${draft.expirationDate}` : "No expiry",
+      draft.lowThreshold ? `Low at ${draft.lowThreshold}` : null,
+    ].filter((part): part is string => Boolean(part));
+
+    return parts.join(" · ");
   }
 
   function validateNames(): string | null {
@@ -315,116 +374,105 @@ export function FridgeSetupDialog({
             {drafts.map((draft, index) => {
               const isExpanded = expandedDraftId === draft.id;
               const displayName = titleCase(draft.name) || `Item ${index + 1}`;
-              const summaryParts = [
-                draft.quantity ? `${draft.quantity}${draft.unit ? ` ${draft.unit}` : ""}` : null,
-                draft.location ? titleCase(draft.location) : null,
-                draft.expirationDate ? `Expires ${draft.expirationDate}` : null,
-              ].filter(Boolean);
+              const summary = draftSummary(draft);
 
               return (
                 <section
                   key={draft.id}
                   className={isExpanded ? "is-expanded" : undefined}
                 >
-                  <div className="fridge-setup-item-header">
-                    <label className="fridge-setup-item-name">
-                      <span>{index + 1}</span>
+                  <div className="inventory-item-row fridge-setup-item-shell">
+                    <label className="inventory-artwork fridge-setup-artwork-button">
+                      {draft.thumbnailUrl ? (
+                        <img
+                          className="item-artwork-image"
+                          src={draft.thumbnailUrl}
+                          alt=""
+                        />
+                      ) : (
+                        <SetupArtworkLabel itemName={displayName} />
+                      )}
+                      <small className="fridge-setup-artwork-hint">
+                        {draft.thumbnailUrl ? "Change Photo" : "Add Photo"}
+                      </small>
                       <input
-                        autoFocus={index === 0}
-                        maxLength={120}
-                        placeholder="e.g. Oat milk"
-                        value={draft.name}
-                        onFocus={() => setExpandedDraftId(draft.id)}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/*"
+                        aria-label={`${draft.thumbnailUrl ? "Change" : "Add"} photo for ${displayName}`}
                         onChange={(event) => {
-                          updateDraft(draft.id, { name: event.target.value });
-                          setError(null);
+                          const [file] = event.target.files ?? [];
+                          event.currentTarget.value = "";
+                          void handleDraftThumbnail(draft.id, file ?? null);
                         }}
                       />
                     </label>
-                    <div className="fridge-setup-item-controls">
-                      {summaryParts.length > 0 && !isExpanded ? (
-                        <small>{summaryParts.join(" · ")}</small>
-                      ) : (
-                        <small>{displayName}</small>
-                      )}
-                      <button
-                        type="button"
-                        className="fridge-setup-toggle"
-                        aria-expanded={isExpanded}
-                        aria-controls={`fridge-setup-item-${draft.id}`}
-                        onClick={() => toggleDraft(draft.id)}
-                      >
-                        <ChevronDown size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Remove item ${index + 1}`}
-                        disabled={drafts.length === 1}
-                        onClick={() => {
-                          setDrafts((current) =>
-                            current.filter((item) => item.id !== draft.id)
-                          );
-                          setError(null);
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                    <div className="inventory-item-copy fridge-setup-item-copy">
+                      <div className="fridge-setup-item-copy-header">
+                        <label className="fridge-setup-item-name">
+                          <span>{index + 1}</span>
+                          <input
+                            autoFocus={index === 0}
+                            maxLength={120}
+                            placeholder="e.g. Oat milk"
+                            value={draft.name}
+                            onFocus={() => setExpandedDraftId(draft.id)}
+                            onChange={(event) => {
+                              updateDraft(draft.id, { name: event.target.value });
+                              setError(null);
+                            }}
+                          />
+                        </label>
+                        <span className="inventory-item-row-actions fridge-setup-item-actions">
+                          <button
+                            type="button"
+                            className="fridge-setup-toggle"
+                            aria-expanded={isExpanded}
+                            aria-controls={`fridge-setup-item-${draft.id}`}
+                            onClick={() => toggleDraft(draft.id)}
+                          >
+                            <ChevronDown size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Remove item ${index + 1}`}
+                            disabled={drafts.length === 1}
+                            onClick={() => {
+                              setDrafts((current) =>
+                                current.filter((item) => item.id !== draft.id)
+                              );
+                              setError(null);
+                            }}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </span>
+                      </div>
+                      <p>{summary}</p>
+                      <div className="inventory-item-footer fridge-setup-item-footer">
+                        <small className="inventory-item-added-at">
+                          {draft.thumbnailUrl
+                            ? "Photo ready. Tap thumbnail to replace."
+                            : "Tap thumbnail to add a photo."}
+                        </small>
+                      </div>
                     </div>
                   </div>
                   {isExpanded && (
                     <div id={`fridge-setup-item-${draft.id}`}>
-                      <div className="fridge-setup-photo-row">
-                        <div className="fridge-setup-photo-preview" aria-hidden="true">
-                          {draft.thumbnailUrl ? (
-                            <img
-                              className="item-artwork-image"
-                              src={draft.thumbnailUrl}
-                              alt=""
-                            />
-                          ) : (
-                            <span>{displayName.slice(0, 2) || "JG"}</span>
-                          )}
+                      {draft.thumbnailUrl && (
+                        <div className="fridge-setup-photo-row">
+                          <button
+                            className="inventory-photo-button is-secondary"
+                            type="button"
+                            onClick={() => {
+                              updateDraft(draft.id, { thumbnailUrl: "" });
+                              setError(null);
+                            }}
+                          >
+                            Remove Photo
+                          </button>
                         </div>
-                        <div className="fridge-setup-photo-actions">
-                          <label className="inventory-photo-button">
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/webp,image/*"
-                              onChange={(event) => {
-                                const [file] = event.target.files ?? [];
-                                event.currentTarget.value = "";
-                                void handleDraftThumbnail(draft.id, file ?? null);
-                              }}
-                            />
-                            Choose Photo
-                          </label>
-                          <label className="inventory-photo-button">
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/webp,image/*"
-                              capture="environment"
-                              onChange={(event) => {
-                                const [file] = event.target.files ?? [];
-                                event.currentTarget.value = "";
-                                void handleDraftThumbnail(draft.id, file ?? null);
-                              }}
-                            />
-                            Take Photo
-                          </label>
-                          {draft.thumbnailUrl && (
-                            <button
-                              className="inventory-photo-button is-secondary"
-                              type="button"
-                              onClick={() => {
-                                updateDraft(draft.id, { thumbnailUrl: "" });
-                                setError(null);
-                              }}
-                            >
-                              Remove Photo
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                      )}
                       <div>
                         <label>
                           <span>Quantity</span>

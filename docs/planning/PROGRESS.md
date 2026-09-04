@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Fridge setup rows now match inventory list artwork UX
+
+### Completed
+
+- Restyled each `Set Up My Fridge` item row to follow the same visual
+  structure as the Inventory list, with the artwork tile on the left and item
+  details on the right.
+- Turned the setup artwork tile itself into the photo input trigger so users
+  can tap the default thumbnail to add a photo or tap an existing photo to
+  replace it.
+- Kept photo removal in the expanded details area while preserving the
+  existing setup-save and post-save thumbnail upload behavior.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the fridge-setup thumbnail helper tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Fridge setup input collapsed into one page
 
 ### Completed

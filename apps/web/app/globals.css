@@ -2368,13 +2368,62 @@ html.household-tab-fade-in main#search {
   gap: 12px;
 }
 
-.fridge-setup-item-header {
-  min-height: 56px;
-  padding: 0 10px 0 12px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
+.fridge-setup-item-shell {
+  min-height: 116px;
+  padding-bottom: 0;
+}
+
+.fridge-setup-item-shell .inventory-item-copy {
+  border-bottom-color: rgba(60, 60, 67, 0.2);
+}
+
+.fridge-setup-artwork-button {
+  position: relative;
+  cursor: pointer;
+  appearance: none;
+}
+
+.fridge-setup-artwork-button:hover {
+  background: #ebedf2;
+}
+
+.fridge-setup-artwork-button:focus-within {
+  outline: 2px solid #007aff;
+  outline-offset: 2px;
+}
+
+.fridge-setup-artwork-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fridge-setup-artwork-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: rgba(60, 60, 67, 0.88);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 12px;
+  letter-spacing: 0.02em;
+}
+
+.fridge-setup-item-copy {
+  gap: 6px;
+}
+
+.fridge-setup-item-copy-header {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .fridge-setup-item-name {
@@ -2399,39 +2448,26 @@ html.household-tab-fade-in main#search {
   background: transparent;
   font: inherit;
   font-size: 17px;
+  line-height: 22px;
+  letter-spacing: -0.408px;
 }
 
-.fridge-setup-item-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.fridge-setup-item-controls small {
-  max-width: 156px;
-  overflow: hidden;
-  color: rgba(60, 60, 67, 0.55);
-  font-size: 12px;
-  line-height: 15px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.fridge-setup-item-controls > button {
+.fridge-setup-item-actions > button {
   width: 36px;
   height: 36px;
   padding: 0;
   display: grid;
   place-items: center;
   border: 0;
+  border-radius: 8px;
   background: transparent;
 }
 
-.fridge-setup-item-controls > button:last-child {
+.fridge-setup-item-actions > button:last-child {
   color: #ff3b30;
 }
 
-.fridge-setup-item-controls > button:disabled {
+.fridge-setup-item-actions > button:disabled {
   visibility: hidden;
 }
 
@@ -2464,28 +2500,7 @@ html.household-tab-fade-in main#search {
 }
 
 .fridge-setup-photo-row {
-  padding: 4px 16px 14px;
-  display: grid;
-  gap: 12px;
-}
-
-.fridge-setup-photo-preview {
-  width: 102px;
-  height: 102px;
-  border: 0.5px solid rgba(120, 120, 128, 0.2);
-  border-radius: 4px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  color: rgba(60, 60, 67, 0.68);
-  background: #f2f2f7;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.fridge-setup-photo-actions {
+  padding: 4px 16px 12px 134px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2519,6 +2534,11 @@ html.household-tab-fade-in main#search {
   font: inherit;
   font-size: 17px;
   text-align: right;
+}
+
+.fridge-setup-item-footer {
+  min-height: 18px;
+  margin-top: 0;
 }
 
 .fridge-setup-review-list section {
