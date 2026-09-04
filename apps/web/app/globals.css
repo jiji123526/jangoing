@@ -2672,14 +2672,61 @@ html.household-tab-fade-in main#search {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 12px;
-  background: #f2f2f7;
-  box-shadow: inset 0 0 0 1px rgba(120, 120, 128, 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0))
+      padding-box,
+    #e9ecf2;
+  box-shadow:
+    inset 0 0 0 1px rgba(120, 120, 128, 0.18),
+    0 10px 24px rgba(15, 23, 42, 0.08);
+  touch-action: none;
+  user-select: none;
 }
 
 .fridge-setup-crop-preview-frame img {
   position: absolute;
   display: block;
   object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.fridge-setup-crop-preview-frame.is-draggable {
+  cursor: grab;
+}
+
+.fridge-setup-crop-preview-frame.is-draggable:active {
+  cursor: grabbing;
+}
+
+.fridge-setup-crop-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    ),
+    linear-gradient(
+      180deg,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.56) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 .fridge-setup-crop-controls {
@@ -2698,6 +2745,14 @@ html.household-tab-fade-in main#search {
   font-size: 13px;
   font-weight: 500;
   line-height: 16px;
+}
+
+.fridge-setup-crop-zoom-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  color: rgba(60, 60, 67, 0.62);
 }
 
 .fridge-setup-crop-controls input[type="range"] {

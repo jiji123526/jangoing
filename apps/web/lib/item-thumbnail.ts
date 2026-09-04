@@ -12,6 +12,8 @@ export type ItemThumbnailCrop = {
   size: number;
 };
 
+export const maximumSquareThumbnailZoom = 4;
+
 function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -65,6 +67,61 @@ export function defaultSquareThumbnailCrop(
     y: Math.max(0, Math.floor((height - size) / 2)),
     size,
   };
+}
+
+export function clampSquareThumbnailCrop(
+  width: number,
+  height: number,
+  crop: ItemThumbnailCrop,
+  maximumZoom = maximumSquareThumbnailZoom,
+): ItemThumbnailCrop {
+  const minDimension = Math.min(width, height);
+  const minimumSize = Math.max(1, Math.ceil(minDimension / maximumZoom));
+  const size = Math.max(
+    minimumSize,
+    Math.min(minDimension, Math.round(crop.size)),
+  );
+
+  return {
+    size,
+    x: Math.max(0, Math.min(width - size, Math.round(crop.x))),
+    y: Math.max(0, Math.min(height - size, Math.round(crop.y))),
+  };
+}
+
+export function squareThumbnailCropZoom(
+  width: number,
+  height: number,
+  crop: ItemThumbnailCrop,
+): number {
+  const clampedCrop = clampSquareThumbnailCrop(width, height, crop);
+  return Math.min(width, height) / clampedCrop.size;
+}
+
+export function updateSquareThumbnailCropZoom(
+  width: number,
+  height: number,
+  crop: ItemThumbnailCrop,
+  zoom: number,
+  maximumZoom = maximumSquareThumbnailZoom,
+): ItemThumbnailCrop {
+  const current = clampSquareThumbnailCrop(width, height, crop, maximumZoom);
+  const minDimension = Math.min(width, height);
+  const nextZoom = Math.max(1, Math.min(maximumZoom, zoom));
+  const nextSize = Math.max(1, Math.round(minDimension / nextZoom));
+  const centerX = current.x + current.size / 2;
+  const centerY = current.y + current.size / 2;
+
+  return clampSquareThumbnailCrop(
+    width,
+    height,
+    {
+      size: nextSize,
+      x: centerX - nextSize / 2,
+      y: centerY - nextSize / 2,
+    },
+    maximumZoom,
+  );
 }
 
 export async function prepareItemThumbnailDataUrl(

@@ -22,12 +22,14 @@ import {
   setupThumbnailUploads,
 } from "../lib/fridge-setup-thumbnail";
 import {
+  clampSquareThumbnailCrop,
   defaultSquareThumbnailCrop,
   prepareItemThumbnailDataUrl,
   readItemThumbnailFile,
   releaseItemThumbnailObjectUrl,
   type ItemThumbnailCrop,
 } from "../lib/item-thumbnail";
+import { PhotoCropDialog } from "./PhotoCropDialog";
 
 const draftStorageKey = "jangoing.fridge-setup-draft.v1";
 const units = [
@@ -329,18 +331,12 @@ export function FridgeSetupDialog({
     }
   }
 
-  function updatePendingThumbnailCrop(
-    axis: "x" | "y",
-    nextValue: number,
-  ) {
+  function updatePendingThumbnailCrop(nextCrop: ItemThumbnailCrop) {
     setPendingThumbnailCrop((current) => {
       if (!current) return null;
       return {
         ...current,
-        crop: {
-          ...current.crop,
-          [axis]: nextValue,
-        },
+        crop: clampSquareThumbnailCrop(current.width, current.height, nextCrop),
       };
     });
   }
@@ -722,107 +718,17 @@ export function FridgeSetupDialog({
         </footer>
       </form>
       {pendingThumbnailCrop && (
-        <div
-          className="fridge-setup-crop-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="fridge-setup-crop-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget && !applyingCrop) {
-              closePendingThumbnailCrop();
-            }
-          }}
-        >
-          <div className="fridge-setup-crop-panel">
-            <div className="fridge-setup-crop-header">
-              <div>
-                <small>PHOTO CROP</small>
-                <h3 id="fridge-setup-crop-title">Trim to square</h3>
-              </div>
-              <button
-                type="button"
-                aria-label="Close photo crop"
-                disabled={applyingCrop}
-                onClick={closePendingThumbnailCrop}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p>Adjust the square crop before using this photo.</p>
-            <div className="fridge-setup-crop-preview">
-              <div className="fridge-setup-crop-preview-frame">
-                <img
-                  src={pendingThumbnailCrop.objectUrl}
-                  alt=""
-                  style={{
-                    width: `${(pendingThumbnailCrop.width / pendingThumbnailCrop.crop.size) * 100}%`,
-                    height: `${(pendingThumbnailCrop.height / pendingThumbnailCrop.crop.size) * 100}%`,
-                    left: `${(-pendingThumbnailCrop.crop.x / pendingThumbnailCrop.crop.size) * 100}%`,
-                    top: `${(-pendingThumbnailCrop.crop.y / pendingThumbnailCrop.crop.size) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-            <div className="fridge-setup-crop-controls">
-              <label>
-                <span>Horizontal</span>
-                <input
-                  type="range"
-                  min="0"
-                  max={Math.max(
-                    0,
-                    pendingThumbnailCrop.width - pendingThumbnailCrop.crop.size,
-                  )}
-                  step="1"
-                  value={pendingThumbnailCrop.crop.x}
-                  disabled={
-                    applyingCrop ||
-                    pendingThumbnailCrop.width === pendingThumbnailCrop.crop.size
-                  }
-                  onChange={(event) =>
-                    updatePendingThumbnailCrop("x", Number(event.target.value))
-                  }
-                />
-              </label>
-              <label>
-                <span>Vertical</span>
-                <input
-                  type="range"
-                  min="0"
-                  max={Math.max(
-                    0,
-                    pendingThumbnailCrop.height - pendingThumbnailCrop.crop.size,
-                  )}
-                  step="1"
-                  value={pendingThumbnailCrop.crop.y}
-                  disabled={
-                    applyingCrop ||
-                    pendingThumbnailCrop.height === pendingThumbnailCrop.crop.size
-                  }
-                  onChange={(event) =>
-                    updatePendingThumbnailCrop("y", Number(event.target.value))
-                  }
-                />
-              </label>
-            </div>
-            <div className="fridge-setup-crop-actions">
-              <button
-                type="button"
-                disabled={applyingCrop}
-                onClick={closePendingThumbnailCrop}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={applyingCrop}
-                onClick={() => void applyPendingThumbnailCrop()}
-              >
-                {applyingCrop ? "Preparing…" : "Use Photo"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PhotoCropDialog
+          titleId="fridge-setup-crop-title"
+          objectUrl={pendingThumbnailCrop.objectUrl}
+          width={pendingThumbnailCrop.width}
+          height={pendingThumbnailCrop.height}
+          crop={pendingThumbnailCrop.crop}
+          busy={applyingCrop}
+          onClose={closePendingThumbnailCrop}
+          onConfirm={() => void applyPendingThumbnailCrop()}
+          onCropChange={updatePendingThumbnailCrop}
+        />
       )}
     </dialog>
   );

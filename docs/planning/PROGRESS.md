@@ -2,6 +2,26 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Photo crop modals now support drag and zoom
+
+### Completed
+
+- Replaced the old horizontal and vertical crop sliders with a direct-manipulation
+  crop modal that lets users drag the photo inside the square frame.
+- Added a shared zoom slider with a fixed crop grid so inventory and fridge
+  setup now use the same crop interaction model.
+- Moved the crop math into shared thumbnail helpers and added focused tests for
+  zoom and crop clamping behavior.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the focused Web thumbnail and fridge-setup tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Inventory thumbnail uploads now crop to square and fill the card
 
 ### Completed
