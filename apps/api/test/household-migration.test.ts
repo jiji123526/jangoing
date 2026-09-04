@@ -203,6 +203,7 @@ describe("household ownership migration", () => {
     const createdAt = "2026-09-02T00:00:00.000Z";
     database.exec(migration("0014_add_household_profile.sql"));
     database.exec(migration("0018_create_item_media.sql"));
+    database.exec(migration("0019_add_item_media_storage_fields.sql"));
     database.prepare(
       `INSERT INTO users (
         id, google_subject, email, display_name, created_at, updated_at
@@ -238,6 +239,18 @@ describe("household ownership migration", () => {
       household_id: "household-media",
       item_name: "milk",
     });
+    expect(
+      database.prepare(
+        "SELECT name FROM pragma_table_info('item_media') WHERE name = 'media_id'",
+      ).get(),
+    ).toEqual({ name: "media_id" });
+    expect(
+      database.prepare(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'index'
+           AND name = 'idx_item_media_media_id'`,
+      ).get(),
+    ).toEqual({ name: "idx_item_media_media_id" });
 
     expect(() => {
       database.prepare(

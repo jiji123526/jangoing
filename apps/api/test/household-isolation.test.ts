@@ -59,6 +59,68 @@ function sqliteD1(database: DatabaseSync): D1Database {
   } as unknown as D1Database;
 }
 
+interface StoredR2Object {
+  body: Uint8Array;
+  contentType: string;
+}
+
+function bytesFromR2Value(value: unknown): Promise<Uint8Array> {
+  if (typeof value === "string") {
+    return Promise.resolve(new TextEncoder().encode(value));
+  }
+  if (value instanceof ArrayBuffer) {
+    return Promise.resolve(new Uint8Array(value));
+  }
+  if (ArrayBuffer.isView(value)) {
+    return Promise.resolve(
+      new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)),
+    );
+  }
+  if (value instanceof Blob) {
+    return value.arrayBuffer().then((buffer) => new Uint8Array(buffer));
+  }
+  return new Response(value as BodyInit).arrayBuffer().then((buffer) =>
+    new Uint8Array(buffer)
+  );
+}
+
+function mockR2Bucket(): R2Bucket & { stored: Map<string, StoredR2Object> } {
+  const stored = new Map<string, StoredR2Object>();
+  return {
+    stored,
+    async put(key: string, value: unknown, options?: R2PutOptions) {
+      const contentType = options?.httpMetadata instanceof Headers
+        ? options.httpMetadata.get("content-type") ?? "application/octet-stream"
+        : options?.httpMetadata?.contentType ?? "application/octet-stream";
+      stored.set(key, {
+        body: await bytesFromR2Value(value),
+        contentType,
+      });
+      return {
+        key,
+        version: "test-version",
+        size: stored.get(key)?.body.byteLength ?? 0,
+        etag: "test-etag",
+        httpEtag: "\"test-etag\"",
+        uploaded: new Date(),
+      } as unknown as R2Object;
+    },
+    async get(key: string) {
+      const object = stored.get(key);
+      if (!object) return null;
+      return {
+        body: object.body,
+        writeHttpMetadata(headers: Headers) {
+          headers.set("Content-Type", object.contentType);
+        },
+      } as unknown as R2ObjectBody;
+    },
+    async delete(key: string) {
+      stored.delete(key);
+    },
+  } as unknown as R2Bucket & { stored: Map<string, StoredR2Object> };
+}
+
 const jwtSecret = "test-app-jwt-secret";
 const jwtIssuer = "jangoing-web";
 const jwtAudience = "jangoing-api";
@@ -109,6 +171,7 @@ describe("household consumer-data isolation", () => {
     APP_JWT_SECRET: string;
     APP_JWT_ISSUER: string;
     APP_JWT_AUDIENCE: string;
+    ITEM_MEDIA_BUCKET: R2Bucket & { stored: Map<string, StoredR2Object> };
   };
   let tokenA: string;
   let tokenB: string;
@@ -137,17 +200,20 @@ describe("household consumer-data isolation", () => {
       "0015_store_household_join_code_ciphertext.sql",
       "0016_create_inventory_attention_acknowledgements.sql",
       "0018_create_item_media.sql",
+      "0019_add_item_media_storage_fields.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
       );
     }
+    const bucket = mockR2Bucket();
     env = {
       DB: sqliteD1(database),
       AUTH_REQUIRED: "false",
       APP_JWT_SECRET: jwtSecret,
       APP_JWT_ISSUER: jwtIssuer,
       APP_JWT_AUDIENCE: jwtAudience,
+      ITEM_MEDIA_BUCKET: bucket,
     };
 
     const insertUser = database.prepare(
@@ -549,20 +615,50 @@ describe("household consumer-data isolation", () => {
       tokenA,
     );
     expect(uploaded.status).toBe(200);
-    expect(await uploaded.json()).toMatchObject({
+    const uploadedBody = await uploaded.json() as {
+      item_name: string;
+      thumbnail_url: string;
+    };
+    expect(uploadedBody).toMatchObject({
       item_name: "milk",
-      thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
     });
-    expect(
-      database.prepare(
-        `SELECT household_id, created_by_user_id
+    expect(uploadedBody.thumbnail_url).toMatch(
+      /^https:\/\/api\.example\.com\/item-media\/[^/]+\/thumbnail\?v=/,
+    );
+    const storedRow = database.prepare(
+      `SELECT household_id, created_by_user_id, media_id, object_key, sha256, content_type
          FROM item_media
          WHERE household_id = ? AND item_name = ?`,
-      ).get(householdA, "milk"),
-    ).toEqual({
+    ).get(householdA, "milk") as {
+      household_id: string;
+      created_by_user_id: string;
+      media_id: string;
+      object_key: string;
+      sha256: string;
+      content_type: string;
+    };
+    expect(storedRow).toMatchObject({
       household_id: householdA,
       created_by_user_id: userA,
+      content_type: "image/jpeg",
     });
+    expect(storedRow.media_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(storedRow.object_key).toContain(`/items/milk/${storedRow.media_id}/`);
+    expect(env.ITEM_MEDIA_BUCKET.stored.get(storedRow.object_key)?.body).toEqual(
+      Uint8Array.from([65, 66, 67, 68]),
+    );
+
+    const assetResponse = await worker.fetch(
+      new Request(uploadedBody.thumbnail_url),
+      env,
+    );
+    expect(assetResponse.status).toBe(200);
+    expect(assetResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(new Uint8Array(await assetResponse.arrayBuffer())).toEqual(
+      Uint8Array.from([65, 66, 67, 68]),
+    );
 
     const wrongHousehold = await request(
       "/items/egg/media",
@@ -593,5 +689,6 @@ describe("household consumer-data isolation", () => {
          WHERE household_id = ? AND item_name = ?`,
       ).get(householdA, "milk"),
     ).toBeUndefined();
+    expect(env.ITEM_MEDIA_BUCKET.stored.has(storedRow.object_key)).toBe(false);
   });
 });

@@ -12,3 +12,9 @@ binding = "DB"
 database_name = "jangoing-db"
 database_id = "017287d7-6fff-4793-80d0-1963d23de934"
 migrations_dir = "migrations"
+
+# Configure an R2 bucket before enabling production item-photo uploads.
+# [[r2_buckets]]
+# binding = "ITEM_MEDIA_BUCKET"
+# bucket_name = "jangoing-item-media"
+# preview_bucket_name = "jangoing-item-media-preview"

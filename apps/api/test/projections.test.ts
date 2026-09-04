@@ -543,6 +543,7 @@ describe("projectShoppingList", () => {
 
     expect(list).toEqual([{
       item_name: "milk",
+      thumbnail_url: null,
       added_at: "2026-08-30T10:00:00.000Z",
       status: "purchased",
       purchased_at: "2026-08-31T09:00:00.000Z",

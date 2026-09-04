@@ -8,7 +8,6 @@ import {
   CreateAnnotationRequestSchema,
   EventRecordSchema,
   FridgeSetupRequestSchema,
-  ItemThumbnailUploadRequestSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
   JoinHouseholdRequestSchema,
@@ -70,10 +69,17 @@ import {
   rotateHouseholdJoinCode,
   updateHouseholdProfile,
 } from "./households";
+import {
+  buildItemMediaObjectKey,
+  buildItemMediaReference,
+  buildItemMediaUrl,
+  parseThumbnailUpload,
+} from "./item-media";
 
 interface Env extends AuthEnvironment {
   ALLOWED_ORIGINS?: string;
   HOUSEHOLD_CODE_SECRET?: string;
+  ITEM_MEDIA_BUCKET?: R2Bucket;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_MONTHLY_BUDGET_USD?: string;
@@ -87,6 +93,11 @@ interface ConsumerScope {
 interface ItemMediaRow {
   item_name: string;
   thumbnail_url: string;
+  media_id: string | null;
+  object_key: string | null;
+  content_type: string | null;
+  byte_size: number | null;
+  sha256: string | null;
   updated_at: string;
 }
 
@@ -178,34 +189,20 @@ function uniqueItemNames(names: string[]): string[] {
   return [...new Set(names.map((name) => name.trim()).filter(Boolean))];
 }
 
-function estimateBase64Bytes(payload: string): number {
-  const normalized = payload.replace(/=+$/, "");
-  return Math.floor((normalized.length * 3) / 4);
+function itemMediaBucket(env: Env): R2Bucket | null {
+  return env.ITEM_MEDIA_BUCKET ?? null;
 }
 
-function parseThumbnailUrl(payload: unknown): { thumbnailUrl: string } | {
-  error: string;
-  details?: unknown;
-} {
-  const parsed = ItemThumbnailUploadRequestSchema.safeParse(payload);
-  if (!parsed.success) {
-    return {
-      error: "Invalid item media payload",
-      details: parsed.error.flatten(),
-    };
+async function deleteItemMediaObject(
+  env: Env,
+  objectKey: string | null,
+): Promise<void> {
+  if (!objectKey) return;
+  try {
+    await itemMediaBucket(env)?.delete(objectKey);
+  } catch (error) {
+    console.error("Failed to delete item media object", objectKey, error);
   }
-
-  const match = parsed.data.thumbnail_url.match(
-    /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=_-]+)$/,
-  );
-  if (!match) {
-    return { error: "Unsupported image format" };
-  }
-  if (estimateBase64Bytes(match[2]) > 256 * 1024) {
-    return { error: "Thumbnail is too large" };
-  }
-
-  return { thumbnailUrl: parsed.data.thumbnail_url };
 }
 
 async function readEvents(
@@ -242,6 +239,7 @@ async function readItemMediaMap(
   env: Env,
   scope: ConsumerScope | null,
   itemNames: string[],
+  requestUrl: string,
 ): Promise<Map<string, string>> {
   if (!scope) return new Map();
 
@@ -250,14 +248,20 @@ async function readItemMediaMap(
 
   const placeholders = uniqueNames.map(() => "?").join(", ");
   const result = await env.DB.prepare(
-    `SELECT item_name, thumbnail_url
+    `SELECT item_name, thumbnail_url, media_id, object_key,
+            content_type, byte_size, sha256, updated_at
      FROM item_media
      WHERE household_id = ?
        AND item_name IN (${placeholders})`,
   ).bind(scope.householdId, ...uniqueNames).all<ItemMediaRow>();
 
   return new Map(
-    result.results.map((row) => [row.item_name, row.thumbnail_url]),
+    result.results.map((row) => [
+      row.item_name,
+      row.media_id && row.object_key
+        ? buildItemMediaUrl(requestUrl, row.media_id, row.updated_at)
+        : row.thumbnail_url,
+    ]),
   );
 }
 
@@ -351,6 +355,7 @@ async function attachKitchenProjectionMedia(
   env: Env,
   scope: ConsumerScope | null,
   projection: KitchenProjection,
+  requestUrl: string,
 ): Promise<KitchenProjection> {
   const mediaByItemName = await readItemMediaMap(
     env,
@@ -358,6 +363,7 @@ async function attachKitchenProjectionMedia(
     projection.inventory
       .map((item) => item.item_name)
       .concat(projection.shoppingList.map((item) => item.item_name)),
+    requestUrl,
   );
 
   return {
@@ -944,33 +950,109 @@ async function upsertItemThumbnail(
     return json(request, env, { error: "Inventory item not found" }, 404);
   }
 
-  const parsed = parseThumbnailUrl(await request.json().catch(() => null));
+  const bucket = itemMediaBucket(env);
+  if (!bucket) {
+    return json(request, env, { error: "Item media storage is not configured" }, 503);
+  }
+
+  const parsed = await parseThumbnailUpload(await request.json().catch(() => null));
   if ("error" in parsed) {
     return json(request, env, parsed, 400);
   }
 
+  const existing = await env.DB.prepare(
+    `SELECT media_id, object_key, sha256
+     FROM item_media
+     WHERE household_id = ? AND item_name = ?`,
+  ).bind(scope.householdId, itemName).first<{
+    media_id: string | null;
+    object_key: string | null;
+    sha256: string | null;
+  }>();
+
+  if (
+    existing?.sha256 &&
+    existing.sha256 === parsed.sha256 &&
+    existing.media_id &&
+    existing.object_key
+  ) {
+    const updatedAt = new Date().toISOString();
+    await env.DB.prepare(
+      `UPDATE item_media
+       SET updated_at = ?, created_by_user_id = ?, content_type = ?, byte_size = ?
+       WHERE household_id = ? AND item_name = ?`,
+    ).bind(
+      updatedAt,
+      scope.userId,
+      parsed.contentType,
+      parsed.byteSize,
+      scope.householdId,
+      itemName,
+    ).run();
+
+    return json(request, env, {
+      item_name: itemName,
+      thumbnail_url: buildItemMediaUrl(request.url, existing.media_id, updatedAt),
+      updated_at: updatedAt,
+    });
+  }
+
   const now = new Date().toISOString();
-  await env.DB.prepare(
-    `INSERT INTO item_media (
-      household_id, item_name, thumbnail_url,
-      created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(household_id, item_name) DO UPDATE SET
-      thumbnail_url = excluded.thumbnail_url,
-      created_by_user_id = excluded.created_by_user_id,
-      updated_at = excluded.updated_at`,
-  ).bind(
-    scope.householdId,
+  const mediaId = crypto.randomUUID();
+  const objectKey = buildItemMediaObjectKey({
+    householdId: scope.householdId,
     itemName,
-    parsed.thumbnailUrl,
-    scope.userId,
-    now,
-    now,
-  ).run();
+    mediaId,
+    contentType: parsed.contentType,
+  });
+
+  await bucket.put(objectKey, parsed.bytes, {
+    httpMetadata: {
+      contentType: parsed.contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+  });
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO item_media (
+        household_id, item_name, thumbnail_url, media_id, object_key,
+        content_type, byte_size, sha256, created_by_user_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(household_id, item_name) DO UPDATE SET
+        thumbnail_url = excluded.thumbnail_url,
+        media_id = excluded.media_id,
+        object_key = excluded.object_key,
+        content_type = excluded.content_type,
+        byte_size = excluded.byte_size,
+        sha256 = excluded.sha256,
+        created_by_user_id = excluded.created_by_user_id,
+        updated_at = excluded.updated_at`,
+    ).bind(
+      scope.householdId,
+      itemName,
+      buildItemMediaReference(objectKey),
+      mediaId,
+      objectKey,
+      parsed.contentType,
+      parsed.byteSize,
+      parsed.sha256,
+      scope.userId,
+      now,
+      now,
+    ).run();
+  } catch (error) {
+    await deleteItemMediaObject(env, objectKey);
+    throw error;
+  }
+
+  if (existing?.object_key && existing.object_key !== objectKey) {
+    await deleteItemMediaObject(env, existing.object_key);
+  }
 
   return json(request, env, {
     item_name: itemName,
-    thumbnail_url: parsed.thumbnailUrl,
+    thumbnail_url: buildItemMediaUrl(request.url, mediaId, now),
     updated_at: now,
   });
 }
@@ -985,16 +1067,60 @@ async function deleteItemThumbnail(
     return json(request, env, { error: "Inventory item not found" }, 404);
   }
 
+  const existing = await env.DB.prepare(
+    `SELECT object_key
+     FROM item_media
+     WHERE household_id = ? AND item_name = ?`,
+  ).bind(scope.householdId, itemName).first<{ object_key: string | null }>();
+
   await env.DB.prepare(
     `DELETE FROM item_media
      WHERE household_id = ? AND item_name = ?`,
   ).bind(scope.householdId, itemName).run();
+
+  await deleteItemMediaObject(env, existing?.object_key ?? null);
 
   return json(request, env, {
     item_name: itemName,
     thumbnail_url: null,
     updated_at: new Date().toISOString(),
   });
+}
+
+async function serveItemThumbnail(
+  request: Request,
+  env: Env,
+  mediaId: string,
+): Promise<Response> {
+  const row = await env.DB.prepare(
+    `SELECT object_key, content_type
+     FROM item_media
+     WHERE media_id = ?`,
+  ).bind(mediaId).first<{
+    object_key: string | null;
+    content_type: string | null;
+  }>();
+  if (!row?.object_key) {
+    return json(request, env, { error: "Item media not found" }, 404);
+  }
+
+  const bucket = itemMediaBucket(env);
+  if (!bucket) {
+    return json(request, env, { error: "Item media storage is not configured" }, 503);
+  }
+
+  const object = await bucket.get(row.object_key);
+  if (!object) {
+    return json(request, env, { error: "Item media not found" }, 404);
+  }
+
+  const headers = corsHeaders(request, env);
+  object.writeHttpMetadata(headers);
+  if (!headers.has("Content-Type") && row.content_type) {
+    headers.set("Content-Type", row.content_type);
+  }
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  return new Response(object.body, { status: 200, headers });
 }
 
 async function readInventoryAttentionAcknowledgements(
@@ -1174,7 +1300,7 @@ async function handleFridgeSetup(
   const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
     inventory: projectInventory([...existingEvents, ...setupEvents]),
     shoppingList: [],
-  });
+  }, request.url);
   return json(
     request,
     env,
@@ -1299,7 +1425,7 @@ async function handleShoppingMutation(
     const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
       inventory: projectInventory(nextEvents),
       shoppingList: projectShoppingList(nextEvents),
-    });
+    }, request.url);
     return json(
       request,
       env,
@@ -1468,10 +1594,26 @@ async function route(request: Request, env: Env): Promise<Response> {
   const inventoryAttentionAcknowledgement = url.pathname.match(
     /^\/inventory\/([^/]+)\/attention\/acknowledge$/,
   );
+  const itemMediaRead = url.pathname.match(
+    /^\/item-media\/([^/]+)\/thumbnail$/,
+  );
   const itemMediaMutation = url.pathname.match(/^\/items\/([^/]+)\/media$/);
   const shoppingMutation = url.pathname.match(
     /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
+
+  if (request.method === "GET" && itemMediaRead) {
+    let mediaId: string;
+    try {
+      mediaId = decodeURIComponent(itemMediaRead[1]).trim();
+    } catch {
+      return json(request, env, { error: "Invalid media id" }, 400);
+    }
+    if (!mediaId) {
+      return json(request, env, { error: "Invalid media id" }, 400);
+    }
+    return serveItemThumbnail(request, env, mediaId);
+  }
 
   if (
     itemMediaMutation &&
@@ -1661,6 +1803,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       env,
       consumerScope,
       loadedProjection.projection,
+      request.url,
     );
     const recentEvents = loadedProjection.sourceEvents
       ? loadedProjection.sourceEvents.slice(-50).reverse()
@@ -1688,6 +1831,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       env,
       consumerScope,
       (await loadKitchenProjection(env, consumerScope)).projection,
+      request.url,
     );
     return json(request, env, {
       inventory: projectionWithMedia.inventory,
@@ -1711,6 +1855,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       env,
       consumerScope,
       (await loadKitchenProjection(env, consumerScope)).projection,
+      request.url,
     );
     return json(request, env, {
       items: projectionWithMedia.shoppingList,

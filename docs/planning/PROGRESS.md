@@ -2,6 +2,37 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Item thumbnails moved to R2-backed object storage
+
+### Completed
+
+- Moved the authenticated item-thumbnail write path off D1 data URLs and onto
+  object-storage-backed media records.
+- Added migration `0019_add_item_media_storage_fields.sql` so `item_media`
+  rows can track `media_id`, `object_key`, content type, byte size, and hash
+  metadata while keeping legacy data-URL rows readable.
+- Added a public `GET /item-media/{media_id}/thumbnail` asset route and now
+  return stable thumbnail URLs from dashboard, inventory, shopping, and upload
+  responses instead of embedding image bytes in JSON.
+- Wrote R2 upload, replace, and delete handling in the Worker, including
+  best-effort object cleanup when an item thumbnail is replaced or removed.
+- Added a local dev object-storage shim so the existing camera/photo UX keeps
+  working outside Cloudflare while using the same URL-based media flow.
+
+### Validation
+
+- Added Worker test coverage for R2-backed thumbnail upload, fetch, and delete.
+- Extended migration coverage for the new item-media storage columns and index.
+- Re-ran the full API test suite plus the relevant Web API and fridge-setup
+  thumbnail tests.
+
+### Deployment
+
+1. Apply D1 migration `0019_add_item_media_storage_fields.sql`.
+2. Bind an R2 bucket as `ITEM_MEDIA_BUCKET` for the Worker environment.
+3. Deploy the Worker.
+4. Deploy the Web app.
+
 ## 2026-09-04 - New-item thumbnail drafts added to fridge setup
 
 ### Completed
