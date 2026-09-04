@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - No-op inventory saves no longer create analytics updates
+
+### Completed
+
+- Added a Web-side no-op guard for inventory item edits so saving an item with
+  unchanged quantity, location, expiry, threshold, unit, and category values
+  no longer calls the update API.
+- Prevented unchanged inventory edits from creating redundant event records,
+  which keeps the analytics/event history from logging fake updates.
+- Added a focused helper and test coverage for the normalized inventory-change
+  comparison logic.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Added and ran `inventory-update.test.ts`.
+- Re-ran the existing household API and fridge-setup thumbnail tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Inventory thumbnails can upload without opening item edit
 
 ### Completed

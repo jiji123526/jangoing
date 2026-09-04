@@ -48,6 +48,7 @@ import {
   updateInferenceOutcome,
 } from "../lib/api";
 import { prepareItemThumbnailDataUrl } from "../lib/item-thumbnail";
+import { hasInventoryItemChanges } from "../lib/inventory-update";
 import {
   inventoryHref,
   parseInventoryNavigation,
@@ -1534,6 +1535,13 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     itemName: string,
     update: Parameters<typeof updateInventoryItem>[1],
   ) {
+    const currentItem = dashboard.inventory.find((item) => item.item_name === itemName);
+    if (currentItem && !hasInventoryItemChanges(currentItem, update)) {
+      setError(null);
+      setSelectedInventoryItemName(null);
+      return;
+    }
+
     setInventorySaving(itemName);
     setError(null);
     try {
