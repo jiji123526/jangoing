@@ -2,6 +2,25 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Worker config prepared for item-media R2 binding
+
+### Completed
+
+- Enabled the `ITEM_MEDIA_BUCKET` binding block in
+  `apps/api/wrangler.toml` so the Worker config now matches the R2-backed
+  thumbnail storage code path.
+
+### Validation
+
+- Attempted remote R2 bucket creation with Wrangler and confirmed the current
+  environment is blocked by a missing `CLOUDFLARE_API_TOKEN`.
+
+### Deployment
+
+1. Export `CLOUDFLARE_API_TOKEN` in the shell running Wrangler.
+2. Create the configured R2 buckets.
+3. Apply remote D1 migrations and deploy the Worker.
+
 ## 2026-09-04 - Fridge setup rows now match inventory list artwork UX
 
 ### Completed
