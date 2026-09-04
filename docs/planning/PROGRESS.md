@@ -2,6 +2,26 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Home cards can now blend multiple protected item thumbnails
+
+### Completed
+
+- Added blended thumbnail collage artwork to the Home `Kitchen Briefing` cards
+  so summary cards that represent multiple items can now show a protected media
+  mix instead of gradient-only backgrounds.
+- Kept the collage on the existing protected thumbnail path, so household media
+  access rules still apply without exposing raw API asset URLs in the browser.
+- Fixed the Home `Recently Updated` cards to pass through each item's current
+  thumbnail again instead of always falling back to text-only artwork.
+
+### Validation
+
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Item-media reads now require household access
 
 ### Completed

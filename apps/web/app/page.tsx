@@ -598,6 +598,41 @@ function HomeArtwork({
   );
 }
 
+function collectPreviewThumbnailUrls(
+  items: Array<{ thumbnail_url?: string | null }>,
+  limit = 4,
+): string[] {
+  const unique = new Set<string>();
+  for (const item of items) {
+    const resolved = protectedItemMediaUrl(item.thumbnail_url);
+    if (!resolved) continue;
+    unique.add(resolved);
+    if (unique.size >= limit) break;
+  }
+  return [...unique];
+}
+
+function HomeFeatureArtworkBlend({
+  thumbnailUrls,
+}: {
+  thumbnailUrls: string[];
+}) {
+  if (thumbnailUrls.length === 0) return null;
+
+  return (
+    <div
+      className={`home-feature-artwork-blend count-${Math.min(4, thumbnailUrls.length)}`}
+      aria-hidden="true"
+    >
+      {thumbnailUrls.slice(0, 4).map((thumbnailUrl, index) => (
+        <span key={`${thumbnailUrl}-${index}`}>
+          <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function recentUpdateLabel(
   event: EventRecord,
   inventoryItem: InventoryItem | undefined,
@@ -1401,6 +1436,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         detail: expiring.length
           ? expiring.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
           : "Your dated items look current.",
+        thumbnailUrls: collectPreviewThumbnailUrls(expiring),
         href: inventoryHref({ scope: "expiring" }),
         tone: "expiry",
       },
@@ -1412,6 +1448,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         detail: restock.length
           ? restock.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
           : "No low or out-of-stock items.",
+        thumbnailUrls: collectPreviewThumbnailUrls(restock),
         href: inventoryHref({ scope: "restock" }),
         tone: "restock",
       },
@@ -1423,6 +1460,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         detail: toBuy.length
           ? toBuy.slice(0, 2).map((item) => titleCase(item.item_name)).join(", ")
           : "Add an item when you need it.",
+        thumbnailUrls: collectPreviewThumbnailUrls(toBuy),
         href: "/shopping",
         tone: "shopping",
       },
@@ -2264,10 +2302,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               <div className="home-feature-scroll">
                 {homeBriefing.map((briefing) => (
                   <RouteTransitionLink
-                    className={`home-feature-card tone-${briefing.tone}`}
+                    className={`home-feature-card tone-${briefing.tone}${
+                      briefing.thumbnailUrls.length > 0 ? " has-artwork" : ""
+                    }`}
                     href={briefing.href}
                     key={briefing.eyebrow}
                   >
+                    <HomeFeatureArtworkBlend
+                      thumbnailUrls={briefing.thumbnailUrls}
+                    />
                     <span>{briefing.eyebrow}</span>
                     <strong>{briefing.title}</strong>
                     <p>{briefing.detail}</p>
@@ -2488,18 +2531,19 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               </p>
             ) : (
               <div className="home-update-scroll">
-                {recentlyUpdated.map((event) => (
-                  <article className="home-update-card" key={event.id}>
-                    <HomeArtwork itemName={event.item_name} />
-                    <strong>{titleCase(event.item_name)}</strong>
-                    <p>
-                      {recentUpdateLabel(
-                        event,
-                        inventoryByItemName.get(event.item_name),
-                      )}
-                    </p>
-                  </article>
-                ))}
+                {recentlyUpdated.map((event) => {
+                  const inventoryItem = inventoryByItemName.get(event.item_name);
+                  return (
+                    <article className="home-update-card" key={event.id}>
+                      <HomeArtwork
+                        itemName={event.item_name}
+                        thumbnailUrl={inventoryItem?.thumbnail_url}
+                      />
+                      <strong>{titleCase(event.item_name)}</strong>
+                      <p>{recentUpdateLabel(event, inventoryItem)}</p>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
