@@ -5,6 +5,8 @@ language systems can recover requests and relevant context from everyday
 conversation, then turns that understanding into safe inventory actions and
 personalized recommendations.
 
+Last updated: 2026-09-04
+
 ## North Star
 
 The product is the data-collection and evaluation environment for the model.
@@ -25,25 +27,74 @@ commands written in a fixed format. For example:
 
 ## Current Milestone
 
-The text MVP and the production annotation workspace are running. Current work
-is the first human-reviewed English dataset and its evaluation split:
+The authenticated household product foundation, text MVP, and production
+annotation workspace are implemented. Current research work is still
+text-first: complete the first human-reviewed English dataset and freeze its
+evaluation split before adding voice.
 
-1. Bootstrap the single-intent baseline with the reproducible 800-record
-   `synthetic-v1` dataset.
-2. Use `/annotate` to collect natural English training and evaluation candidates.
-3. Label one-to-eight action groups per utterance, with action-specific intent,
-   phrase family, entity spans, and normalized values.
-4. Use assistant drafts in `/annotate` only as a speed aid, not as automatic truth.
-5. Freeze an independent human evaluation set before comparing larger models.
+1. Take a reviewed production distribution snapshot and close workflow gaps.
+2. Complete the 400-record workflow pilot: 300 reviewed training candidates
+   and 100 independent evaluation candidates.
+3. Generate only gap-targeted `synthetic-v2` candidates after that audit.
+4. Reach the first human-data baseline: 1,000 reviewed training records and
+   200 independently collected evaluation records.
+5. Compare relevance, intent, slot, and joint-action models on frozen,
+   source-aware splits before selecting a larger model.
 
-The kitchen dashboard remains the confirmed product-action flow and a separate
-correction source. Trained contextual models, recommendation ranking, Raspberry
-Pi audio, and speech-to-text remain later milestones.
+The committed 800-record `synthetic-v1` and 600-record
+`relevance-candidates-v1` corpora are annotation candidates and bootstrap data,
+not ground truth. Assistant drafts remain labeling aids only. The kitchen
+dashboard is the confirmed product-action flow and a source of reviewed
+corrections.
+
+## Current Product Status
+
+Implemented:
+
+- Mandatory Google authentication with encrypted Auth.js sessions and
+  short-lived Worker app JWTs.
+- Join-first onboarding: enter an existing household code or create a new
+  household instead of silently creating one at login.
+- Household-isolated inventory, shopping lists, app state, inference
+  provenance, and member access.
+- Owner-managed join codes, household name, emoji, icon color, and member list.
+- Shared inventory and shopping editing for household owners and members.
+- Guided fridge setup, explicit confirmation, correction logging, per-item
+  categories and thresholds, expiry tracking, and out-of-stock retention.
+- Home priorities including needs-attention acknowledgement, waste prevention,
+  consume-first leftovers, inventory status, and contextual navigation.
+- Inventory and shopping search, with category-aware inventory matching and
+  direct item navigation.
+- A consolidated `/dashboard` API, household projection caching, change-aware
+  user identity writes, and indexed active join-code lookup.
+- English/Korean documentation trees with the English progress log retained as
+  the single chronological source.
+
+The current language runtime is still deterministic and English-first. Typed
+input is intentionally being validated before personalized ASR, Korean-English
+code-switching, and Raspberry Pi audio are introduced.
+
+## Next Priorities
+
+1. Verify the latest D1 migration and dashboard optimizations in production,
+   including request, row-read, and write metrics.
+2. Add reviewed distribution reporting and source-aware dataset export.
+3. Complete the 300/100 workflow pilot and audit span, normalization, temporal,
+   relevance, and phrase-family consistency.
+4. Build gap-targeted `synthetic-v2`, then train the 1,000/200 human-data
+   baseline.
+5. Replace the rule-only language layer with the evaluated hybrid pipeline:
+   relevance, intent, spans, deterministic normalization, validation, and
+   confirmation.
+6. Run a single-user Korean-English code-switching and personalized ASR pilot
+   only after the text benchmark is frozen.
+7. Add Raspberry Pi audio and optional item-media work after their evaluation,
+   privacy, upload-security, and resource-budget gates are satisfied.
 
 ## Stack
 
-- `apps/web`: Next.js mobile web app, deployed on Vercel
-- `apps/api`: Cloudflare Worker API with D1 storage
+- `apps/web`: Next.js mobile web app, Auth.js Google login, deployed on Vercel
+- `apps/api`: authenticated Cloudflare Worker API with household-scoped D1 storage
 - `packages/contracts`: shared Zod schemas and TypeScript types
 - `ml`: English dataset generation, validation, grouped splitting, and baseline training
 - `pi`: future Raspberry Pi voice client
@@ -76,11 +127,11 @@ Every valid interpretation now receives an inference ID and logs its prediction,
 versions, latency, and eventual confirmed, corrected, or cancelled outcome.
 
 The production `/annotate` page stores `annotation-v3` relevance labels and
-action groups for actionable utterances. Its header
-tracks progress toward 100–200 human training candidates and 100+ independent
-evaluation candidates. These are collection targets, not model-quality claims.
-It can also request an assistant draft for the current utterance and record
-whether the final saved annotation matched that draft or was edited.
+action groups for actionable utterances. Collection proceeds through the
+300/100 workflow pilot and then the 1,000/200 first human-data baseline. These
+are reviewed-data targets, not model-quality claims. The workspace can request
+an assistant draft and record whether the final saved annotation matched that
+draft or was edited.
 Generated relevance candidates can be routed into dedicated preference/context,
 domain-non-actionable, and unrelated-negative queues. Their candidate label is
 only a UI preselection; the reviewed annotation remains the ground truth.
@@ -183,9 +234,19 @@ The current language layer is a deterministic regular-expression parser, not a t
 - `ITEM_CONDITION` is available in reviewed annotation, but the runtime parser
   and bootstrap synthetic generator do not yet emit that entity label
   consistently on their own.
-- Shopping-list removal, authentication, and multiple households are not implemented.
-- Multi-turn context, user goals, recommendation ranking, and deal-provider
-  integrations are roadmap items, not current capabilities.
+- Each user currently has one active household. Household switching and
+  transferring ownership are not implemented.
+- Join codes are revocable, hashed, and expiring, but public-scale join-attempt
+  rate limiting remains a required security follow-up.
+- Household category overrides personalize the current inventory immediately,
+  but they are not automatically promoted into a global taxonomy.
+- Multi-turn context resolution, learned user-goal modeling, recommendation
+  ranking, and deal-provider integrations are roadmap items.
+- Korean-English code-switching, personalized ASR, voice turn-taking, and
+  Raspberry Pi deployment are planned experiments, not current product
+  capabilities.
+- Item-photo upload, vision recognition, barcode input, and catalog retrieval
+  remain behind explicit privacy, storage, confirmation, and evaluation gates.
 - The current TF-IDF baseline is single-intent. Multi-action annotation is stored
   now, but those records are explicitly excluded from this baseline and counted
   in its metrics metadata.
@@ -201,7 +262,12 @@ The current language layer is a deterministic regular-expression parser, not a t
 - The parser may still incorrectly include unsupported date or unit phrases in
   `item_name`. Always review the interpretation before confirming.
 
-The next language milestone is a hybrid pipeline: intent classification, slot-span extraction, deterministic date/unit normalization, schema validation, and explicit confirmation. See [PLAN.md](./docs/ENG/planning/PLAN.md) for the model and dataset roadmap.
+The next language milestone is a hybrid pipeline: relevance classification,
+intent classification, slot-span extraction, deterministic normalization,
+schema validation, and explicit confirmation. See
+[PLAN.md](./docs/ENG/planning/PLAN.md) and
+[TEXT_DATASET_DESIGN_V1.md](./docs/ENG/ml/TEXT_DATASET_DESIGN_V1.md) for the
+model and dataset roadmap.
 
 Deterministic annotation queue seeds use the versioned
 `annotation-queue-seed-v2` source. Expiry cases carry explicit temporal context,
