@@ -570,6 +570,7 @@ export const InventoryStatusSchema = z.enum([
 export const InventoryItemSchema = z.object({
   item_name: z.string(),
   category: InventoryCategorySchema.nullable(),
+  thumbnail_url: z.string().nullable().default(null),
   added_at: z.string().nullable().default(null),
   quantity: z.number().min(0),
   unit: z.string().nullable(),
@@ -583,6 +584,7 @@ export const InventoryItemSchema = z.object({
 
 export const ShoppingListItemSchema = z.object({
   item_name: z.string(),
+  thumbnail_url: z.string().nullable().default(null),
   added_at: z.string(),
   status: z.enum(["active", "purchased"]).default("active"),
   purchased_at: z.string().nullable().default(null),
@@ -633,6 +635,18 @@ export const FridgeSetupRequestSchema = z
 export const FridgeSetupStatusSchema = z.object({
   completed: z.boolean(),
   completed_at: z.string().nullable(),
+});
+
+export const ItemThumbnailUploadRequestSchema = z
+  .object({
+    thumbnail_url: z.string().trim().min(1).max(400_000),
+  })
+  .strict();
+
+export const ItemThumbnailResponseSchema = z.object({
+  item_name: z.string(),
+  thumbnail_url: z.string().nullable(),
+  updated_at: z.string().datetime(),
 });
 
 export const KitchenDashboardResponseSchema = z.object({
@@ -793,6 +807,7 @@ export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;
 export type EventRecord = z.infer<typeof EventRecordSchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
+export type ItemThumbnailResponse = z.infer<typeof ItemThumbnailResponseSchema>;
 export type FridgeSetupItem = z.infer<typeof FridgeSetupItemSchema>;
 export type FridgeSetupRequest = z.infer<typeof FridgeSetupRequestSchema>;
 export type FridgeSetupStatus = z.infer<typeof FridgeSetupStatusSchema>;

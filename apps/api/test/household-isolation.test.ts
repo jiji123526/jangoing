@@ -136,6 +136,7 @@ describe("household consumer-data isolation", () => {
       "0014_add_household_profile.sql",
       "0015_store_household_join_code_ciphertext.sql",
       "0016_create_inventory_attention_acknowledgements.sql",
+      "0018_create_item_media.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -210,6 +211,20 @@ describe("household consumer-data isolation", () => {
   }
 
   it("returns only the authenticated household and isolates anonymous legacy data", async () => {
+    database.prepare(
+      `INSERT INTO item_media (
+        household_id, item_name, thumbnail_url,
+        created_by_user_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      householdA,
+      "milk",
+      "data:image/jpeg;base64,QUJDRA==",
+      userA,
+      createdAt,
+      createdAt,
+    );
+
     const responseA = await request("/inventory", {}, tokenA);
     const responseB = await request("/inventory", {}, tokenB);
     const legacyResponse = await request("/inventory");
@@ -217,16 +232,22 @@ describe("household consumer-data isolation", () => {
     const dashboardB = await request("/dashboard", {}, tokenB);
 
     expect(await responseA.json()).toMatchObject({
-      inventory: [{ item_name: "milk" }],
+      inventory: [{
+        item_name: "milk",
+        thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
+      }],
     });
     expect(await responseB.json()).toMatchObject({
-      inventory: [{ item_name: "egg" }],
+      inventory: [{ item_name: "egg", thumbnail_url: null }],
     });
     expect(await legacyResponse.json()).toMatchObject({
       inventory: [{ item_name: "bread" }],
     });
     expect(await dashboardA.json()).toMatchObject({
-      inventory: [{ item_name: "milk" }],
+      inventory: [{
+        item_name: "milk",
+        thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
+      }],
       events: [{ item_name: "milk" }],
       shopping_list: [],
       fridge_setup: { completed: false, completed_at: null },
@@ -514,5 +535,63 @@ describe("household consumer-data isolation", () => {
       completed_at: null,
     });
     expect(await legacyStatus.json()).toMatchObject({ completed: true });
+  });
+
+  it("stores and removes thumbnails only for the authenticated household item", async () => {
+    const uploaded = await request(
+      "/items/milk/media",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
+        }),
+      },
+      tokenA,
+    );
+    expect(uploaded.status).toBe(200);
+    expect(await uploaded.json()).toMatchObject({
+      item_name: "milk",
+      thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
+    });
+    expect(
+      database.prepare(
+        `SELECT household_id, created_by_user_id
+         FROM item_media
+         WHERE household_id = ? AND item_name = ?`,
+      ).get(householdA, "milk"),
+    ).toEqual({
+      household_id: householdA,
+      created_by_user_id: userA,
+    });
+
+    const wrongHousehold = await request(
+      "/items/egg/media",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          thumbnail_url: "data:image/jpeg;base64,QUJDRA==",
+        }),
+      },
+      tokenA,
+    );
+    expect(wrongHousehold.status).toBe(404);
+
+    const removed = await request(
+      "/items/milk/media",
+      { method: "DELETE" },
+      tokenA,
+    );
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toMatchObject({
+      item_name: "milk",
+      thumbnail_url: null,
+    });
+    expect(
+      database.prepare(
+        `SELECT item_name
+         FROM item_media
+         WHERE household_id = ? AND item_name = ?`,
+      ).get(householdA, "milk"),
+    ).toBeUndefined();
   });
 });

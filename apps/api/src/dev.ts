@@ -7,12 +7,17 @@ import {
   CreateAnnotationRequestSchema,
   EventRecordSchema,
   FridgeSetupRequestSchema,
+  ItemThumbnailUploadRequestSchema,
+  InventoryItemSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
+  ShoppingListItemSchema,
   ShoppingItemContextRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   type EventRecord,
+  type InventoryItem,
   type Interpretation,
+  type ShoppingListItem,
 } from "@jangoing/contracts";
 import { mkdirSync, readFileSync } from "node:fs";
 import {
@@ -115,10 +120,20 @@ const householdJoinCodeCiphertextMigrationPath = resolve(
   apiDirectory,
   "migrations/0015_store_household_join_code_ciphertext.sql",
 );
+const inventoryAttentionAcknowledgementsMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0016_create_inventory_attention_acknowledgements.sql",
+);
 const householdJoinCodeLookupMigrationPath = resolve(
   apiDirectory,
   "migrations/0017_optimize_household_join_code_lookup.sql",
 );
+const itemMediaMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0018_create_item_media.sql",
+);
+const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
+const localMediaUserId = "00000000-0000-4000-8000-000000000002";
 const port = Number(process.env.PORT ?? 8787);
 
 function defaultAllowedOrigins(): string[] {
@@ -230,6 +245,36 @@ const householdJoinCodeLookupIndex = database.prepare(
 if (!householdJoinCodeLookupIndex?.name) {
   database.exec(readFileSync(householdJoinCodeLookupMigrationPath, "utf8"));
 }
+const inventoryAttentionTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'inventory_attention_acknowledgements'",
+).get() as { name?: string } | undefined;
+if (!inventoryAttentionTable?.name) {
+  database.exec(readFileSync(inventoryAttentionAcknowledgementsMigrationPath, "utf8"));
+}
+const itemMediaTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'item_media'",
+).get() as { name?: string } | undefined;
+if (!itemMediaTable?.name) {
+  database.exec(readFileSync(itemMediaMigrationPath, "utf8"));
+}
+database.prepare(
+  `INSERT INTO households (
+    id, name, created_at, updated_at, profile_emoji, icon_color
+  ) VALUES (?, ?, datetime('now'), datetime('now'), '🏠', '#1F6B45')
+  ON CONFLICT(id) DO NOTHING`,
+).run(localMediaHouseholdId, "Local Kitchen");
+database.prepare(
+  `INSERT INTO users (
+    id, google_subject, email, display_name, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+  ON CONFLICT(id) DO NOTHING`,
+).run(localMediaUserId, "local-dev-user", "local@example.com", "Local Dev");
+database.prepare(
+  `INSERT INTO household_memberships (
+    household_id, user_id, role, created_at
+  ) VALUES (?, ?, 'owner', datetime('now'))
+  ON CONFLICT(household_id, user_id) DO NOTHING`,
+).run(localMediaHouseholdId, localMediaUserId);
 const parserVersion = "rules-v2";
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
@@ -237,6 +282,40 @@ const annotationSchemaVersion = "annotation-v3";
 
 function parseStoredInterpretation(payload: string): Interpretation {
   return InterpretationSchema.parse(JSON.parse(payload));
+}
+
+function uniqueItemNames(names: string[]): string[] {
+  return [...new Set(names.map((name) => name.trim()).filter(Boolean))];
+}
+
+function estimateBase64Bytes(payload: string): number {
+  const normalized = payload.replace(/=+$/, "");
+  return Math.floor((normalized.length * 3) / 4);
+}
+
+function parseThumbnailUrl(payload: unknown): { thumbnailUrl: string } | {
+  error: string;
+  details?: unknown;
+} {
+  const parsed = ItemThumbnailUploadRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    return {
+      error: "Invalid item media payload",
+      details: parsed.error.flatten(),
+    };
+  }
+
+  const match = parsed.data.thumbnail_url.match(
+    /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=_-]+)$/,
+  );
+  if (!match) {
+    return { error: "Unsupported image format" };
+  }
+  if (estimateBase64Bytes(match[2]) > 256 * 1024) {
+    return { error: "Thumbnail is too large" };
+  }
+
+  return { thumbnailUrl: parsed.data.thumbnail_url };
 }
 
 function normalizedFromEntities(entities: Array<{
@@ -288,9 +367,47 @@ function events(limit?: number, since?: string): EventRecord[] {
   return rows.map((row) => EventRecordSchema.parse(row));
 }
 
+function readItemMediaMap(itemNames: string[]): Map<string, string> {
+  const uniqueNames = uniqueItemNames(itemNames);
+  if (uniqueNames.length === 0) return new Map();
+
+  const placeholders = uniqueNames.map(() => "?").join(", ");
+  const rows = database.prepare(
+    `SELECT item_name, thumbnail_url
+     FROM item_media
+     WHERE household_id = ?
+       AND item_name IN (${placeholders})`,
+  ).all(localMediaHouseholdId, ...uniqueNames) as Array<{
+    item_name: string;
+    thumbnail_url: string;
+  }>;
+
+  return new Map(rows.map((row) => [row.item_name, row.thumbnail_url]));
+}
+
+function attachInventoryMedia(items: InventoryItem[]): InventoryItem[] {
+  const mediaByItemName = readItemMediaMap(items.map((item) => item.item_name));
+  return items.map((item) =>
+    InventoryItemSchema.parse({
+      ...item,
+      thumbnail_url: mediaByItemName.get(item.item_name) ?? null,
+    }),
+  );
+}
+
+function attachShoppingMedia(items: ShoppingListItem[]): ShoppingListItem[] {
+  const mediaByItemName = readItemMediaMap(items.map((item) => item.item_name));
+  return items.map((item) =>
+    ShoppingListItemSchema.parse({
+      ...item,
+      thumbnail_url: mediaByItemName.get(item.item_name) ?? null,
+    }),
+  );
+}
+
 function responseHeaders(origin?: string): Record<string, string> {
   const headers: Record<string, string> = {
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     Vary: "Origin",
@@ -758,9 +875,75 @@ async function route(
     return;
   }
 
+  const itemMediaMutation = path.match(/^\/items\/([^/]+)\/media$/);
+  if (
+    itemMediaMutation &&
+    (request.method === "POST" || request.method === "DELETE")
+  ) {
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(itemMediaMutation[1]).trim();
+    } catch {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+    if (!itemName) {
+      sendJson(response, origin, { error: "Invalid item name" }, 400);
+      return;
+    }
+
+    if (!projectInventory(events()).some((item) => item.item_name === itemName)) {
+      sendJson(response, origin, { error: "Inventory item not found" }, 404);
+      return;
+    }
+
+    if (request.method === "POST") {
+      const parsed = parseThumbnailUrl(await readBody(request));
+      if ("error" in parsed) {
+        sendJson(response, origin, parsed, 400);
+        return;
+      }
+      const now = new Date().toISOString();
+      database.prepare(
+        `INSERT INTO item_media (
+          household_id, item_name, thumbnail_url,
+          created_by_user_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(household_id, item_name) DO UPDATE SET
+          thumbnail_url = excluded.thumbnail_url,
+          created_by_user_id = excluded.created_by_user_id,
+          updated_at = excluded.updated_at`,
+      ).run(
+        localMediaHouseholdId,
+        itemName,
+        parsed.thumbnailUrl,
+        localMediaUserId,
+        now,
+        now,
+      );
+      sendJson(response, origin, {
+        item_name: itemName,
+        thumbnail_url: parsed.thumbnailUrl,
+        updated_at: now,
+      });
+      return;
+    }
+
+    database.prepare(
+      `DELETE FROM item_media
+       WHERE household_id = ? AND item_name = ?`,
+    ).run(localMediaHouseholdId, itemName);
+    sendJson(response, origin, {
+      item_name: itemName,
+      thumbnail_url: null,
+      updated_at: new Date().toISOString(),
+    });
+    return;
+  }
+
   if (request.method === "GET" && path === "/dashboard") {
     const allEvents = events();
-    const inventory = projectInventory(allEvents);
+    const inventory = attachInventoryMedia(projectInventory(allEvents));
     const currentItems = new Map(
       inventory.map((item) => [item.item_name, item]),
     );
@@ -784,7 +967,7 @@ async function route(
     sendJson(response, origin, {
       inventory,
       events: allEvents.slice(-50).reverse(),
-      shopping_list: projectShoppingList(allEvents),
+      shopping_list: attachShoppingMedia(projectShoppingList(allEvents)),
       fridge_setup: {
         completed: setupRow !== undefined,
         completed_at: setupRow?.value ?? null,
@@ -1034,8 +1217,8 @@ async function route(
         origin,
         {
           event,
-          inventory: projectInventory(nextEvents),
-          items: projectShoppingList(nextEvents),
+          inventory: attachInventoryMedia(projectInventory(nextEvents)),
+          items: attachShoppingMedia(projectShoppingList(nextEvents)),
         },
         201,
       );
@@ -1186,12 +1369,16 @@ async function route(
   }
 
   if (request.method === "GET" && path === "/inventory") {
-    sendJson(response, origin, { inventory: projectInventory(events()) });
+    sendJson(response, origin, {
+      inventory: attachInventoryMedia(projectInventory(events())),
+    });
     return;
   }
 
   if (request.method === "GET" && path === "/shopping-list") {
-    sendJson(response, origin, { items: projectShoppingList(events()) });
+    sendJson(response, origin, {
+      items: attachShoppingMedia(projectShoppingList(events())),
+    });
     return;
   }
 

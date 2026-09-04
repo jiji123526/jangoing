@@ -198,4 +198,61 @@ describe("household ownership migration", () => {
       ).get(),
     ).toBeUndefined();
   });
+
+  it("stores one household-scoped thumbnail row per item", () => {
+    const createdAt = "2026-09-02T00:00:00.000Z";
+    database.exec(migration("0014_add_household_profile.sql"));
+    database.exec(migration("0018_create_item_media.sql"));
+    database.prepare(
+      `INSERT INTO users (
+        id, google_subject, email, display_name, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("user-media", "google-media", "media@example.com", "Media", createdAt, createdAt);
+    database.prepare(
+      `INSERT INTO households (
+        id, name, created_at, updated_at, profile_emoji, icon_color
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("household-media", "Media Home", createdAt, createdAt, "🏠", "#1F6B45");
+
+    database.prepare(
+      `INSERT INTO item_media (
+        household_id, item_name, thumbnail_url,
+        created_by_user_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "household-media",
+      "milk",
+      "data:image/jpeg;base64,QUJDRA==",
+      "user-media",
+      createdAt,
+      createdAt,
+    );
+
+    expect(
+      database.prepare(
+        `SELECT household_id, item_name
+         FROM item_media
+         WHERE household_id = ? AND item_name = ?`,
+      ).get("household-media", "milk"),
+    ).toEqual({
+      household_id: "household-media",
+      item_name: "milk",
+    });
+
+    expect(() => {
+      database.prepare(
+        `INSERT INTO item_media (
+          household_id, item_name, thumbnail_url,
+          created_by_user_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(
+        "household-media",
+        "milk",
+        "data:image/jpeg;base64,RUZHSA==",
+        "user-media",
+        createdAt,
+        createdAt,
+      );
+    }).toThrow();
+  });
 });

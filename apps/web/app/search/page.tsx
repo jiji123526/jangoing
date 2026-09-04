@@ -142,11 +142,21 @@ function shoppingMetadata(item: ShoppingListItem): string {
 
 function SearchArtwork({
   itemName,
+  thumbnailUrl,
   source,
 }: {
   itemName: string;
+  thumbnailUrl?: string | null;
   source: "inventory" | "shopping";
 }) {
+  if (thumbnailUrl) {
+    return (
+      <span className={`search-result-artwork source-${source}`} aria-hidden="true">
+        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+      </span>
+    );
+  }
+
   const initials = titleCase(itemName)
     .split(" ")
     .slice(0, 2)
@@ -480,7 +490,11 @@ export default function SearchPage() {
                   href={inventoryHref({ item: item.item_name })}
                   key={item.item_name}
                 >
-                  <SearchArtwork itemName={item.item_name} source="inventory" />
+                  <SearchArtwork
+                    itemName={item.item_name}
+                    thumbnailUrl={item.thumbnail_url}
+                    source="inventory"
+                  />
                   <span>
                     <strong>{titleCase(item.item_name)}</strong>
                     <small>{inventoryMetadata(item)}</small>
@@ -495,7 +509,11 @@ export default function SearchPage() {
               <h2 id="shopping-results-heading">On Shopping List</h2>
               {filteredShopping.map((item) => (
                 <a href="/shopping" key={item.item_name}>
-                  <SearchArtwork itemName={item.item_name} source="shopping" />
+                  <SearchArtwork
+                    itemName={item.item_name}
+                    thumbnailUrl={item.thumbnail_url}
+                    source="shopping"
+                  />
                   <span>
                     <strong>{titleCase(item.item_name)}</strong>
                     <small>{shoppingMetadata(item)}</small>

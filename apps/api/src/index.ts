@@ -8,6 +8,7 @@ import {
   CreateAnnotationRequestSchema,
   EventRecordSchema,
   FridgeSetupRequestSchema,
+  ItemThumbnailUploadRequestSchema,
   InterpretationSchema,
   InterpretCommandRequestSchema,
   JoinHouseholdRequestSchema,
@@ -81,6 +82,12 @@ interface Env extends AuthEnvironment {
 interface ConsumerScope {
   householdId: string;
   userId: string;
+}
+
+interface ItemMediaRow {
+  item_name: string;
+  thumbnail_url: string;
+  updated_at: string;
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
@@ -167,6 +174,40 @@ function parseStoredInterpretation(payload: string): Interpretation {
   return InterpretationSchema.parse(JSON.parse(payload));
 }
 
+function uniqueItemNames(names: string[]): string[] {
+  return [...new Set(names.map((name) => name.trim()).filter(Boolean))];
+}
+
+function estimateBase64Bytes(payload: string): number {
+  const normalized = payload.replace(/=+$/, "");
+  return Math.floor((normalized.length * 3) / 4);
+}
+
+function parseThumbnailUrl(payload: unknown): { thumbnailUrl: string } | {
+  error: string;
+  details?: unknown;
+} {
+  const parsed = ItemThumbnailUploadRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    return {
+      error: "Invalid item media payload",
+      details: parsed.error.flatten(),
+    };
+  }
+
+  const match = parsed.data.thumbnail_url.match(
+    /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=_-]+)$/,
+  );
+  if (!match) {
+    return { error: "Unsupported image format" };
+  }
+  if (estimateBase64Bytes(match[2]) > 256 * 1024) {
+    return { error: "Thumbnail is too large" };
+  }
+
+  return { thumbnailUrl: parsed.data.thumbnail_url };
+}
+
 async function readEvents(
   env: Env,
   scope: ConsumerScope | null,
@@ -195,6 +236,29 @@ async function readEvents(
   const result = await statement.all<Record<string, unknown>>();
 
   return result.results.map((row) => EventRecordSchema.parse(row));
+}
+
+async function readItemMediaMap(
+  env: Env,
+  scope: ConsumerScope | null,
+  itemNames: string[],
+): Promise<Map<string, string>> {
+  if (!scope) return new Map();
+
+  const uniqueNames = uniqueItemNames(itemNames);
+  if (uniqueNames.length === 0) return new Map();
+
+  const placeholders = uniqueNames.map(() => "?").join(", ");
+  const result = await env.DB.prepare(
+    `SELECT item_name, thumbnail_url
+     FROM item_media
+     WHERE household_id = ?
+       AND item_name IN (${placeholders})`,
+  ).bind(scope.householdId, ...uniqueNames).all<ItemMediaRow>();
+
+  return new Map(
+    result.results.map((row) => [row.item_name, row.thumbnail_url]),
+  );
 }
 
 interface KitchenProjection {
@@ -281,6 +345,45 @@ async function loadKitchenProjection(
   };
   await writeKitchenProjection(env, scope, projection);
   return { projection, sourceEvents };
+}
+
+async function attachKitchenProjectionMedia(
+  env: Env,
+  scope: ConsumerScope | null,
+  projection: KitchenProjection,
+): Promise<KitchenProjection> {
+  const mediaByItemName = await readItemMediaMap(
+    env,
+    scope,
+    projection.inventory
+      .map((item) => item.item_name)
+      .concat(projection.shoppingList.map((item) => item.item_name)),
+  );
+
+  return {
+    inventory: projection.inventory.map((item) =>
+      InventoryItemSchema.parse({
+        ...item,
+        thumbnail_url: mediaByItemName.get(item.item_name) ?? null,
+      }),
+    ),
+    shoppingList: projection.shoppingList.map((item) =>
+      ShoppingListItemSchema.parse({
+        ...item,
+        thumbnail_url: mediaByItemName.get(item.item_name) ?? null,
+      }),
+    ),
+  };
+}
+
+async function inventoryItemExists(
+  env: Env,
+  scope: ConsumerScope,
+  itemName: string,
+): Promise<boolean> {
+  return (await loadKitchenProjection(env, scope)).projection.inventory.some(
+    (item) => item.item_name === itemName,
+  );
 }
 
 async function invalidateKitchenProjection(
@@ -831,6 +934,69 @@ async function handleInventoryMutation(
   return json(request, env, event, 201);
 }
 
+async function upsertItemThumbnail(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope,
+  itemName: string,
+): Promise<Response> {
+  if (!(await inventoryItemExists(env, scope, itemName))) {
+    return json(request, env, { error: "Inventory item not found" }, 404);
+  }
+
+  const parsed = parseThumbnailUrl(await request.json().catch(() => null));
+  if ("error" in parsed) {
+    return json(request, env, parsed, 400);
+  }
+
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO item_media (
+      household_id, item_name, thumbnail_url,
+      created_by_user_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(household_id, item_name) DO UPDATE SET
+      thumbnail_url = excluded.thumbnail_url,
+      created_by_user_id = excluded.created_by_user_id,
+      updated_at = excluded.updated_at`,
+  ).bind(
+    scope.householdId,
+    itemName,
+    parsed.thumbnailUrl,
+    scope.userId,
+    now,
+    now,
+  ).run();
+
+  return json(request, env, {
+    item_name: itemName,
+    thumbnail_url: parsed.thumbnailUrl,
+    updated_at: now,
+  });
+}
+
+async function deleteItemThumbnail(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope,
+  itemName: string,
+): Promise<Response> {
+  if (!(await inventoryItemExists(env, scope, itemName))) {
+    return json(request, env, { error: "Inventory item not found" }, 404);
+  }
+
+  await env.DB.prepare(
+    `DELETE FROM item_media
+     WHERE household_id = ? AND item_name = ?`,
+  ).bind(scope.householdId, itemName).run();
+
+  return json(request, env, {
+    item_name: itemName,
+    thumbnail_url: null,
+    updated_at: new Date().toISOString(),
+  });
+}
+
 async function readInventoryAttentionAcknowledgements(
   env: Env,
   scope: ConsumerScope | null,
@@ -1005,6 +1171,10 @@ async function handleFridgeSetup(
   );
 
   await env.DB.batch(statements);
+  const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
+    inventory: projectInventory([...existingEvents, ...setupEvents]),
+    shoppingList: [],
+  });
   return json(
     request,
     env,
@@ -1012,7 +1182,7 @@ async function handleFridgeSetup(
       completed: true,
       completed_at: completedAt,
       events: setupEvents,
-      inventory: projectInventory([...existingEvents, ...setupEvents]),
+      inventory: projectionWithMedia.inventory,
     },
     201,
   );
@@ -1126,13 +1296,17 @@ async function handleShoppingMutation(
     new URL(request.url).searchParams.get("include") === "projections";
   if (action !== "add" && includeProjections) {
     const nextEvents = [...existingEvents, event];
+    const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
+      inventory: projectInventory(nextEvents),
+      shoppingList: projectShoppingList(nextEvents),
+    });
     return json(
       request,
       env,
       {
         event,
-        inventory: projectInventory(nextEvents),
-        items: projectShoppingList(nextEvents),
+        inventory: projectionWithMedia.inventory,
+        items: projectionWithMedia.shoppingList,
       },
       201,
     );
@@ -1294,9 +1468,45 @@ async function route(request: Request, env: Env): Promise<Response> {
   const inventoryAttentionAcknowledgement = url.pathname.match(
     /^\/inventory\/([^/]+)\/attention\/acknowledge$/,
   );
+  const itemMediaMutation = url.pathname.match(/^\/items\/([^/]+)\/media$/);
   const shoppingMutation = url.pathname.match(
     /^\/shopping-list\/([^/]+)\/(add|purchase|restore|delete)$/,
   );
+
+  if (
+    itemMediaMutation &&
+    (request.method === "POST" || request.method === "DELETE")
+  ) {
+    const identity = await authenticateRequest(request, env, {
+      required: true,
+      requireHousehold: true,
+    });
+    if (!identity?.householdId) {
+      throw new AuthError(
+        409,
+        "household_required",
+        "Household setup is required",
+      );
+    }
+
+    let itemName: string;
+    try {
+      itemName = decodeURIComponent(itemMediaMutation[1]).trim();
+    } catch {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+    if (!itemName) {
+      return json(request, env, { error: "Invalid item name" }, 400);
+    }
+
+    const scope = {
+      householdId: identity.householdId,
+      userId: identity.user.id,
+    };
+    return request.method === "POST"
+      ? upsertItemThumbnail(request, env, scope, itemName)
+      : deleteItemThumbnail(request, env, scope, itemName);
+  }
 
   if (request.method === "POST" && shoppingMutation) {
     let itemName: string;
@@ -1447,10 +1657,15 @@ async function route(request: Request, env: Env): Promise<Response> {
       loadKitchenProjection(env, consumerScope),
       readFridgeSetupCompletedAt(env, consumerScope),
     ]);
+    const projectionWithMedia = await attachKitchenProjectionMedia(
+      env,
+      consumerScope,
+      loadedProjection.projection,
+    );
     const recentEvents = loadedProjection.sourceEvents
       ? loadedProjection.sourceEvents.slice(-50).reverse()
       : await readEvents(env, consumerScope, 50);
-    const { inventory, shoppingList } = loadedProjection.projection;
+    const { inventory, shoppingList } = projectionWithMedia;
     return json(request, env, {
       inventory,
       events: recentEvents,
@@ -1469,9 +1684,13 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "GET" && url.pathname === "/inventory") {
+    const projectionWithMedia = await attachKitchenProjectionMedia(
+      env,
+      consumerScope,
+      (await loadKitchenProjection(env, consumerScope)).projection,
+    );
     return json(request, env, {
-      inventory:
-        (await loadKitchenProjection(env, consumerScope)).projection.inventory,
+      inventory: projectionWithMedia.inventory,
     });
   }
 
@@ -1488,9 +1707,13 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (request.method === "GET" && url.pathname === "/shopping-list") {
+    const projectionWithMedia = await attachKitchenProjectionMedia(
+      env,
+      consumerScope,
+      (await loadKitchenProjection(env, consumerScope)).projection,
+    );
     return json(request, env, {
-      items:
-        (await loadKitchenProjection(env, consumerScope)).projection.shoppingList,
+      items: projectionWithMedia.shoppingList,
     });
   }
 

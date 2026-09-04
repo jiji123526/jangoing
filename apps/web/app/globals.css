@@ -2894,6 +2894,12 @@ html.household-tab-fade-in main#search {
   background: linear-gradient(145deg, #7b8f83, #354d41);
 }
 
+.home-update-artwork > .item-artwork-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
 .home-update-artwork::after {
   position: absolute;
   right: -25px;
@@ -3649,6 +3655,13 @@ html.household-tab-fade-in main#search {
   font-weight: 700;
 }
 
+.item-artwork-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .search-result-artwork.source-shopping {
   background: linear-gradient(145deg, #607fa7, #344f70);
 }
@@ -4377,6 +4390,44 @@ h1 {
   display: grid;
   gap: 8px;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.38);
+}
+
+.inventory-edit-artwork-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.inventory-edit-artwork-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inventory-photo-button {
+  position: relative;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0.5px solid rgba(120, 120, 128, 0.24);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #007aff;
+  background: #fff;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.inventory-photo-button.is-secondary {
+  color: rgba(60, 60, 67, 0.8);
+}
+
+.inventory-photo-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
 }
 
 .inventory-edit-header {

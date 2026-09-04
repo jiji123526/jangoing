@@ -249,6 +249,7 @@ export function projectInventory(
       return {
         item_name: itemName,
         category: state.category,
+        thumbnail_url: null,
         added_at: addedAt,
         quantity,
         unit: firstBatch?.unit ?? null,
@@ -282,6 +283,7 @@ export function projectShoppingList(
     if (event.event_type === "item_added_to_buy") {
       items.set(event.item_name, {
         item_name: event.item_name,
+        thumbnail_url: null,
         added_at: event.created_at,
         status: "active",
         purchased_at: null,

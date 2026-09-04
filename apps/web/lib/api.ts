@@ -13,6 +13,7 @@ import {
   HouseholdMembersResponseSchema,
   InventoryAttentionAcknowledgementResponseSchema,
   InventoryAttentionAcknowledgementsResponseSchema,
+  ItemThumbnailResponseSchema,
   KitchenDashboardResponseSchema,
   LoggedInterpretationSchema,
   InventoryItemSchema,
@@ -41,6 +42,7 @@ import {
   type HouseholdJoinCode,
   type HouseholdMember,
   type HouseholdSummary,
+  type ItemThumbnailResponse,
   type JoinedHouseholdResponse,
   type UpdateHouseholdProfileRequest,
   type SpeakerRole,
@@ -100,6 +102,7 @@ function pathUsesAppToken(path: string): boolean {
   return (
     path === "/dashboard" ||
     path.startsWith("/dashboard?") ||
+    path.startsWith("/items/") ||
     path.startsWith("/households/") ||
     path === "/commands/interpret" ||
     path === "/inferences/outcome" ||
@@ -340,6 +343,7 @@ export interface KitchenDashboardData {
 export type ShoppingMutationResult = z.infer<
   typeof ShoppingMutationResponseSchema
 >;
+export type UploadedItemThumbnail = ItemThumbnailResponse;
 
 export async function getInventoryData(): Promise<InventoryItem[]> {
   const body = await apiRequest("/inventory");
@@ -464,6 +468,30 @@ export async function removeInventoryItem(itemName: string): Promise<EventRecord
     { method: "POST" },
   );
   return EventRecordSchema.parse(body);
+}
+
+export async function uploadItemThumbnail(
+  itemName: string,
+  thumbnailUrl: string,
+): Promise<UploadedItemThumbnail> {
+  const body = await apiRequest(
+    `/items/${encodeURIComponent(itemName)}/media`,
+    {
+      method: "POST",
+      body: JSON.stringify({ thumbnail_url: thumbnailUrl }),
+    },
+  );
+  return ItemThumbnailResponseSchema.parse(body);
+}
+
+export async function removeItemThumbnail(
+  itemName: string,
+): Promise<UploadedItemThumbnail> {
+  const body = await apiRequest(
+    `/items/${encodeURIComponent(itemName)}/media`,
+    { method: "DELETE" },
+  );
+  return ItemThumbnailResponseSchema.parse(body);
 }
 
 export async function getEventsData(since?: string): Promise<EventRecord[]> {

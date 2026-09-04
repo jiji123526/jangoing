@@ -9,6 +9,7 @@ function item(overrides: Partial<InventoryItem> = {}): InventoryItem {
   return {
     item_name: "milk",
     category: "dairy_eggs",
+    thumbnail_url: overrides.thumbnail_url ?? null,
     added_at: "2026-09-01T00:00:00.000Z",
     quantity: 1,
     unit: "carton",

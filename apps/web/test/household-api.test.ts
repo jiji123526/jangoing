@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createHouseholdJoinCode,
   getHouseholdMembers,
+  removeItemThumbnail,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
+  uploadItemThumbnail,
   updateHouseholdProfile,
 } from "../lib/api";
 
@@ -107,6 +109,49 @@ describe("household invite API client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8787/households/current",
       expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
+  it("uploads and removes a primary item thumbnail", async () => {
+    const thumbnailUrl = "data:image/jpeg;base64,QUJDRA==";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          item_name: "milk",
+          thumbnail_url: thumbnailUrl,
+          updated_at: "2026-09-04T12:00:00.000Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          item_name: "milk",
+          thumbnail_url: null,
+          updated_at: "2026-09-04T12:01:00.000Z",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(uploadItemThumbnail("milk", thumbnailUrl)).resolves.toEqual({
+      item_name: "milk",
+      thumbnail_url: thumbnailUrl,
+      updated_at: "2026-09-04T12:00:00.000Z",
+    });
+    await expect(removeItemThumbnail("milk")).resolves.toEqual({
+      item_name: "milk",
+      thumbnail_url: null,
+      updated_at: "2026-09-04T12:01:00.000Z",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:8787/items/milk/media",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:8787/items/milk/media",
+      expect.objectContaining({ method: "DELETE" }),
     );
   });
 });

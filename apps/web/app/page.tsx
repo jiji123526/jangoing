@@ -40,11 +40,14 @@ import {
   getShoppingListData,
   interpretCommand,
   markShoppingItemPurchased,
+  removeItemThumbnail,
   removeInventoryItem,
   restoreShoppingItem,
+  uploadItemThumbnail,
   updateInventoryItem,
   updateInferenceOutcome,
 } from "../lib/api";
+import { prepareItemThumbnailDataUrl } from "../lib/item-thumbnail";
 import {
   inventoryHref,
   parseInventoryNavigation,
@@ -338,7 +341,13 @@ function ArtworkLabel({
   );
 }
 
-function ShoppingArtwork({ itemName }: { itemName: string }) {
+function ShoppingArtwork({
+  itemName,
+  thumbnailUrl,
+}: {
+  itemName: string;
+  thumbnailUrl?: string | null;
+}) {
   const category = inventoryCategory(itemName);
   const categoryClass = category
     .toLowerCase()
@@ -350,13 +359,18 @@ function ShoppingArtwork({ itemName }: { itemName: string }) {
       className={`shopping-artwork category-${categoryClass}`}
       aria-hidden="true"
     >
-      <ArtworkLabel compact itemName={itemName} />
+      {thumbnailUrl ? (
+        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+      ) : (
+        <ArtworkLabel compact itemName={itemName} />
+      )}
     </div>
   );
 }
 
 function ShoppingSwipeRow({
   itemName,
+  thumbnailUrl,
   secondaryText,
   actionLabel,
   purchased = false,
@@ -367,6 +381,7 @@ function ShoppingSwipeRow({
   onDelete,
 }: {
   itemName: string;
+  thumbnailUrl?: string | null;
   secondaryText: string;
   actionLabel: "Done" | "Undo";
   purchased?: boolean;
@@ -451,7 +466,7 @@ function ShoppingSwipeRow({
         }}
         onPointerCancel={finishSwipe}
       >
-        <ShoppingArtwork itemName={itemName} />
+        <ShoppingArtwork itemName={itemName} thumbnailUrl={thumbnailUrl} />
         <div className="shopping-row-copy">
           <strong>{titleCase(itemName)}</strong>
           <small>{secondaryText}</small>
@@ -470,21 +485,41 @@ function attentionLabel(item: InventoryItem): string | null {
   return null;
 }
 
-function InventoryArtwork({ itemName }: { itemName: string }) {
+function InventoryArtwork({
+  itemName,
+  thumbnailUrl,
+}: {
+  itemName: string;
+  thumbnailUrl?: string | null;
+}) {
   return (
     <div className="inventory-artwork" aria-hidden="true">
-      <ArtworkLabel itemName={itemName} />
+      {thumbnailUrl ? (
+        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+      ) : (
+        <ArtworkLabel itemName={itemName} />
+      )}
     </div>
   );
 }
 
 function HomeArtwork({
   itemName,
+  thumbnailUrl,
   category: providedCategory,
 }: {
   itemName: string;
+  thumbnailUrl?: string | null;
   category?: ItemCategory;
 }) {
+  if (thumbnailUrl) {
+    return (
+      <div className="home-update-artwork" aria-hidden="true">
+        <img className="item-artwork-image" src={thumbnailUrl} alt="" />
+      </div>
+    );
+  }
+
   const category = providedCategory ?? inventoryCategory(itemName);
   const categoryClass = category
     .toLowerCase()
@@ -560,6 +595,8 @@ function InventoryItemRow({
   onAddToShopping,
   acknowledging = false,
   onAcknowledge,
+  onReplaceThumbnail,
+  onRemoveThumbnail,
   domId,
 }: {
   item: InventoryItem;
@@ -583,6 +620,8 @@ function InventoryItemRow({
   onAddToShopping?: () => Promise<void>;
   acknowledging?: boolean;
   onAcknowledge?: () => Promise<void>;
+  onReplaceThumbnail?: (thumbnailUrl: string) => Promise<void>;
+  onRemoveThumbnail?: () => Promise<void>;
   domId?: string;
 }) {
   const attention = attentionLabel(item);
@@ -596,6 +635,9 @@ function InventoryItemRow({
     item.low_threshold?.toString() ?? "",
   );
   const [category, setCategory] = useState(item.category ?? "");
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
+    item.thumbnail_url ?? null,
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
     quantityLabel(item),
@@ -611,6 +653,7 @@ function InventoryItemRow({
     setExpirationDate(item.nearest_expiration_date ?? "");
     setLowThreshold(item.low_threshold?.toString() ?? "");
     setCategory(item.category ?? "");
+    setThumbnailPreview(item.thumbnail_url ?? null);
     setValidationError(null);
   }, [
     editing,
@@ -619,8 +662,26 @@ function InventoryItemRow({
     item.low_threshold,
     item.nearest_expiration_date,
     item.quantity,
+    item.thumbnail_url,
     item.unit,
   ]);
+
+  async function handleThumbnailFile(file: File | null) {
+    if (!file || !onReplaceThumbnail) return;
+    try {
+      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
+      setThumbnailPreview(thumbnailUrl);
+      await onReplaceThumbnail(thumbnailUrl);
+      setValidationError(null);
+    } catch (caught) {
+      setThumbnailPreview(item.thumbnail_url ?? null);
+      setValidationError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update the item photo.",
+      );
+    }
+  }
 
   if (editing) {
     const hasCustomUnit =
@@ -640,7 +701,60 @@ function InventoryItemRow({
         id={domId}
         tabIndex={domId ? -1 : undefined}
       >
-        <InventoryArtwork itemName={item.item_name} />
+        <div className="inventory-edit-artwork-panel">
+          <InventoryArtwork
+            itemName={item.item_name}
+            thumbnailUrl={thumbnailPreview}
+          />
+          <div className="inventory-edit-artwork-actions">
+            <label className="inventory-photo-button">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/*"
+                onChange={(event) => {
+                  const [file] = event.target.files ?? [];
+                  event.currentTarget.value = "";
+                  void handleThumbnailFile(file ?? null);
+                }}
+              />
+              Choose Photo
+            </label>
+            <label className="inventory-photo-button">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/*"
+                capture="environment"
+                onChange={(event) => {
+                  const [file] = event.target.files ?? [];
+                  event.currentTarget.value = "";
+                  void handleThumbnailFile(file ?? null);
+                }}
+              />
+              Take Photo
+            </label>
+            {thumbnailPreview && (
+              <button
+                className="inventory-photo-button is-secondary"
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const previous = item.thumbnail_url ?? null;
+                  setThumbnailPreview(null);
+                  void onRemoveThumbnail?.().catch((caught) => {
+                    setThumbnailPreview(previous);
+                    setValidationError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Could not remove the item photo.",
+                    );
+                  });
+                }}
+              >
+                Remove Photo
+              </button>
+            )}
+          </div>
+        </div>
         <form
           className="inventory-edit-form"
           onSubmit={(event) => {
@@ -883,7 +997,10 @@ function InventoryItemRow({
           {selected && <Check size={16} strokeWidth={3} />}
         </span>
       )}
-      <InventoryArtwork itemName={item.item_name} />
+      <InventoryArtwork
+        itemName={item.item_name}
+        thumbnailUrl={item.thumbnail_url}
+      />
       <div className="inventory-item-copy">
         <strong>{titleCase(item.item_name)}</strong>
         <p>{metadata.join(" · ")}</p>
@@ -1394,6 +1511,71 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     }
   }
 
+  function applyItemThumbnail(
+    current: {
+      inventory: InventoryItem[];
+      shoppingList: ShoppingListItem[];
+      events: EventRecord[];
+    },
+    itemName: string,
+    thumbnailUrl: string | null,
+  ) {
+    return {
+      ...current,
+      inventory: current.inventory.map((item) =>
+        item.item_name === itemName
+          ? { ...item, thumbnail_url: thumbnailUrl }
+          : item,
+      ),
+      shoppingList: current.shoppingList.map((item) =>
+        item.item_name === itemName
+          ? { ...item, thumbnail_url: thumbnailUrl }
+          : item,
+      ),
+    };
+  }
+
+  async function handleReplaceInventoryThumbnail(
+    itemName: string,
+    thumbnailUrl: string,
+  ) {
+    setInventorySaving(itemName);
+    setError(null);
+    try {
+      const uploaded = await uploadItemThumbnail(itemName, thumbnailUrl);
+      setDashboard((current) =>
+        applyItemThumbnail(current, itemName, uploaded.thumbnail_url),
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not update the item photo.",
+      );
+      throw caught;
+    } finally {
+      setInventorySaving(null);
+    }
+  }
+
+  async function handleRemoveInventoryThumbnail(itemName: string) {
+    setInventorySaving(itemName);
+    setError(null);
+    try {
+      await removeItemThumbnail(itemName);
+      setDashboard((current) => applyItemThumbnail(current, itemName, null));
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not remove the item photo.",
+      );
+      throw caught;
+    } finally {
+      setInventorySaving(null);
+    }
+  }
+
   async function handleRemoveSelectedInventoryItems() {
     const itemNames = [...selectedInventoryItems];
     if (itemNames.length === 0) return;
@@ -1863,6 +2045,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     >
                       <HomeArtwork
                         itemName={item.item_name}
+                        thumbnailUrl={item.thumbnail_url}
                         category="Leftovers"
                       />
                       <strong>{titleCase(item.item_name)}</strong>
@@ -2043,7 +2226,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     })}
                     key={item.item_name}
                   >
-                    <HomeArtwork itemName={item.item_name} />
+                    <HomeArtwork
+                      itemName={item.item_name}
+                      thumbnailUrl={item.thumbnail_url}
+                    />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>
                       <small>
@@ -2080,7 +2266,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     })}
                     key={item.item_name}
                   >
-                    <HomeArtwork itemName={item.item_name} />
+                    <HomeArtwork
+                      itemName={item.item_name}
+                      thumbnailUrl={item.thumbnail_url}
+                    />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>
                       <small>
@@ -2514,6 +2703,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                         onAcknowledge={() =>
                           handleAcknowledgeAttention(item.item_name)
                         }
+                        onReplaceThumbnail={(thumbnailUrl) =>
+                          handleReplaceInventoryThumbnail(
+                            item.item_name,
+                            thumbnailUrl,
+                          )
+                        }
+                        onRemoveThumbnail={() =>
+                          handleRemoveInventoryThumbnail(item.item_name)
+                        }
                       />
                     ))}
                   </div>
@@ -2591,6 +2789,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           onSave={(update) =>
                             handleSaveInventoryItem(item.item_name, update)
                           }
+                          onReplaceThumbnail={(thumbnailUrl) =>
+                            handleReplaceInventoryThumbnail(
+                              item.item_name,
+                              thumbnailUrl,
+                            )
+                          }
+                          onRemoveThumbnail={() =>
+                            handleRemoveInventoryThumbnail(item.item_name)
+                          }
                           onRemove={() => handleRemoveInventoryItem(item.item_name)}
                           domId={inventoryItemElementId(item.item_name)}
                         />
@@ -2652,6 +2859,15 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                           onCancel={() => setSelectedInventoryItemName(null)}
                           onSave={(update) =>
                             handleSaveInventoryItem(item.item_name, update)
+                          }
+                          onReplaceThumbnail={(thumbnailUrl) =>
+                            handleReplaceInventoryThumbnail(
+                              item.item_name,
+                              thumbnailUrl,
+                            )
+                          }
+                          onRemoveThumbnail={() =>
+                            handleRemoveInventoryThumbnail(item.item_name)
                           }
                           onRemove={() =>
                             handleRemoveInventoryItem(item.item_name)
@@ -2833,7 +3049,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   <ul className="shopping-track-list shopping-suggestion-list">
                     {recommendedShoppingItems.map((item) => (
                       <li key={item.item_name}>
-                        <ShoppingArtwork itemName={item.item_name} />
+                        <ShoppingArtwork
+                          itemName={item.item_name}
+                          thumbnailUrl={item.thumbnail_url}
+                        />
                         <div className="shopping-suggestion-copy">
                           <strong>{titleCase(item.item_name)}</strong>
                           <small>Low stock · {quantityLabel(item)}</small>
@@ -2871,6 +3090,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <ShoppingSwipeRow
                         key={item.item_name}
                         itemName={item.item_name}
+                        thumbnailUrl={item.thumbnail_url}
                         secondaryText={[
                           shoppingInventoryStatusLabel(
                             inventoryByItemName.get(item.item_name),
@@ -2912,6 +3132,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       <ShoppingSwipeRow
                         key={item.item_name}
                         itemName={item.item_name}
+                        thumbnailUrl={item.thumbnail_url}
                         secondaryText={shoppingPurchaseDateLabel(
                           item.purchased_at ?? item.added_at,
                         )}

@@ -2,6 +2,38 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Existing inventory item thumbnail pilot added
+
+### Completed
+
+- Added a household-scoped `item_media` thumbnail table and migration
+  `0018_create_item_media.sql` for the first item-artwork vertical slice.
+- Added authenticated `POST /items/{item_name}/media` and `DELETE /items/{item_name}/media`
+  routes for replacing or removing the primary thumbnail of an existing
+  inventory item.
+- Extended dashboard, inventory, and shopping responses so current household
+  items can carry a `thumbnail_url` alongside the existing projection data.
+- Added inventory-editor photo actions for `Choose Photo`, `Take Photo`, and
+  `Remove Photo`, with client-side square crop and JPEG recompression before
+  upload.
+- Reused the saved thumbnail across Inventory, Home cards, Search results, and
+  Shopping rows for the same item.
+- Kept this first slice on D1-backed thumbnail data URLs as a pilot so the UX
+  path can be validated before the planned R2-backed media layer lands.
+
+### Validation
+
+- Added Worker isolation coverage for household-scoped thumbnail writes and
+  deletion.
+- Added migration coverage for the new `item_media` table constraint.
+- Added Web API client coverage for upload and removal requests.
+
+### Deployment
+
+1. Apply D1 migration `0018_create_item_media.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
+
 ## 2026-09-04 - Dashboard auth fixed and household read paths optimized
 
 ### Completed
