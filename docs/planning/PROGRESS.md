@@ -2,6 +2,27 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Inventory thumbnail uploads now crop to square and fill the card
+
+### Completed
+
+- Added the same square-crop confirmation step used by fridge setup to
+  inventory thumbnail uploads, including both the quick card upload path and
+  the inventory edit photo actions.
+- Reused the existing thumbnail-preparation helpers so inventory photos are
+  only uploaded after the crop is confirmed.
+- Removed the inner artwork padding for inventory cards with uploaded photos
+  so the media now fully covers the card instead of appearing inset.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the focused Web thumbnail and inventory media tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Camera corner icons now sit cleanly in the card edge
 
 ### Completed

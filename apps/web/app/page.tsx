@@ -48,7 +48,13 @@ import {
   updateInventoryItem,
   updateInferenceOutcome,
 } from "../lib/api";
-import { prepareItemThumbnailDataUrl } from "../lib/item-thumbnail";
+import {
+  defaultSquareThumbnailCrop,
+  prepareItemThumbnailDataUrl,
+  readItemThumbnailFile,
+  releaseItemThumbnailObjectUrl,
+  type ItemThumbnailCrop,
+} from "../lib/item-thumbnail";
 import { hasInventoryItemChanges } from "../lib/inventory-update";
 import {
   inventoryHref,
@@ -506,7 +512,7 @@ function InventoryArtwork({
 }) {
   return (
     <div
-      className={`inventory-artwork${interactive ? " inventory-artwork-interactive" : ""}`}
+      className={`inventory-artwork${interactive ? " inventory-artwork-interactive" : ""}${thumbnailUrl ? " has-photo" : ""}`}
       aria-hidden="true"
     >
       {thumbnailUrl ? (
@@ -537,6 +543,15 @@ function InventoryArtwork({
     </div>
   );
 }
+
+type PendingInventoryThumbnailCrop = {
+  mode: "edit" | "quick";
+  file: File;
+  objectUrl: string;
+  width: number;
+  height: number;
+  crop: ItemThumbnailCrop;
+};
 
 function HomeArtwork({
   itemName,
@@ -674,6 +689,9 @@ function InventoryItemRow({
     item.thumbnail_url ?? null,
   );
   const [quickThumbnailUploading, setQuickThumbnailUploading] = useState(false);
+  const [applyingThumbnailCrop, setApplyingThumbnailCrop] = useState(false);
+  const [pendingThumbnailCrop, setPendingThumbnailCrop] =
+    useState<PendingInventoryThumbnailCrop | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const metadata = [
     quantityLabel(item),
@@ -702,35 +720,204 @@ function InventoryItemRow({
     item.unit,
   ]);
 
-  async function handleThumbnailFile(file: File | null) {
+  useEffect(() => {
+    const objectUrl = pendingThumbnailCrop?.objectUrl;
+    return () => {
+      if (objectUrl) {
+        releaseItemThumbnailObjectUrl(objectUrl);
+      }
+    };
+  }, [pendingThumbnailCrop?.objectUrl]);
+
+  async function openThumbnailCrop(
+    file: File | null,
+    mode: "edit" | "quick",
+  ) {
     if (!file || !onReplaceThumbnail) return;
     try {
-      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
-      setThumbnailPreview(thumbnailUrl);
-      await onReplaceThumbnail(thumbnailUrl);
+      const prepared = await readItemThumbnailFile(file);
+      setPendingThumbnailCrop({
+        mode,
+        file,
+        objectUrl: prepared.objectUrl,
+        width: prepared.width,
+        height: prepared.height,
+        crop: defaultSquareThumbnailCrop(prepared.width, prepared.height),
+      });
       setValidationError(null);
     } catch (caught) {
-      setThumbnailPreview(item.thumbnail_url ?? null);
+      setValidationError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not prepare the selected image.",
+      );
+    }
+  }
+
+  function closePendingThumbnailCrop() {
+    if (pendingThumbnailCrop) {
+      releaseItemThumbnailObjectUrl(pendingThumbnailCrop.objectUrl);
+    }
+    setPendingThumbnailCrop(null);
+    setApplyingThumbnailCrop(false);
+  }
+
+  function updatePendingThumbnailCrop(
+    axis: "x" | "y",
+    nextValue: number,
+  ) {
+    setPendingThumbnailCrop((current) => {
+      if (!current) return null;
+      return {
+        ...current,
+        crop: {
+          ...current.crop,
+          [axis]: nextValue,
+        },
+      };
+    });
+  }
+
+  async function handleThumbnailFile(file: File | null) {
+    await openThumbnailCrop(file, "edit");
+  }
+
+  async function handleQuickThumbnailFile(file: File | null) {
+    await openThumbnailCrop(file, "quick");
+  }
+
+  async function applyPendingThumbnailCrop() {
+    if (!pendingThumbnailCrop || !onReplaceThumbnail) return;
+    const mode = pendingThumbnailCrop.mode;
+    setApplyingThumbnailCrop(true);
+    if (mode === "quick") {
+      setQuickThumbnailUploading(true);
+    }
+    try {
+      const thumbnailUrl = await prepareItemThumbnailDataUrl(
+        pendingThumbnailCrop.file,
+        pendingThumbnailCrop.crop,
+      );
+      if (mode === "edit") {
+        setThumbnailPreview(thumbnailUrl);
+      }
+      await onReplaceThumbnail(thumbnailUrl);
+      setValidationError(null);
+      closePendingThumbnailCrop();
+    } catch (caught) {
+      if (mode === "edit") {
+        setThumbnailPreview(item.thumbnail_url ?? null);
+      }
       setValidationError(
         caught instanceof Error
           ? caught.message
           : "Could not update the item photo.",
       );
+      setApplyingThumbnailCrop(false);
+    } finally {
+      if (mode === "quick") {
+        setQuickThumbnailUploading(false);
+      }
     }
   }
 
-  async function handleQuickThumbnailFile(file: File | null) {
-    if (!file || !onReplaceThumbnail) return;
-    setQuickThumbnailUploading(true);
-    try {
-      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
-      await onReplaceThumbnail(thumbnailUrl);
-    } catch {
-      // The parent handler already surfaces the error state.
-    } finally {
-      setQuickThumbnailUploading(false);
-    }
-  }
+  const thumbnailCropDialog = pendingThumbnailCrop ? (
+    <div
+      className="fridge-setup-crop-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`inventory-crop-title-${item.item_name}`}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !applyingThumbnailCrop) {
+          closePendingThumbnailCrop();
+        }
+      }}
+    >
+      <div className="fridge-setup-crop-panel">
+        <div className="fridge-setup-crop-header">
+          <div>
+            <small>PHOTO CROP</small>
+            <h3 id={`inventory-crop-title-${item.item_name}`}>Trim to square</h3>
+          </div>
+          <button
+            type="button"
+            aria-label="Close photo crop"
+            disabled={applyingThumbnailCrop}
+            onClick={closePendingThumbnailCrop}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <p>Adjust the square crop before using this photo.</p>
+        <div className="fridge-setup-crop-preview">
+          <div className="fridge-setup-crop-preview-frame">
+            <img
+              src={pendingThumbnailCrop.objectUrl}
+              alt=""
+              style={{
+                width: `${(pendingThumbnailCrop.width / pendingThumbnailCrop.crop.size) * 100}%`,
+                height: `${(pendingThumbnailCrop.height / pendingThumbnailCrop.crop.size) * 100}%`,
+                left: `${(-pendingThumbnailCrop.crop.x / pendingThumbnailCrop.crop.size) * 100}%`,
+                top: `${(-pendingThumbnailCrop.crop.y / pendingThumbnailCrop.crop.size) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+        <div className="fridge-setup-crop-controls">
+          <label>
+            <span>Horizontal</span>
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, pendingThumbnailCrop.width - pendingThumbnailCrop.crop.size)}
+              step="1"
+              value={pendingThumbnailCrop.crop.x}
+              disabled={
+                applyingThumbnailCrop ||
+                pendingThumbnailCrop.width === pendingThumbnailCrop.crop.size
+              }
+              onChange={(event) =>
+                updatePendingThumbnailCrop("x", Number(event.target.value))
+              }
+            />
+          </label>
+          <label>
+            <span>Vertical</span>
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, pendingThumbnailCrop.height - pendingThumbnailCrop.crop.size)}
+              step="1"
+              value={pendingThumbnailCrop.crop.y}
+              disabled={
+                applyingThumbnailCrop ||
+                pendingThumbnailCrop.height === pendingThumbnailCrop.crop.size
+              }
+              onChange={(event) =>
+                updatePendingThumbnailCrop("y", Number(event.target.value))
+              }
+            />
+          </label>
+        </div>
+        <div className="fridge-setup-crop-actions">
+          <button
+            type="button"
+            disabled={applyingThumbnailCrop}
+            onClick={closePendingThumbnailCrop}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={applyingThumbnailCrop}
+            onClick={() => void applyPendingThumbnailCrop()}
+          >
+            {applyingThumbnailCrop ? "Preparing…" : "Use Photo"}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   if (editing) {
     const hasCustomUnit =
@@ -745,152 +932,153 @@ function InventoryItemRow({
     }
 
     return (
-      <article
-        className="inventory-item-row is-editing"
-        id={domId}
-        tabIndex={domId ? -1 : undefined}
-      >
-        <div className="inventory-edit-artwork-panel">
-          <InventoryArtwork
-            itemName={item.item_name}
-            thumbnailUrl={thumbnailPreview}
-          />
-          <div className="inventory-edit-artwork-actions">
-            <label className="inventory-photo-button">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/*"
-                onChange={(event) => {
-                  const [file] = event.target.files ?? [];
-                  event.currentTarget.value = "";
-                  void handleThumbnailFile(file ?? null);
-                }}
-              />
-              Choose Photo
-            </label>
-            <label className="inventory-photo-button">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/*"
-                capture="environment"
-                onChange={(event) => {
-                  const [file] = event.target.files ?? [];
-                  event.currentTarget.value = "";
-                  void handleThumbnailFile(file ?? null);
-                }}
-              />
-              Take Photo
-            </label>
-            {thumbnailPreview && (
-              <button
-                className="inventory-photo-button is-secondary"
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  const previous = item.thumbnail_url ?? null;
-                  setThumbnailPreview(null);
-                  void onRemoveThumbnail?.().catch((caught) => {
-                    setThumbnailPreview(previous);
-                    setValidationError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Could not remove the item photo.",
-                    );
-                  });
-                }}
-              >
-                Remove Photo
-              </button>
-            )}
-          </div>
-        </div>
-        <form
-          className="inventory-edit-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const parsedQuantity = Number(quantity);
-            const parsedLowThreshold = lowThreshold
-              ? Number(lowThreshold)
-              : null;
-            if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
-              setValidationError("Quantity cannot be negative.");
-              return;
-            }
-            if (
-              parsedLowThreshold !== null &&
-              (!Number.isFinite(parsedLowThreshold) || parsedLowThreshold <= 0)
-            ) {
-              setValidationError("Low threshold must be greater than zero.");
-              return;
-            }
-            setValidationError(null);
-            void onSave?.({
-              quantity: parsedQuantity,
-              unit: unit.trim() || null,
-              location: location as InventoryItem["location"],
-              expiration_date: expirationDate || null,
-              low_threshold: parsedLowThreshold,
-              category: category
-                ? category as StoredInventoryCategory
-                : null,
-            });
-          }}
+      <>
+        <article
+          className="inventory-item-row is-editing"
+          id={domId}
+          tabIndex={domId ? -1 : undefined}
         >
-          <div className="inventory-edit-header">
-            <strong>{titleCase(item.item_name)}</strong>
-            <button
-              className="inventory-edit-remove"
-              type="button"
-              aria-label={`Delete ${titleCase(item.item_name)} from inventory`}
-              disabled={busy}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Delete ${titleCase(item.item_name)} from inventory?`,
-                  )
-                ) {
-                  void onRemove?.();
-                }
-              }}
-            >
-              <Trash2 aria-hidden="true" size={18} strokeWidth={2} />
-            </button>
-          </div>
-
-          <div className="inventory-edit-fields">
-            <div className="inventory-edit-field-row">
-              <span>Quantity</span>
-              <div className="inventory-quantity-stepper">
-                <button
-                  type="button"
-                  aria-label="Decrease quantity"
-                  onClick={() => adjustQuantity(-1)}
-                  disabled={busy}
-                >
-                  −
-                </button>
+          <div className="inventory-edit-artwork-panel">
+            <InventoryArtwork
+              itemName={item.item_name}
+              thumbnailUrl={thumbnailPreview}
+            />
+            <div className="inventory-edit-artwork-actions">
+              <label className="inventory-photo-button">
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  required
-                  aria-label="Quantity"
-                  value={quantity}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/*"
                   onChange={(event) => {
-                    setQuantity(event.target.value);
-                    setValidationError(null);
+                    const [file] = event.target.files ?? [];
+                    event.currentTarget.value = "";
+                    void handleThumbnailFile(file ?? null);
                   }}
                 />
+                Choose Photo
+              </label>
+              <label className="inventory-photo-button">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/*"
+                  capture="environment"
+                  onChange={(event) => {
+                    const [file] = event.target.files ?? [];
+                    event.currentTarget.value = "";
+                    void handleThumbnailFile(file ?? null);
+                  }}
+                />
+                Take Photo
+              </label>
+              {thumbnailPreview && (
                 <button
+                  className="inventory-photo-button is-secondary"
                   type="button"
-                  aria-label="Increase quantity"
-                  onClick={() => adjustQuantity(1)}
                   disabled={busy}
+                  onClick={() => {
+                    const previous = item.thumbnail_url ?? null;
+                    setThumbnailPreview(null);
+                    void onRemoveThumbnail?.().catch((caught) => {
+                      setThumbnailPreview(previous);
+                      setValidationError(
+                        caught instanceof Error
+                          ? caught.message
+                          : "Could not remove the item photo.",
+                      );
+                    });
+                  }}
                 >
-                  +
+                  Remove Photo
                 </button>
-              </div>
+              )}
             </div>
+          </div>
+          <form
+            className="inventory-edit-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const parsedQuantity = Number(quantity);
+              const parsedLowThreshold = lowThreshold
+                ? Number(lowThreshold)
+                : null;
+              if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
+                setValidationError("Quantity cannot be negative.");
+                return;
+              }
+              if (
+                parsedLowThreshold !== null &&
+                (!Number.isFinite(parsedLowThreshold) || parsedLowThreshold <= 0)
+              ) {
+                setValidationError("Low threshold must be greater than zero.");
+                return;
+              }
+              setValidationError(null);
+              void onSave?.({
+                quantity: parsedQuantity,
+                unit: unit.trim() || null,
+                location: location as InventoryItem["location"],
+                expiration_date: expirationDate || null,
+                low_threshold: parsedLowThreshold,
+                category: category
+                  ? category as StoredInventoryCategory
+                  : null,
+              });
+            }}
+          >
+            <div className="inventory-edit-header">
+              <strong>{titleCase(item.item_name)}</strong>
+              <button
+                className="inventory-edit-remove"
+                type="button"
+                aria-label={`Delete ${titleCase(item.item_name)} from inventory`}
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Delete ${titleCase(item.item_name)} from inventory?`,
+                    )
+                  ) {
+                    void onRemove?.();
+                  }
+                }}
+              >
+                <Trash2 aria-hidden="true" size={18} strokeWidth={2} />
+              </button>
+            </div>
+
+            <div className="inventory-edit-fields">
+              <div className="inventory-edit-field-row">
+                <span>Quantity</span>
+                <div className="inventory-quantity-stepper">
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
+                    onClick={() => adjustQuantity(-1)}
+                    disabled={busy}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    aria-label="Quantity"
+                    value={quantity}
+                    onChange={(event) => {
+                      setQuantity(event.target.value);
+                      setValidationError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
+                    onClick={() => adjustQuantity(1)}
+                    disabled={busy}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
             <label className="inventory-edit-field-row">
               <span>Low at</span>
@@ -992,116 +1180,119 @@ function InventoryItemRow({
                 onChange={(event) => setExpirationDate(event.target.value)}
               />
             </label>
-          </div>
+            </div>
 
-          {validationError && (
-            <p className="inventory-edit-error" role="alert">
-              {validationError}
-            </p>
-          )}
+            {validationError && (
+              <p className="inventory-edit-error" role="alert">
+                {validationError}
+              </p>
+            )}
 
-          <div className="inventory-edit-actions">
-            <button
-              className="inventory-edit-cancel"
-              type="button"
-              disabled={busy}
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-            <button
-              className="inventory-save-button"
-              type="submit"
-              disabled={busy}
-            >
-              {busy ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
-      </article>
+            <div className="inventory-edit-actions">
+              <button
+                className="inventory-edit-cancel"
+                type="button"
+                disabled={busy}
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="inventory-save-button"
+                type="submit"
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        </article>
+        {thumbnailCropDialog}
+      </>
     );
   }
 
   return (
-    <article
-      className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}`}
-      id={domId}
-      tabIndex={domId ? -1 : undefined}
-    >
-      {(onOpen || onSelect) && (
-        <button
-          className="inventory-row-hit-area"
-          type="button"
-          onClick={selecting ? onSelect : onOpen}
-          aria-label={
-            selecting
-              ? `${selected ? "Deselect" : "Select"} ${titleCase(item.item_name)}`
-              : `Edit ${titleCase(item.item_name)}`
-          }
-          aria-pressed={selecting ? selected : undefined}
-        />
-      )}
-      {selecting && (
-        <span className="inventory-selection-control" aria-hidden="true">
-          {selected && <Check size={16} strokeWidth={3} />}
-        </span>
-      )}
-      {onReplaceThumbnail && !selecting ? (
-        <label className="inventory-artwork-button">
+    <>
+      <article
+        className={`inventory-item-row${onOpen || onSelect ? " inventory-item-row-button" : ""}${selecting ? " is-selecting" : ""}${selected ? " is-selected" : ""}`}
+        id={domId}
+        tabIndex={domId ? -1 : undefined}
+      >
+        {(onOpen || onSelect) && (
+          <button
+            className="inventory-row-hit-area"
+            type="button"
+            onClick={selecting ? onSelect : onOpen}
+            aria-label={
+              selecting
+                ? `${selected ? "Deselect" : "Select"} ${titleCase(item.item_name)}`
+                : `Edit ${titleCase(item.item_name)}`
+            }
+            aria-pressed={selecting ? selected : undefined}
+          />
+        )}
+        {selecting && (
+          <span className="inventory-selection-control" aria-hidden="true">
+            {selected && <Check size={16} strokeWidth={3} />}
+          </span>
+        )}
+        {onReplaceThumbnail && !selecting ? (
+          <label className="inventory-artwork-button">
+            <InventoryArtwork
+              itemName={item.item_name}
+              thumbnailUrl={item.thumbnail_url}
+              interactive
+              showCaptureAffordance
+              uploading={quickThumbnailUploading || busy}
+            />
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/*"
+              disabled={busy || quickThumbnailUploading}
+              aria-label={`${item.thumbnail_url ? "Change" : "Add"} photo for ${titleCase(item.item_name)}`}
+              onChange={(event) => {
+                const [file] = event.target.files ?? [];
+                event.currentTarget.value = "";
+                void handleQuickThumbnailFile(file ?? null);
+              }}
+            />
+          </label>
+        ) : (
           <InventoryArtwork
             itemName={item.item_name}
             thumbnailUrl={item.thumbnail_url}
-            interactive
-            showCaptureAffordance
-            uploading={quickThumbnailUploading || busy}
           />
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/*"
-            disabled={busy || quickThumbnailUploading}
-            aria-label={`${item.thumbnail_url ? "Change" : "Add"} photo for ${titleCase(item.item_name)}`}
-            onChange={(event) => {
-              const [file] = event.target.files ?? [];
-              event.currentTarget.value = "";
-              void handleQuickThumbnailFile(file ?? null);
-            }}
-          />
-        </label>
-      ) : (
-        <InventoryArtwork
-          itemName={item.item_name}
-          thumbnailUrl={item.thumbnail_url}
-        />
-      )}
-      <div className="inventory-item-copy">
-        <strong>{titleCase(item.item_name)}</strong>
-        <p>{metadata.join(" · ")}</p>
-        <div className="inventory-item-footer">
-          {attention ? (
-            <span className={`inventory-attention attention-${item.expiry_state === "expired" ? "urgent" : item.status}`}>
-              {attention}
-            </span>
-          ) : (
-            <span aria-hidden="true" />
-          )}
-          <span className="inventory-item-row-actions">
-            {item.added_at && !onAcknowledge && (
-              <small className="inventory-item-added-at">
-                {inventoryAddedDateLabel(item.added_at)}
-              </small>
+        )}
+        <div className="inventory-item-copy">
+          <strong>{titleCase(item.item_name)}</strong>
+          <p>{metadata.join(" · ")}</p>
+          <div className="inventory-item-footer">
+            {attention ? (
+              <span className={`inventory-attention attention-${item.expiry_state === "expired" ? "urgent" : item.status}`}>
+                {attention}
+              </span>
+            ) : (
+              <span aria-hidden="true" />
             )}
-            {onAcknowledge && (
-              <button
-                className="inventory-acknowledge"
-                type="button"
-                disabled={acknowledging}
-                onClick={() => void onAcknowledge()}
-              >
-                {acknowledging ? "Saving…" : "Acknowledge"}
-              </button>
-            )}
-            {shoppingState && !selecting && (
-              <button
+            <span className="inventory-item-row-actions">
+              {item.added_at && !onAcknowledge && (
+                <small className="inventory-item-added-at">
+                  {inventoryAddedDateLabel(item.added_at)}
+                </small>
+              )}
+              {onAcknowledge && (
+                <button
+                  className="inventory-acknowledge"
+                  type="button"
+                  disabled={acknowledging}
+                  onClick={() => void onAcknowledge()}
+                >
+                  {acknowledging ? "Saving…" : "Acknowledge"}
+                </button>
+              )}
+              {shoppingState && !selecting && (
+                <button
                 className="inventory-add-to-shopping"
                 type="button"
                 aria-label={
@@ -1122,12 +1313,14 @@ function InventoryItemRow({
                 ) : (
                   "+ Add"
                 )}
-              </button>
-            )}
-          </span>
+                </button>
+              )}
+            </span>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+      {thumbnailCropDialog}
+    </>
   );
 }
 
