@@ -3288,10 +3288,25 @@ html.household-tab-fade-in main#search {
   background: linear-gradient(145deg, #7b8f83, #354d41);
 }
 
+.home-update-artwork.has-photo {
+  border: 0;
+}
+
 .home-update-artwork > .item-artwork-image {
   position: absolute;
   inset: 0;
   z-index: 0;
+}
+
+.home-update-artwork.has-photo::after {
+  position: absolute;
+  inset: auto 0 0;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(6, 8, 16, 0) 0%, rgba(6, 8, 16, 0.72) 100%);
+  content: "";
 }
 
 .home-update-artwork::after {
@@ -3338,7 +3353,23 @@ html.household-tab-fade-in main#search {
   background: linear-gradient(145deg, #dd8c5f, #b44954);
 }
 
-.home-update-artwork > span {
+.home-update-artwork-overlay {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 29px;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-update-artwork > span:not(.home-update-artwork-overlay) {
   z-index: 1;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 38px;
@@ -4036,10 +4067,12 @@ html.household-tab-fade-in main#search {
 }
 
 .search-result-artwork {
+  position: relative;
   width: 48px;
   height: 48px;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border: 0.5px solid rgba(120, 120, 128, 0.2);
   border-radius: 4px;
   color: #fff;
@@ -4047,6 +4080,32 @@ html.household-tab-fade-in main#search {
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
   font-weight: 700;
+}
+
+.search-result-artwork.has-photo {
+  place-items: stretch;
+  border: 0;
+  background: transparent;
+}
+
+.search-result-artwork-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 10px 4px 3px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(6, 8, 16, 0) 0%, rgba(6, 8, 16, 0.82) 100%);
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 10px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .item-artwork-image {

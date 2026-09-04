@@ -2,6 +2,27 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Home and search photo thumbnails now render without border seams
+
+### Completed
+
+- Removed the remaining border seams around photo-backed artwork in the Home
+  tab and Search results so uploaded media now sits edge-to-edge inside the
+  thumbnail frame.
+- Added item-name text overlays directly on top of uploaded media for the Home
+  `Recently Updated` cards and Search result artwork, matching the existing
+  photo-card direction used elsewhere in the app.
+- Kept the no-photo fallback artwork unchanged, so only real media thumbnails
+  switch to the borderless overlay treatment.
+
+### Validation
+
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Home cards can now blend multiple protected item thumbnails
 
 ### Completed

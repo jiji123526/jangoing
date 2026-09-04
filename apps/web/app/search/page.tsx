@@ -153,8 +153,14 @@ function SearchArtwork({
   const protectedThumbnail = protectedItemMediaUrl(thumbnailUrl);
   if (protectedThumbnail) {
     return (
-      <span className={`search-result-artwork source-${source}`} aria-hidden="true">
+      <span
+        className={`search-result-artwork source-${source} has-photo`}
+        aria-hidden="true"
+      >
         <img className="item-artwork-image" src={protectedThumbnail} alt="" />
+        <span className="search-result-artwork-overlay">
+          {titleCase(itemName)}
+        </span>
       </span>
     );
   }

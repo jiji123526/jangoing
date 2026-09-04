@@ -570,8 +570,11 @@ function HomeArtwork({
   const protectedThumbnailUrl = protectedItemMediaUrl(thumbnailUrl);
   if (protectedThumbnailUrl) {
     return (
-      <div className="home-update-artwork" aria-hidden="true">
+      <div className="home-update-artwork has-photo" aria-hidden="true">
         <img className="item-artwork-image" src={protectedThumbnailUrl} alt="" />
+        <span className="home-update-artwork-overlay">
+          {titleCase(itemName)}
+        </span>
       </div>
     );
   }
