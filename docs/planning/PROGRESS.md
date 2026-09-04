@@ -2,6 +2,24 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Added planning docs for photo-based item form prefills
+
+### Completed
+
+- Added Korean and English planning documents for a future photo-to-item
+  prefill feature that would capture an item photo, propose recognition
+  candidates, and prefill an editable item-form draft.
+- Linked the new planning document into the documentation indexes so it is
+  discoverable from both language trees.
+
+### Validation
+
+- Verified the new planning documents and README index links.
+
+### Deployment
+
+- None. Documentation only.
+
 ## 2026-09-04 - Photo crop modals now support drag and zoom
 
 ### Completed
