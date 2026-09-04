@@ -147,6 +147,14 @@ function canonicalItemName(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function itemInitials(value: string): string {
+  return titleCase(value)
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("");
+}
+
 function resolveKnownItemName(
   itemName: string,
   inventory: InventoryItem[],
@@ -578,18 +586,24 @@ function HomeArtwork({
   itemName,
   thumbnailUrl,
   category: providedCategory,
+  compact = false,
 }: {
   itemName: string;
   thumbnailUrl?: string | null;
   category?: ItemCategory;
+  compact?: boolean;
 }) {
   const protectedThumbnailUrl = protectedItemMediaUrl(thumbnailUrl);
+  const label = compact ? itemInitials(itemName) : titleCase(itemName);
   if (protectedThumbnailUrl) {
     return (
-      <div className="home-update-artwork has-photo" aria-hidden="true">
+      <div
+        className={`home-update-artwork has-photo${compact ? " compact" : ""}`}
+        aria-hidden="true"
+      >
         <img className="item-artwork-image" src={protectedThumbnailUrl} alt="" />
         <span className="home-update-artwork-overlay">
-          {titleCase(itemName)}
+          {label}
         </span>
       </div>
     );
@@ -603,11 +617,11 @@ function HomeArtwork({
 
   return (
     <div
-      className={`home-update-artwork category-${categoryClass}`}
+      className={`home-update-artwork category-${categoryClass}${compact ? " compact" : ""}`}
       aria-hidden="true"
     >
       <span className="home-update-artwork-overlay">
-        {titleCase(itemName)}
+        {label}
       </span>
     </div>
   );
@@ -2490,6 +2504,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     <HomeArtwork
                       itemName={item.item_name}
                       thumbnailUrl={item.thumbnail_url}
+                      compact
                     />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>
@@ -2530,6 +2545,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     <HomeArtwork
                       itemName={item.item_name}
                       thumbnailUrl={item.thumbnail_url}
+                      compact
                     />
                     <span className="home-row-copy">
                       <strong>{titleCase(item.item_name)}</strong>

@@ -20,6 +20,34 @@ describe("parseCommand", () => {
     });
   });
 
+  it("ignores inventory destination phrasing in add commands", () => {
+    expect(
+      parseCommand({
+        text: "Add one egg to the inventory",
+      }),
+    ).toMatchObject({
+      intent: "add_item",
+      slots: {
+        item_name: "egg",
+        quantity: 1,
+        location: "fridge",
+      },
+    });
+    expect(
+      parseCommand({
+        text: "Put two cartons of milk in the inventory",
+      }),
+    ).toMatchObject({
+      intent: "add_item",
+      slots: {
+        item_name: "milk",
+        quantity: 2,
+        unit: "carton",
+        location: "fridge",
+      },
+    });
+  });
+
   it("parses low-stock commands and normalizes simple aliases", () => {
     expect(parseCommand({ text: "We are low on eggs" })).toMatchObject({
       intent: "mark_low",

@@ -303,13 +303,15 @@ export function parseCommand(
   }
 
   const addMatch = text.match(
-    /^(?:add|put)\s+(.+?)(?:\s+(?:to|in)\s+(?:the\s+)?(fridge|freezer|pantry))?$/i,
+    /^(?:add|put)\s+(.+?)(?:\s+(?:to|in)\s+(?:the\s+)?(inventory|fridge|freezer|pantry))?$/i,
   );
   if (addMatch) {
     const slots: CommandSlots = {
       ...parseItemPhrase(addMatch[1]),
       location:
-        (addMatch[2]?.toLowerCase() as CommandSlots["location"]) ?? "fridge",
+        addMatch[2]?.toLowerCase() === "inventory"
+          ? "fridge"
+          : (addMatch[2]?.toLowerCase() as CommandSlots["location"] | undefined) ?? "fridge",
       ...(expirationDate ? { expiration_date: expirationDate } : {}),
     };
 

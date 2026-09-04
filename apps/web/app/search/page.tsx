@@ -56,6 +56,14 @@ function titleCase(value: string): string {
     .join(" ");
 }
 
+function itemInitials(value: string): string {
+  return titleCase(value)
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("");
+}
+
 function searchable(value: string | null | undefined): string {
   return (value ?? "")
     .toLowerCase()
@@ -151,25 +159,24 @@ function SearchArtwork({
   source: "inventory" | "shopping";
 }) {
   const protectedThumbnail = protectedItemMediaUrl(thumbnailUrl);
+  const initials = itemInitials(itemName) || "JG";
   if (protectedThumbnail) {
     return (
       <span
-        className={`search-result-artwork source-${source} has-photo`}
+        className={`search-result-artwork source-${source} has-photo compact`}
         aria-hidden="true"
       >
         <img className="item-artwork-image" src={protectedThumbnail} alt="" />
         <span className="search-result-artwork-overlay">
-          {titleCase(itemName)}
+          {initials}
         </span>
       </span>
     );
   }
 
   return (
-    <span className={`search-result-artwork source-${source}`} aria-hidden="true">
-      <span className="search-result-artwork-overlay">
-        {titleCase(itemName)}
-      </span>
+    <span className={`search-result-artwork source-${source} compact`} aria-hidden="true">
+      {initials}
     </span>
   );
 }

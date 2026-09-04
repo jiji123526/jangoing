@@ -2,6 +2,30 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Compact thumbnails now keep initials while add-item parsing ignores inventory destination phrasing
+
+### Completed
+
+- Restored initials-only artwork treatment for compact Home row cards and
+  Search result thumbnails, while leaving larger card artwork unchanged.
+- Kept photo-backed compact thumbnails on the same protected media path but
+  switched their overlay copy from full item names back to centered initials.
+- Updated the rule-based add-item parser so commands such as
+  `Add one egg to the inventory` no longer treat `to the inventory` as part of
+  the item name.
+- Added focused parser coverage for `to the inventory` and `in the inventory`
+  add-item commands.
+
+### Validation
+
+- Re-ran focused API parser tests.
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the API Worker for the parser fix.
+- Deploy the Web app for the compact thumbnail update.
+
 ## 2026-09-04 - Quick Update now resolves singular and plural item variants to existing items
 
 ### Completed
