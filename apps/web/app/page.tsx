@@ -1,13 +1,14 @@
 "use client";
 
-import type {
-  CreateEventRequest,
-  EventRecord,
-  EventType,
-  Intent,
-  InventoryItem,
-  LoggedInterpretation,
-  ShoppingListItem,
+import {
+  resolveExistingItemName,
+  type CreateEventRequest,
+  type EventRecord,
+  type EventType,
+  type Intent,
+  type InventoryItem,
+  type LoggedInterpretation,
+  type ShoppingListItem,
 } from "@jangoing/contracts";
 import {
   Camera,
@@ -144,6 +145,21 @@ function canonicalItemName(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function resolveKnownItemName(
+  itemName: string,
+  inventory: InventoryItem[],
+  shoppingList: ShoppingListItem[],
+): string {
+  return (
+    resolveExistingItemName(
+      itemName,
+      inventory.map((item) => item.item_name).concat(
+        shoppingList.map((item) => item.item_name),
+      ),
+    ) ?? itemName
+  );
 }
 
 function relativeTimestamp(value: string): string {
@@ -1995,11 +2011,25 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         expiryDate || undefined,
       );
       setInterpretation(result);
-      setEdited(toEditable(result));
+      const resolvedItemName = result.slots.item_name
+        ? resolveKnownItemName(
+            result.slots.item_name,
+            dashboard.inventory,
+            dashboard.shoppingList,
+          )
+        : null;
+      setEdited({
+        ...toEditable(result),
+        itemName: resolvedItemName ?? result.slots.item_name ?? "",
+      });
 
       if (result.intent === "query_inventory" && result.slots.item_name) {
+        const matchedItemName = resolveExistingItemName(
+          result.slots.item_name,
+          dashboard.inventory.map((entry) => entry.item_name),
+        );
         const item = dashboard.inventory.find(
-          (entry) => entry.item_name === result.slots.item_name,
+          (entry) => entry.item_name === (matchedItemName ?? result.slots.item_name),
         );
         setNotice(
           item
@@ -2099,7 +2129,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setError(null);
 
     try {
-      await createEvent({
+      const createdEvent = await createEvent({
         inference_id: interpretation.inference_id,
         event: payload,
         original_interpretation: {
@@ -2115,7 +2145,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setExpiryDate("");
       setInterpretation(null);
       setEdited(null);
-      setNotice(`${titleCase(payload.item_name)} updated.`);
+      setNotice(`${titleCase(createdEvent.item_name)} updated.`);
       await loadDashboard();
       if (view === "home") setHomeQuickUpdateOpen(false);
     } catch (caught) {

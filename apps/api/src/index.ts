@@ -16,6 +16,7 @@ import {
   ShoppingItemContextRequestSchema,
   UpdateHouseholdProfileRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
+  resolveExistingItemName,
   type EventRecord,
   type InventoryItem,
   type Interpretation,
@@ -142,6 +143,23 @@ function normalizedFromEntities(entities: Array<{
       entity.normalized_value ?? entity.text,
     ]),
   );
+}
+
+function resolveEventItemName(
+  itemName: string,
+  eventType: EventRecord["event_type"],
+  inventory: InventoryItem[],
+  shoppingList: ShoppingListItem[],
+): string {
+  const preferredNames = eventType === "item_added_to_buy"
+    ? shoppingList.map((item) => item.item_name).concat(
+        inventory.map((item) => item.item_name),
+      )
+    : inventory.map((item) => item.item_name).concat(
+        shoppingList.map((item) => item.item_name),
+      );
+
+  return resolveExistingItemName(itemName, preferredNames) ?? itemName;
 }
 
 function configuredOrigins(env: Env): string[] {
@@ -772,9 +790,22 @@ async function handleCreateEvent(
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
   }
+
+  const projectedState = scope
+    ? await loadKitchenProjection(env, scope)
+    : null;
+  const resolvedItemName = projectedState
+    ? resolveEventItemName(
+        submission.event.item_name,
+        submission.event.event_type,
+        projectedState.projection.inventory,
+        projectedState.projection.shoppingList,
+      )
+    : submission.event.item_name;
   const event: EventRecord = {
     id: crypto.randomUUID(),
     ...submission.event,
+    item_name: resolvedItemName,
     quantity: submission.event.quantity ?? null,
     unit: submission.event.unit ?? null,
     location: submission.event.location ?? null,

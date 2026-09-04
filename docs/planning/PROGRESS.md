@@ -2,6 +2,30 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Quick Update now resolves singular and plural item variants to existing items
+
+### Completed
+
+- Added a shared item-name matching helper so existing item names can be
+  resolved across simple singular and plural variants such as `egg` and
+  `eggs`.
+- Applied that resolution to the API event-confirmation path, so Quick Update
+  confirmations now attach to the existing household item instead of creating
+  a duplicate variant entry.
+- Updated the Home Quick Update editor and inventory query notice to prefill
+  and display the resolved existing item name when a household already has the
+  matching item under a different singular/plural form.
+
+### Validation
+
+- Re-ran the focused API household-isolation test covering
+  `interpret -> confirm event` resolution.
+- Re-ran workspace typecheck.
+
+### Deployment
+
+- Deploy the API and Web app together.
+
 ## 2026-09-04 - Default artwork thumbnails now use the same item-name style as photo cards
 
 ### Completed

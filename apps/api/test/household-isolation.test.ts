@@ -580,6 +580,81 @@ describe("household consumer-data isolation", () => {
     expect(correctHousehold.status).toBe(200);
   });
 
+  it("resolves quick-update item names to an existing household item variant", async () => {
+    database.prepare(
+      `INSERT INTO events (
+        id, event_type, item_name, quantity, raw_utterance, confidence,
+        source, created_at, household_id, created_by_user_id
+      ) VALUES (?, 'item_added', ?, 12, ?, 1, 'web', ?, ?, ?)`,
+    ).run(
+      crypto.randomUUID(),
+      "eggs",
+      "Added eggs",
+      createdAt,
+      householdA,
+      userA,
+    );
+
+    const interpreted = await request(
+      "/commands/interpret",
+      { method: "POST", body: JSON.stringify({ text: "We are low on egg" }) },
+      tokenA,
+    );
+    expect(interpreted.status).toBe(200);
+    const interpretation = await interpreted.json() as {
+      inference_id: string;
+      intent: string;
+      slots: { item_name?: string };
+      confidence: number;
+      requires_confirmation: boolean;
+      raw_utterance: string;
+    };
+    expect(interpretation.slots.item_name).toBe("egg");
+
+    const confirmed = await request(
+      "/events",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          inference_id: interpretation.inference_id,
+          event: {
+            event_type: "item_marked_low",
+            item_name: interpretation.slots.item_name,
+            quantity: null,
+            unit: null,
+            location: null,
+            expiration_date: null,
+            low_threshold: null,
+            raw_utterance: interpretation.raw_utterance,
+            confidence: interpretation.confidence,
+            source: "web",
+          },
+          original_interpretation: {
+            intent: interpretation.intent,
+            slots: interpretation.slots,
+            confidence: interpretation.confidence,
+            requires_confirmation: interpretation.requires_confirmation,
+            raw_utterance: interpretation.raw_utterance,
+          },
+          parser_version: "rules-v2",
+        }),
+      },
+      tokenA,
+    );
+
+    expect(confirmed.status).toBe(201);
+    expect(await confirmed.json()).toMatchObject({ item_name: "eggs" });
+    expect(
+      database.prepare(
+        `SELECT item_name
+         FROM events
+         WHERE household_id = ? AND event_type = 'item_marked_low'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+      ).get(householdA),
+    ).toEqual({ item_name: "eggs" });
+  });
+
   it("keeps fridge setup state independent per household and legacy mode", async () => {
     database.prepare(
       `INSERT INTO household_app_state (

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export {
+  itemNameMatchKeys,
+  resolveExistingItemName,
+} from "./item-name";
+
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export const IsoDateSchema = z.string().regex(
