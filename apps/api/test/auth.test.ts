@@ -258,6 +258,16 @@ describe("consumer auth boundary", () => {
     expect(
       database.prepare("SELECT COUNT(*) AS count FROM users").get(),
     ).toEqual({ count: 1 });
+    const changesBeforeRepeat = database.prepare(
+      "SELECT total_changes() AS count",
+    ).get();
+    await authenticateConsumerRequest(request, {
+      ...env,
+      AUTH_REQUIRED: "true",
+    });
+    expect(
+      database.prepare("SELECT total_changes() AS count").get(),
+    ).toEqual(changesBeforeRepeat);
 
     database.close();
   });

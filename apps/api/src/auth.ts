@@ -263,6 +263,29 @@ async function upsertUser(
   env: AuthEnvironment,
   claims: AppJwtClaims,
 ): Promise<AuthenticatedUser> {
+  const existing = await env.DB.prepare(
+    `SELECT id, google_subject, email, display_name, avatar_url
+     FROM users
+     WHERE google_subject = ?`,
+  ).bind(claims.sub).first<UserRow>();
+  const displayName = claims.name ?? existing?.display_name ?? null;
+  const avatarUrl = claims.picture ?? existing?.avatar_url ?? null;
+
+  if (
+    existing &&
+    existing.email === claims.email &&
+    existing.display_name === displayName &&
+    existing.avatar_url === avatarUrl
+  ) {
+    return {
+      id: existing.id,
+      googleSubject: existing.google_subject,
+      email: existing.email,
+      displayName: existing.display_name,
+      avatarUrl: existing.avatar_url,
+    };
+  }
+
   const now = new Date().toISOString();
   const row = await env.DB.prepare(
     `INSERT INTO users (
@@ -278,8 +301,8 @@ async function upsertUser(
     crypto.randomUUID(),
     claims.sub,
     claims.email,
-    claims.name ?? null,
-    claims.picture ?? null,
+    displayName,
+    avatarUrl,
     now,
     now,
   ).first<UserRow>();
