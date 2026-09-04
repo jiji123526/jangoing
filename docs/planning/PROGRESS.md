@@ -2,339 +2,279 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
-## 2026-09-02 - Mandatory Google and household onboarding implemented
+## 2026-09-04 - Dashboard auth fixed and household read paths optimized
 
 ### Completed
 
-- Added a non-dismissible Google sign-in gate for all application pages.
-- Allowed any valid Google account without an application allowlist.
-- Added household membership resolution with existing-member bypass.
-- Added Apple-inspired household choice, join-code, household creation, and
-  completion screens.
-- Prevented app pages and bottom navigation from rendering before household
-  access is resolved.
-- Added accessible focus movement, inline errors, loading states, safe-area
-  layout, reduced-motion handling, and in-memory form state.
-- Replaced the Home profile placeholder with an account sheet and sign-out.
-- Added typed household response contracts and web API methods.
-- Added mirrored Google Cloud, Vercel, Worker, migration, first-login, and
-  bootstrap-backfill setup instructions.
+- Added `/dashboard` to the Web app-token allowlist so initial kitchen loads
+  use the authenticated household scope instead of the anonymous null-household
+  fallback.
+- Added a Web regression test that verifies dashboard requests send the app
+  bearer token.
+- Consolidated the initial kitchen bootstrap around the dashboard response so
+  fridge-setup state and acknowledged attention items load together.
+- Avoided unchanged authenticated-user writes during request authentication.
+- Added same-day household kitchen projection caching and invalidation to
+  reduce repeated event replay.
+- Added a dedicated active join-code lookup index migration for faster
+  household invite resolution.
 
-### Verification
+### Validation
 
-- `npm run test`
-- `npm run typecheck`
-- `npm run build --workspace @jangoing/api`
-- `npm run build --workspace @jangoing/web`
-- `git diff --check`
+- Web dashboard auth coverage now includes a bearer-token regression test.
+- Worker auth, household-isolation, projection, and migration coverage were
+  extended for the new caching and join-code lookup paths.
 
 ### Deployment
 
-- No Google, Vercel, Worker, or D1 configuration was changed.
-- The mandatory gate must not be deployed before the documented OAuth,
-  migration, and secret setup is complete.
-- `AUTH_REQUIRED` remains `false` through first login and bootstrap backfill.
+1. Apply D1 migration `0017_optimize_household_join_code_lookup.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
 
-## 2026-09-02 - Google session and bootstrap backfill tooling implemented
-
-### Completed
-
-- Added Auth.js v5 Google OAuth with encrypted JWT sessions.
-- Kept the stable Google subject in the server-readable Auth.js token instead
-  of exposing it in the browser session response.
-- Added a same-origin endpoint that issues ten-minute Worker-compatible app
-  JWTs.
-- Added in-memory browser token caching, pre-expiry refresh, and one-time
-  authentication retry to the Worker API client.
-- Added web token signature and claim tests.
-- Recorded `Jiwoo's Home` as the selected bootstrap household.
-- Added a remote-only, dry-run-first legacy backfill command that assigns all
-  legacy events and only `web` inference logs while preserving research data.
-- Added exact owner, membership, household-name, schema, confirmation, and
-  post-transaction count safeguards to the backfill.
-
-### Verification
-
-- `npm run test`
-- `npm run typecheck`
-- `npm run build --workspace @jangoing/api`
-- `npm run build --workspace @jangoing/web`
-- `git diff --check`
-
-### Deployment
-
-- Google credentials and production secrets were not configured.
-- Remote migrations, Worker deployment, first login, and the backfill were not
-  executed.
-- Login/onboarding UI and `AUTH_REQUIRED=true` remain future phases.
-
-## 2026-09-02 - Consumer data scoped by household
+## 2026-09-04 - Root README refreshed
 
 ### Completed
 
-- Scoped event history, inventory, and shopping projections by authenticated
-  household.
-- Added household and user ownership to all authenticated consumer event
-  writes and inference logs.
-- Scoped pending-inference confirmation and outcome updates to the originating
-  household.
-- Moved authenticated fridge-setup completion to household app state.
-- Restricted temporary anonymous rollout traffic to null-household legacy rows.
-- Replaced event `SELECT *` with explicit public columns so ownership metadata
-  remains internal.
-- Added request-level SQLite tests covering two households and anonymous legacy
-  behavior.
-
-### Verification
-
-- `npm run test --workspace @jangoing/api`
-- `npm run typecheck`
-- `npm run build --workspace @jangoing/api`
-- `git diff --check`
-
-### Deployment
-
-- Application-level household isolation is implemented.
-- Remote migrations, legacy-data backfill, Worker secrets, and production
-  configuration were not changed.
-- Keep `AUTH_REQUIRED=false` until those rollout prerequisites and the web token
-  issuer are complete.
-
-## 2026-09-02 - Household lifecycle API implemented
-
-### Completed
-
-- Added authenticated current-household, create, join, join-code rotation, and
-  join-code revocation routes.
-- Added 50-bit readable join codes stored only as keyed HMAC-SHA256 hashes with
-  seven-day expiry.
-- Added generic invalid-code behavior for malformed, expired, and revoked
-  credentials.
-- Added owner-only code management and omitted Google provider identity from
-  API profile responses.
-- Added migration `0013` to enforce one household membership per user at the
-  database layer.
-- Added shared household request/response contracts and SQLite-backed lifecycle
-  tests.
-- Applied migration `0013` to the repository's Node/SQLite local database.
-
-### Verification
-
-- `npm run test --workspace @jangoing/api`
-- `npm run typecheck`
-- `npm run build --workspace @jangoing/api`
-- `git diff --check`
-
-### Deployment
-
-- Remote D1, Worker secrets, and production Worker were not changed.
-- `AUTH_REQUIRED` must remain `false` until migration, backfill, secrets, and
-  the web token issuer are ready.
-- Join-attempt rate limiting remains required before public deployment.
-
-## 2026-09-02 - Worker app-JWT authentication boundary implemented
-
-### Completed
-
-- Added HS256 app-JWT verification using Worker Web Crypto with strict issuer,
-  audience, identity, issue-time, expiry, and maximum-lifetime checks.
-- Added Google-subject user upsert and single-household membership resolution.
-- Added stable authentication error codes for missing, malformed, invalid, and
-  household-less requests.
-- Added the optional consumer-route auth boundary while leaving health and
-  annotation routes on their current policy.
-- Added `Authorization` to CORS and safe non-secret rollout defaults to
-  `wrangler.toml`.
-- Added unit and SQLite-backed tests for token verification, route policy,
-  identity upsert, and membership resolution.
-
-### Verification
-
-- `npm run test --workspace @jangoing/api -- auth.test.ts`
-- `npm run typecheck --workspace @jangoing/api`
-- `npm run build --workspace @jangoing/api`
-
-### Deployment
-
-- `AUTH_REQUIRED` remains `false`.
-- No Worker secret or remote configuration was changed.
-- Do not enable required auth until migration, backfill, secrets, and the web
-  token issuer are ready.
-
-## 2026-09-02 - Household ownership schema implemented
-
-### Completed
-
-- Added additive D1 migration `0012_add_household_ownership.sql` for users,
-  households, memberships, join codes, and household-scoped app state.
-- Added nullable household/user provenance to legacy events and inference logs
-  without assigning existing records to an arbitrary account.
-- Added ownership and lookup indexes plus foreign-key and membership-role
-  constraints.
-- Updated the Node-based local API bootstrap to apply the household migration.
-- Added migration tests for legacy compatibility, relational constraints, and
-  app-state isolation.
-- Applied and inspected the migration in the repository's Node/SQLite local
-  database with no foreign-key violations.
-
-### Verification
-
-- `npm run test --workspace @jangoing/api -- household-migration.test.ts`
-- `npm run typecheck --workspace @jangoing/api`
-- `git diff --check`
-
-### Deployment
-
-- Remote D1 was not changed.
-- Wrangler local D1 could not run on this host because its bundled `workerd`
-  requires GLIBC 2.35; the same migration passed Node/SQLite execution and
-  schema tests.
-- Do not apply the remote migration until the production bootstrap household
-  owner and legacy-data backfill policy are confirmed.
-
-## 2026-09-02 - Join-first household onboarding planned
-
-### Completed
-
-- Changed Google-login onboarding so authentication creates only user identity,
-  not an automatic household.
-- Defined the `Do you have your household code?` flow: join an existing
-  household by code or create a new household and become its owner.
-- Added revocable, expiring, rate-limited join-code storage and security rules.
-- Added household onboarding routes, UI states, deployment steps, and tests to
-  both temporary locale plans.
+- Reworked the root `README.md` around the current household-authenticated app
+  flow, workspace layout, and bilingual documentation entry points.
+- Removed stale setup wording and tightened links into the docs, API, and ML
+  package surfaces.
 
 ### Deployment
 
 - This change is documentation-only.
 
-## 2026-09-02 - Google authentication and household rollout planned
+## 2026-09-03 - Inventory attention and search-linked navigation added
 
 ### Completed
 
-- Added matching temporary English and Korean implementation plans for Google
-  authentication and household-scoped consumer data.
-- Defined the recommended Auth.js, short-lived app JWT, Worker verification,
-  and D1 membership architecture.
-- Documented schema migrations, legacy-data ownership, protected routes,
-  deployment order, privacy decisions, and cross-household isolation tests.
-- Added the plan to both locale documentation indexes.
+- Preserved explicit zero-quantity inventory rows so out-of-stock state is not
+  dropped by later mutations.
+- Grouped out-of-stock inventory on Home, surfaced out-of-stock follow-up in
+  shopping suggestions, and added household-scoped attention
+  acknowledgements.
+- Added contextual Home-to-Inventory deep links with route-state tracking and
+  safe focus behavior that avoids unwanted edit-mode entry or highlight flash.
+- Linked search results back to the matching inventory item and included
+  resolved inventory categories in search surfaces.
+- Added Worker and Web test coverage for household attention,
+  category-aware search, and inventory navigation helpers.
 
 ### Deployment
 
-- This change is documentation-only.
+1. Apply D1 migration
+   `0016_create_inventory_attention_acknowledgements.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
 
-## 2026-09-02 - Legacy root docs removed after bilingual migration
+## 2026-09-03 - Consumer shell and onboarding polish expanded
 
 ### Completed
 
-- Repointed repository and ML guide links away from legacy root `docs/...`
-  mirrors and into `docs/ENG/...` or `docs/KO/...`.
-- Updated bilingual planning and decision docs so internal cross-links no
-  longer depend on the legacy root copies.
-- Kept only the intentional root-level exceptions: `docs/README.md`,
-  `docs/planning/PROGRESS.md`, and the root-only design guide.
-- Removed duplicated legacy docs from root `docs/annotation/`,
-  `docs/decisions/`, `docs/ml/`, `docs/operations/`, and `docs/planning/`.
+- Tuned the floating bottom navigation motion, spacing, and header alignment
+  to better match the Apple-inspired shell.
+- Replaced raster tab-bar assets with SVG icons and aligned the Home profile
+  icon ratio with the latest visual reference.
+- Stabilized onboarding panel entrance motion and streamlined the
+  authenticated household-navigation flow.
+- Kept Safari safe areas and mobile browser chrome white and tightened filter
+  pill spacing.
+
+### Validation
+
+- Public-home rendering and authenticated setup-state coverage remain in the
+  Web test suite.
+- Web type checking and the full Web test suite pass for the combined shell
+  and onboarding changes.
 
 ### Deployment
 
-- This change is documentation-only.
+- Redeploy the Web app; no Worker deployment or migration is required.
 
-## 2026-09-02 - Korean docs index labels aligned to actual titles
+## 2026-09-03 - Public service home and modal onboarding added
 
 ### Completed
 
-- Updated `docs/KO/README.md` so visible link labels now match the actual
-  document titles instead of using English summary labels.
-- Kept mixed Korean/English titles where the source documents themselves use
-  mixed naming, so the index matches what opens on click.
+- Added an API-independent Apple Music-style public home for signed-out users
+  and authenticated users who have not joined a household.
+- Added feature shelves, an example kitchen, household sharing, waste
+  prevention, and privacy content without adding the proposed mini player.
+- Moved Google sign-in and household setup into a native modal dialog above the
+  public home.
+- Allowed the dialog to close without granting access to private pages,
+  consumer API requests, or bottom navigation.
+- Preserved join-code deep links, household resolution, and existing-member
+  onboarding bypass behavior.
 
-### Deployment
+### Validation
 
-- This change is documentation-only.
+- Added server-render coverage for the public content and setup account state.
+- Web type checking and the full Web test suite pass.
 
-## 2026-09-02 - Root docs index simplified
-
-### Completed
-
-- Replaced `docs/README.md` as a mixed-language reading guide with a minimal
-  language router.
-- Removed direct links from the root docs index to individual planning,
-  annotation, ML, decision, and operations documents.
-- Kept the root index focused on language selection, folder structure, and
-  documentation maintenance rules.
-
-### Deployment
-
-- This change is documentation-only.
-
-## 2026-09-02 - ML docs added to bilingual tree
+## 2026-09-02 - Floating navigation, analytics, and invite flow polished
 
 ### Completed
 
-- Added `docs/ENG/ml/ML_NLP_CONCEPTS.md` as the English mirror of the ML/NLP
-  concepts guide, completing the current mirrored ML doc set.
-- Added mirrored Korean and English ML document trees for model evaluation,
-  alignment/verifier notes, dataset design, synthetic data, and external
-  dataset research.
-- Updated the English and Korean language indexes so their ML sections now
-  prefer `docs/ENG/ml/` and `docs/KO/ml/` instead of falling back to legacy
-  root ML docs.
-- Corrected the Korean ML concepts mirror's internal related-document links so
-  the mirrored tree is self-consistent.
+- Added a floating sliding bottom navigation treatment and aligned page titles
+  with header actions across the main consumer pages.
+- Refreshed the Home and Analytics surfaces with updated inventory projection
+  metrics and supporting projection test coverage.
+- Restyled household onboarding and invite flows, including invite-page
+  skeletons, copied-state feedback, and cleaner sign-in and success messaging.
+- Kept the current household invite code visible, improved invite sharing and
+  join flow behavior, and allowed members to view the active shared code.
 
 ### Deployment
 
-- This change is documentation-only.
+1. Apply D1 migration `0015_store_household_join_code_ciphertext.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
 
-## 2026-09-02 - Specialist planning docs added to bilingual tree
+## 2026-09-02 - Household profile customization added
 
 ### Completed
 
-- Added `docs/KO/planning/` mirrors for the specialist planning docs:
-  item media, language engineer questions, personalized ASR, and voice pipeline.
-- Added English translations for those four planning docs under
-  `docs/ENG/planning/`.
-- Updated the English and Korean language indexes so those planning links now
-  prefer the mirrored language folders instead of legacy root docs.
+- Added shared household name, emoji, and icon-color persistence.
+- Made the household row actionable for owners and read-only for members.
+- Added a live-preview editor with typed emoji validation, color presets,
+  native color selection, and save state.
+- Replaced default household glyphs in the account header and household row
+  with the configured emoji and background color.
+- Update shared household context immediately after save.
+
+### Validation
+
+- Added migration defaults and owner/member authorization coverage.
+- Added Worker route validation for invalid emoji input and shared member
+  visibility.
+- Added Web client response validation for profile updates.
 
 ### Deployment
 
-- This change is documentation-only.
+1. Apply D1 migration `0014_add_household_profile.sql`.
+2. Deploy the Worker.
+3. Deploy the Web app.
 
-## 2026-09-02 - English annotation conventions mirror added
+## 2026-09-02 - Shared member editing and private search recents verified
 
 ### Completed
 
-- Added `docs/ENG/annotation/ANNOTATION_CONVENTIONS.md` as the English mirror
-  of the current annotation convention source.
-- Updated the English annotation guide to reference the local English
-  conventions file instead of the Korean fallback.
-- Updated the English language index so annotation conventions now resolve
-  inside `docs/ENG/annotation/`.
+- Confirmed that owner and member roles both have read/write access to shared
+  inventory and shopping-list operations.
+- Added Worker route coverage proving member mutations retain household and
+  user provenance.
+- Changed recent-search local storage from one browser-wide key to an
+  authenticated-user namespace.
+- Discard the ambiguous legacy shared key instead of assigning another
+  account's history to the currently signed-in user.
 
 ### Deployment
 
-- This change is documentation-only.
+- Deploy the Web app for user-scoped search recents.
+- The member editing policy already exists in the Worker; the new Worker test
+  documents and protects that behavior.
 
-## 2026-09-02 - Annotation docs phase added to bilingual tree
+## 2026-09-02 - Household member management added
 
 ### Completed
 
-- Added `docs/KO/annotation/` mirrors for the current Korean annotation guide,
-  annotation conventions, and relevance-candidate operation document.
-- Added English translations for the annotation guide and
-  `relevance-candidates-v1` under `docs/ENG/annotation/`.
-- Updated the English and Korean language indexes so annotation guide and
-  relevance-candidate links now prefer the mirrored language folders instead of
-  falling back to legacy root docs.
-- Kept annotation conventions on the Korean mirrored source for now; the
-  English translation of that larger document remains a separate follow-up batch.
+- Added household-scoped member listing with owner-first ordering.
+- Added an owner-only member removal endpoint that cannot remove the owner or
+  target another household.
+- Added a member count row and nested member screen to the account dialog.
+- Show avatar, name, email, role, and current-user status for each member.
+- Keep member access read-only and expose removal controls only to owners.
+- Update the visible list immediately after successful removal.
+
+### Validation
+
+- Added household lifecycle and Worker route tests for listing, isolation,
+  owner authorization, and removal.
+- Added Web API client coverage for member listing and deletion.
 
 ### Deployment
 
-- This change is documentation-only.
+- Deploy the Worker and Web app; no D1 migration is required.
+
+## 2026-09-02 - Household profile and sharing implemented
+
+### Completed
+
+- Replaced the compact account sheet with a native full-screen account dialog
+  based on the grouped account-page reference.
+- Added shared authenticated user and household context for profile surfaces.
+- Added Google identity, household name, role, and owner-aware account rows.
+- Use the current household name as the account dialog title.
+- Added reversible bottom-up account dialog motion with a reduced-motion path.
+- Connected owner-only seven-day invite generation, copy, native sharing,
+  rotation, and revocation to the existing Worker endpoints.
+- Kept plaintext join codes in component memory only and clear them when the
+  account dialog closes.
+- Kept members read-only by omitting owner invite controls.
+
+### Validation
+
+- Added Web client tests for join-code generation and revocation.
+
+### Deployment
+
+- Redeploy the Web app; the existing Worker endpoints require no migration or
+  Worker code change.
+
+## 2026-09-02 - Inventory edit refresh scoped to one item
+
+### Completed
+
+- Removed the full dashboard loading cycle after an inventory edit.
+- Refresh the inventory projection after saving, then replace only the edited
+  item in client state while preserving the remaining item objects.
+- Remove the edited row directly if setting its quantity to zero causes the
+  projection to omit it.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
+## 2026-09-02 - Account sheet stacking fixed
+
+### Completed
+
+- Moved the account modal above the Home Quick Update bar and bottom
+  navigation stacking tiers.
+- Added a viewport-aware maximum height and contained scrolling so account
+  actions, including Sign Out, remain reachable on short mobile screens.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
+## 2026-09-02 - Shared loading skeletons added
+
+### Completed
+
+- Added reusable page, row, card, metric, and search-result skeleton variants.
+- Replaced text-only loading states across Home, Inventory, Shopping, Search,
+  Analytics, and the authentication/household gate.
+- Preserved accessible loading labels and disabled shimmer motion when reduced
+  motion is requested.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
+
+## 2026-09-02 - Household refresh flash removed
+
+### Completed
+
+- Split household access into checking, setup-required, and ready states.
+- Kept the authenticated loading screen visible while the current household
+  request is pending.
+- Showed household setup only after the API explicitly reports no membership,
+  preventing the setup screen from flashing during refresh.
+
+### Deployment
+
+- Redeploy the Web app; no Worker deployment or migration is required.
 
 ## 2026-09-02 - Phase-1 bilingual docs tree added
 
