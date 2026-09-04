@@ -2,6 +2,33 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - New-item thumbnail drafts added to fridge setup
+
+### Completed
+
+- Added optional thumbnail drafts to the guided `Set Up My Fridge` flow for
+  newly entered items.
+- Added `Choose Photo`, `Take Photo`, and `Remove Photo` actions to each setup
+  draft during the detail step, with the same client-side square crop and JPEG
+  compression used by the existing-item thumbnail pilot.
+- Saved the fridge setup inventory transaction first, then uploaded item
+  thumbnails only for the successfully saved canonical items.
+- Patched successful uploaded thumbnails back into the returned setup
+  inventory so Home and Inventory reflect the new artwork immediately after
+  setup completes.
+- Added a non-blocking notice path when one or more post-setup photo uploads
+  fail, so fridge setup itself still completes.
+
+### Validation
+
+- Added Web helper coverage for collecting setup thumbnail uploads and merging
+  uploaded thumbnail responses back into projected inventory.
+
+### Deployment
+
+- Redeploy the Web app; this slice reuses the existing item-media routes and
+  requires no new Worker migration.
+
 ## 2026-09-04 - Existing inventory item thumbnail pilot added
 
 ### Completed

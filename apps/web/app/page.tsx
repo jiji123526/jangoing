@@ -1961,6 +1961,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             open={fridgeSetupOpen}
             inventory={dashboard.inventory}
             onClose={() => setFridgeSetupOpen(false)}
+            onNotice={setNotice}
             onComplete={(result) => {
               setFridgeSetupStatus({
                 completed: result.completed,

@@ -12,7 +12,15 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { completeFridgeSetup } from "../lib/api";
+import {
+  completeFridgeSetup,
+  uploadItemThumbnail,
+} from "../lib/api";
+import {
+  applyUploadedThumbnails,
+  setupThumbnailUploads,
+} from "../lib/fridge-setup-thumbnail";
+import { prepareItemThumbnailDataUrl } from "../lib/item-thumbnail";
 
 const draftStorageKey = "jangoing.fridge-setup-draft.v1";
 const units = [
@@ -36,6 +44,7 @@ const units = [
 type SetupDraft = {
   id: string;
   name: string;
+  thumbnailUrl: string;
   quantity: string;
   unit: string;
   location: "" | "fridge" | "freezer" | "pantry";
@@ -61,6 +70,7 @@ function emptyDraft(): SetupDraft {
   return {
     id: crypto.randomUUID(),
     name: "",
+    thumbnailUrl: "",
     quantity: "1",
     unit: "",
     location: "fridge",
@@ -74,6 +84,7 @@ function inventoryDrafts(inventory: InventoryItem[]): SetupDraft[] {
   return inventory.map((item) => ({
     id: crypto.randomUUID(),
     name: titleCase(item.item_name),
+    thumbnailUrl: item.thumbnail_url ?? "",
     quantity: item.quantity > 0 ? String(item.quantity) : "1",
     unit: item.unit ?? "",
     location: item.location ?? "fridge",
@@ -88,6 +99,15 @@ function validStoredDrafts(value: unknown): value is SetupDraft[] {
     draft !== null &&
     Object.values(draft).every((field) => typeof field === "string")
   );
+}
+
+function normalizeStoredDrafts(value: SetupDraft[]): SetupDraft[] {
+  return value.map((draft) => ({
+    ...emptyDraft(),
+    ...draft,
+    thumbnailUrl:
+      typeof draft.thumbnailUrl === "string" ? draft.thumbnailUrl : "",
+  }));
 }
 
 function toSetupItems(drafts: SetupDraft[]): FridgeSetupItem[] {
@@ -106,11 +126,13 @@ export function FridgeSetupDialog({
   inventory,
   onClose,
   onComplete,
+  onNotice,
 }: {
   open: boolean;
   inventory: InventoryItem[];
   onClose: () => void;
   onComplete: (result: FridgeSetupResponse) => void;
+  onNotice?: (message: string) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState(1);
@@ -125,7 +147,7 @@ export function FridgeSetupDialog({
     if (restored) return;
     try {
       const stored = JSON.parse(localStorage.getItem(draftStorageKey) ?? "null");
-      if (validStoredDrafts(stored)) setDrafts(stored);
+      if (validStoredDrafts(stored)) setDrafts(normalizeStoredDrafts(stored));
       else setDrafts(inventoryDrafts(inventory));
     } catch {
       setDrafts(inventoryDrafts(inventory));
@@ -149,6 +171,24 @@ export function FridgeSetupDialog({
     setDrafts((current) =>
       current.map((draft) => draft.id === id ? { ...draft, ...update } : draft)
     );
+  }
+
+  async function handleDraftThumbnail(
+    draftId: string,
+    file: File | null,
+  ) {
+    if (!file) return;
+    try {
+      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
+      updateDraft(draftId, { thumbnailUrl });
+      setError(null);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not prepare the selected image.",
+      );
+    }
   }
 
   function validateNames(): string | null {
@@ -201,8 +241,34 @@ export function FridgeSetupDialog({
     setError(null);
     try {
       const result = await completeFridgeSetup({ items: toSetupItems(drafts) });
+      const uploads = setupThumbnailUploads(drafts);
+      let completedResult = result;
+
+      if (uploads.length > 0) {
+        const settled = await Promise.allSettled(
+          uploads.map(({ itemName, thumbnailUrl }) =>
+            uploadItemThumbnail(itemName, thumbnailUrl),
+          ),
+        );
+        const uploaded = settled.flatMap((entry) =>
+          entry.status === "fulfilled" ? [entry.value] : [],
+        );
+        const failed = settled.length - uploaded.length;
+        if (uploaded.length > 0) {
+          completedResult = {
+            ...result,
+            inventory: applyUploadedThumbnails(result.inventory, uploaded),
+          };
+        }
+        if (failed > 0) {
+          onNotice?.(
+            `Kitchen setup saved, but ${failed} photo upload${failed === 1 ? "" : "s"} failed.`,
+          );
+        }
+      }
+
       localStorage.removeItem(draftStorageKey);
-      onComplete(result);
+      onComplete(completedResult);
       onClose();
     } catch (caught) {
       setError(
@@ -305,6 +371,55 @@ export function FridgeSetupDialog({
                 {drafts.map((draft) => (
                   <section key={draft.id}>
                     <h3>{titleCase(draft.name)}</h3>
+                    <div className="fridge-setup-photo-row">
+                      <div className="fridge-setup-photo-preview" aria-hidden="true">
+                        {draft.thumbnailUrl ? (
+                          <img
+                            className="item-artwork-image"
+                            src={draft.thumbnailUrl}
+                            alt=""
+                          />
+                        ) : (
+                          <span>{titleCase(draft.name).slice(0, 2) || "JG"}</span>
+                        )}
+                      </div>
+                      <div className="fridge-setup-photo-actions">
+                        <label className="inventory-photo-button">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/*"
+                            onChange={(event) => {
+                              const [file] = event.target.files ?? [];
+                              event.currentTarget.value = "";
+                              void handleDraftThumbnail(draft.id, file ?? null);
+                            }}
+                          />
+                          Choose Photo
+                        </label>
+                        <label className="inventory-photo-button">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/*"
+                            capture="environment"
+                            onChange={(event) => {
+                              const [file] = event.target.files ?? [];
+                              event.currentTarget.value = "";
+                              void handleDraftThumbnail(draft.id, file ?? null);
+                            }}
+                          />
+                          Take Photo
+                        </label>
+                        {draft.thumbnailUrl && (
+                          <button
+                            className="inventory-photo-button is-secondary"
+                            type="button"
+                            onClick={() => updateDraft(draft.id, { thumbnailUrl: "" })}
+                          >
+                            Remove Photo
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <div>
                       <label>
                         <span>Quantity</span>

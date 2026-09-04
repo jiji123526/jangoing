@@ -2427,6 +2427,34 @@ html.household-tab-fade-in main#search {
   text-transform: uppercase;
 }
 
+.fridge-setup-photo-row {
+  padding: 4px 16px 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.fridge-setup-photo-preview {
+  width: 102px;
+  height: 102px;
+  border: 0.5px solid rgba(120, 120, 128, 0.2);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: rgba(60, 60, 67, 0.68);
+  background: #f2f2f7;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.fridge-setup-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .fridge-setup-detail-list label {
   position: relative;
   min-height: 52px;
