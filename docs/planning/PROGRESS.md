@@ -2,6 +2,29 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Quick Update can now confirm multiple parsed items from one command
+
+### Completed
+
+- Extended the command interpretation contract so one parsed utterance can
+  optionally carry multiple actionable item slots while remaining backward
+  compatible with the existing single-item shape.
+- Added multi-item list parsing for shopping-list commands and shared add-item
+  commands, so comma-separated utterances can fan out into multiple parsed
+  actions instead of collapsing into one malformed item name.
+- Added an authenticated batch event-confirmation endpoint and wired the Home
+  Quick Update UI to review and confirm multiple parsed items from one command.
+
+### Validation
+
+- Re-ran focused API parser and household-isolation tests covering
+  `interpret -> batch confirm`.
+- Re-ran workspace typecheck.
+
+### Deployment
+
+- Deploy the API Worker and Web app together.
+
 ## 2026-09-04 - Compact thumbnails now keep initials while add-item parsing ignores inventory destination phrasing
 
 ### Completed

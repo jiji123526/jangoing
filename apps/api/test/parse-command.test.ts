@@ -137,6 +137,23 @@ describe("parseCommand", () => {
     });
   });
 
+  it("parses multiple shopping-list items into action batches", () => {
+    expect(
+      parseCommand({
+        text: "Add one apple, two bananas, one pineapple, and an ice cream to the shopping list",
+      }),
+    ).toMatchObject({
+      intent: "add_to_buy",
+      slots: { item_name: "apple", quantity: 1 },
+      actions: [
+        { intent: "add_to_buy", slots: { item_name: "apple", quantity: 1 } },
+        { intent: "add_to_buy", slots: { item_name: "bananas", quantity: 2 } },
+        { intent: "add_to_buy", slots: { item_name: "pineapple", quantity: 1 } },
+        { intent: "add_to_buy", slots: { item_name: "ice cream", quantity: 1 } },
+      ],
+    });
+  });
+
   it("returns unknown for unsupported language", () => {
     expect(parseCommand({ text: "Milk maybe later" })).toMatchObject({
       intent: "unknown",

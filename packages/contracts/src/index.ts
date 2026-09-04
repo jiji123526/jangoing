@@ -48,6 +48,13 @@ export const CommandSlotsSchema = z
   })
   .strict();
 
+export const InterpretationActionSchema = z
+  .object({
+    intent: IntentSchema,
+    slots: CommandSlotsSchema,
+  })
+  .strict();
+
 export const InterpretCommandRequestSchema = z
   .object({
     text: z.string().trim().min(1).max(500),
@@ -74,6 +81,7 @@ export const InterpretationSchema = z
   .object({
     intent: IntentSchema,
     slots: CommandSlotsSchema,
+    actions: z.array(InterpretationActionSchema).min(1).max(8).optional(),
     confidence: z.number().min(0).max(1),
     requires_confirmation: z.boolean(),
     raw_utterance: z.string(),
@@ -549,6 +557,15 @@ export const ConfirmActionRequestSchema = z
   })
   .strict();
 
+export const ConfirmActionsRequestSchema = z
+  .object({
+    inference_id: z.string().uuid(),
+    events: z.array(CreateEventRequestSchema).min(1).max(8),
+    original_interpretation: InterpretationSchema,
+    parser_version: z.string().trim().min(1).max(80).default("rules-v2"),
+  })
+  .strict();
+
 export const EventRecordSchema = CreateEventRequestSchema.extend({
   id: z.string(),
   created_at: z.string(),
@@ -557,6 +574,10 @@ export const EventRecordSchema = CreateEventRequestSchema.extend({
   // New user-created events still use CreateEventRequestSchema and require
   // a positive quantity.
   quantity: z.number().min(0).nullable().optional(),
+});
+
+export const EventBatchResponseSchema = z.object({
+  events: z.array(EventRecordSchema).min(1).max(8),
 });
 
 export const ExpiryStateSchema = z.enum([
@@ -773,6 +794,7 @@ export type CommandSlots = z.infer<typeof CommandSlotsSchema>;
 export type InterpretCommandRequest = z.infer<
   typeof InterpretCommandRequestSchema
 >;
+export type InterpretationAction = z.infer<typeof InterpretationActionSchema>;
 export type Interpretation = z.infer<typeof InterpretationSchema>;
 export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
 export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
@@ -809,7 +831,9 @@ export type ShoppingItemContextRequest = z.infer<
 >;
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
 export type ConfirmActionRequest = z.infer<typeof ConfirmActionRequestSchema>;
+export type ConfirmActionsRequest = z.infer<typeof ConfirmActionsRequestSchema>;
 export type EventRecord = z.infer<typeof EventRecordSchema>;
+export type EventBatchResponse = z.infer<typeof EventBatchResponseSchema>;
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
 export type ItemThumbnailResponse = z.infer<typeof ItemThumbnailResponseSchema>;

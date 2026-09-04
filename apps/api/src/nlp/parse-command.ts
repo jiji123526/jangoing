@@ -99,15 +99,56 @@ function parseItemPhrase(value: string): Pick<
   };
 }
 
+function splitItemPhrases(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed.includes(",")) {
+    return [trimmed];
+  }
+
+  const segments = trimmed
+    .split(/\s*,\s*/g)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length === 0) {
+    return [trimmed];
+  }
+
+  const last = segments.pop();
+  const phrases = [...segments];
+  if (last) {
+    const normalizedLast = last.replace(/^(?:and|&)\s+/i, "").trim();
+    const tail = normalizedLast
+      .split(/\s+(?:and|&)\s+/i)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    phrases.push(...(tail.length > 0 ? tail : [normalizedLast]));
+  }
+  return phrases;
+}
+
+function parseItemList(value: string): Array<Pick<
+  CommandSlots,
+  "item_name" | "quantity" | "unit"
+>> {
+  return splitItemPhrases(value)
+    .map((phrase) => parseItemPhrase(phrase))
+    .filter((slots) => Boolean(slots.item_name));
+}
+
 function interpretation(
   rawUtterance: string,
   intent: Interpretation["intent"],
   slots: CommandSlots,
   confidence: number,
+  actions?: Array<{
+    intent: Interpretation["intent"];
+    slots: CommandSlots;
+  }>,
 ): Interpretation {
   return {
     intent,
     slots,
+    ...(actions && actions.length > 1 ? { actions } : {}),
     confidence,
     requires_confirmation:
       intent === "throw_away" ||
@@ -205,6 +246,19 @@ export function parseCommand(
     /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?shopping list$/i,
   );
   if (shoppingMatch) {
+    const itemList = parseItemList(shoppingMatch[1]);
+    if (itemList.length > 1) {
+      return interpretation(
+        rawUtterance,
+        "add_to_buy",
+        itemList[0],
+        0.96,
+        itemList.map((slots) => ({
+          intent: "add_to_buy",
+          slots,
+        })),
+      );
+    }
     return interpretation(
       rawUtterance,
       "add_to_buy",
@@ -215,6 +269,19 @@ export function parseCommand(
 
   const needMatch = text.match(/^(?:we need|buy|get)\s+(.+)$/i);
   if (needMatch) {
+    const itemList = parseItemList(needMatch[1]);
+    if (itemList.length > 1) {
+      return interpretation(
+        rawUtterance,
+        "add_to_buy",
+        itemList[0],
+        0.88,
+        itemList.map((slots) => ({
+          intent: "add_to_buy",
+          slots,
+        })),
+      );
+    }
     return interpretation(
       rawUtterance,
       "add_to_buy",
@@ -306,12 +373,31 @@ export function parseCommand(
     /^(?:add|put)\s+(.+?)(?:\s+(?:to|in)\s+(?:the\s+)?(inventory|fridge|freezer|pantry))?$/i,
   );
   if (addMatch) {
+    const location =
+      addMatch[2]?.toLowerCase() === "inventory"
+        ? "fridge"
+        : (addMatch[2]?.toLowerCase() as CommandSlots["location"] | undefined) ?? "fridge";
+    const itemList = parseItemList(addMatch[1]);
+    if (itemList.length > 1) {
+      const actions = itemList.map((item) => ({
+        intent: "add_item" as const,
+        slots: {
+          ...item,
+          location,
+          ...(expirationDate ? { expiration_date: expirationDate } : {}),
+        },
+      }));
+      return interpretation(
+        rawUtterance,
+        "add_item",
+        actions[0].slots,
+        0.94,
+        actions,
+      );
+    }
     const slots: CommandSlots = {
       ...parseItemPhrase(addMatch[1]),
-      location:
-        addMatch[2]?.toLowerCase() === "inventory"
-          ? "fridge"
-          : (addMatch[2]?.toLowerCase() as CommandSlots["location"] | undefined) ?? "fridge",
+      location,
       ...(expirationDate ? { expiration_date: expirationDate } : {}),
     };
 

@@ -250,6 +250,7 @@ export function isConsumerPath(pathname: string): boolean {
     pathname === "/inferences/outcome" ||
     pathname === "/dashboard" ||
     pathname === "/events" ||
+    pathname === "/events/batch" ||
     pathname === "/inventory" ||
     pathname.startsWith("/inventory/") ||
     pathname === "/shopping-list" ||

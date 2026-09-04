@@ -4,6 +4,7 @@ import {
   AnnotationNormalizedValuesResponseSchema,
   AdjustInventoryItemRequestSchema,
   ConfirmActionRequestSchema,
+  ConfirmActionsRequestSchema,
   CreateHouseholdRequestSchema,
   CreateAnnotationRequestSchema,
   EventRecordSchema,
@@ -17,6 +18,7 @@ import {
   UpdateHouseholdProfileRequestSchema,
   UpdateInferenceOutcomeRequestSchema,
   resolveExistingItemName,
+  type CreateEventRequest,
   type EventRecord,
   type InventoryItem,
   type Interpretation,
@@ -160,6 +162,84 @@ function resolveEventItemName(
       );
 
   return resolveExistingItemName(itemName, preferredNames) ?? itemName;
+}
+
+function intentForEventType(
+  eventType: EventRecord["event_type"],
+): Interpretation["intent"] {
+  return (
+    Object.entries({
+      item_added: "add_item",
+      item_consumed: "consume_item",
+      item_marked_low: "mark_low",
+      item_marked_out: "mark_out",
+      item_thrown_away: "throw_away",
+      item_added_to_buy: "add_to_buy",
+      item_low_threshold_set: "set_low_threshold",
+    }).find(([candidate]) => candidate === eventType)?.[1] as Interpretation["intent"] | undefined
+  ) ?? "unknown";
+}
+
+function interpretationSlotsFromEvent(event: EventRecord): Interpretation["slots"] {
+  return {
+    item_name: event.item_name,
+    ...(event.quantity !== null ? { quantity: event.quantity } : {}),
+    ...(event.unit !== null ? { unit: event.unit } : {}),
+    ...(event.location !== null ? { location: event.location } : {}),
+    ...(event.expiration_date !== null
+      ? { expiration_date: event.expiration_date }
+      : {}),
+    ...(event.low_threshold !== null
+      ? { low_threshold: event.low_threshold }
+      : {}),
+  };
+}
+
+function buildResolvedEvents(
+  submissions: CreateEventRequest[],
+  projectedState: {
+    projection: {
+      inventory: InventoryItem[];
+      shoppingList: ShoppingListItem[];
+    };
+  } | null,
+): EventRecord[] {
+  return submissions.map((submission) => {
+    const resolvedItemName = projectedState
+      ? resolveEventItemName(
+          submission.item_name,
+          submission.event_type,
+          projectedState.projection.inventory,
+          projectedState.projection.shoppingList,
+        )
+      : submission.item_name;
+
+    return {
+      id: crypto.randomUUID(),
+      ...submission,
+      item_name: resolvedItemName,
+      quantity: submission.quantity ?? null,
+      unit: submission.unit ?? null,
+      location: submission.location ?? null,
+      expiration_date: submission.expiration_date ?? null,
+      low_threshold: submission.low_threshold ?? null,
+      created_at: new Date().toISOString(),
+    };
+  });
+}
+
+function buildCorrectedInterpretation(events: EventRecord[]): Partial<Interpretation> {
+  const primary = events[0];
+  const actions = events.map((event) => ({
+    intent: intentForEventType(event.event_type),
+    slots: interpretationSlotsFromEvent(event),
+  }));
+
+  return {
+    intent: actions[0]?.intent ?? "unknown",
+    slots: actions[0]?.slots ?? {},
+    ...(actions.length > 1 ? { actions } : {}),
+  };
 }
 
 function configuredOrigins(env: Env): string[] {
@@ -791,28 +871,8 @@ async function handleCreateEvent(
     return json(request, env, { error: "Pending inference not found" }, 409);
   }
 
-  const projectedState = scope
-    ? await loadKitchenProjection(env, scope)
-    : null;
-  const resolvedItemName = projectedState
-    ? resolveEventItemName(
-        submission.event.item_name,
-        submission.event.event_type,
-        projectedState.projection.inventory,
-        projectedState.projection.shoppingList,
-      )
-    : submission.event.item_name;
-  const event: EventRecord = {
-    id: crypto.randomUUID(),
-    ...submission.event,
-    item_name: resolvedItemName,
-    quantity: submission.event.quantity ?? null,
-    unit: submission.event.unit ?? null,
-    location: submission.event.location ?? null,
-    expiration_date: submission.event.expiration_date ?? null,
-    low_threshold: submission.event.low_threshold ?? null,
-    created_at: new Date().toISOString(),
-  };
+  const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
+  const [event] = buildResolvedEvents([submission.event], projectedState);
 
   await env.DB.prepare(
     `INSERT INTO events (
@@ -840,32 +900,13 @@ async function handleCreateEvent(
     .run();
   await invalidateKitchenProjection(env, scope);
 
-  const correctedInterpretation = {
-    intent: Object.entries({
-      item_added: "add_item",
-      item_consumed: "consume_item",
-      item_marked_low: "mark_low",
-      item_marked_out: "mark_out",
-      item_thrown_away: "throw_away",
-      item_added_to_buy: "add_to_buy",
-      item_low_threshold_set: "set_low_threshold",
-    }).find(([eventType]) => eventType === event.event_type)?.[1],
-    slots: {
-      item_name: event.item_name,
-      ...(event.quantity !== null ? { quantity: event.quantity } : {}),
-      ...(event.unit !== null ? { unit: event.unit } : {}),
-      ...(event.location !== null ? { location: event.location } : {}),
-      ...(event.expiration_date !== null
-        ? { expiration_date: event.expiration_date }
-        : {}),
-      ...(event.low_threshold !== null
-        ? { low_threshold: event.low_threshold }
-        : {}),
-    },
-  };
+  const correctedInterpretation = buildCorrectedInterpretation([event]);
   const predicted = {
     intent: submission.original_interpretation.intent,
     slots: submission.original_interpretation.slots,
+    ...(submission.original_interpretation.actions
+      ? { actions: submission.original_interpretation.actions }
+      : {}),
   };
 
   await env.DB.prepare(
@@ -900,6 +941,109 @@ async function handleCreateEvent(
   ).run();
 
   return json(request, env, event, 201);
+}
+
+async function handleCreateEvents(
+  request: Request,
+  env: Env,
+  scope: ConsumerScope | null,
+): Promise<Response> {
+  const body = await request.json();
+  const parsed = ConfirmActionsRequestSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return json(
+      request,
+      env,
+      { error: "Invalid events", details: parsed.error.flatten() },
+      400,
+    );
+  }
+
+  const submission = parsed.data;
+  const pendingInference = await env.DB.prepare(
+    `SELECT id FROM inference_logs
+     WHERE id = ? AND outcome = 'pending'
+       AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
+  ).bind(
+    submission.inference_id,
+    ...(scope ? [scope.householdId] : []),
+  ).first();
+  if (!pendingInference) {
+    return json(request, env, { error: "Pending inference not found" }, 409);
+  }
+
+  const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
+  const events = buildResolvedEvents(submission.events, projectedState);
+
+  for (const event of events) {
+    await env.DB.prepare(
+      `INSERT INTO events (
+        id, event_type, item_name, quantity, unit, location,
+        expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
+        household_id, created_by_user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      event.id,
+      event.event_type,
+      event.item_name,
+      event.quantity ?? null,
+      event.unit ?? null,
+      event.location ?? null,
+      event.expiration_date ?? null,
+      event.low_threshold ?? null,
+      event.raw_utterance,
+      event.confidence,
+      event.source,
+      event.created_at,
+      scope?.householdId ?? null,
+      scope?.userId ?? null,
+    ).run();
+  }
+  await invalidateKitchenProjection(env, scope);
+
+  const correctedInterpretation = buildCorrectedInterpretation(events);
+  const predicted = {
+    intent: submission.original_interpretation.intent,
+    slots: submission.original_interpretation.slots,
+    ...(submission.original_interpretation.actions
+      ? { actions: submission.original_interpretation.actions }
+      : {}),
+  };
+
+  await env.DB.prepare(
+    `INSERT INTO corrections (
+      id, event_id, raw_utterance, predicted_interpretation,
+      corrected_interpretation, parser_version, was_corrected, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    crypto.randomUUID(),
+    events[0].id,
+    events[0].raw_utterance,
+    JSON.stringify(predicted),
+    JSON.stringify(correctedInterpretation),
+    submission.parser_version,
+    JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
+    events[0].created_at,
+  ).run();
+
+  const outcome = JSON.stringify(predicted) === JSON.stringify(correctedInterpretation)
+    ? "confirmed"
+    : "corrected";
+  await env.DB.prepare(
+    `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
+      AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
+  ).bind(
+    JSON.stringify(correctedInterpretation),
+    outcome,
+    events[0].id,
+    events[0].created_at,
+    submission.inference_id,
+    ...(scope ? [scope.householdId] : []),
+  ).run();
+
+  return json(request, env, { events }, 201);
 }
 
 async function handleInventoryMutation(
@@ -1788,6 +1932,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "POST" && url.pathname === "/events") {
     return handleCreateEvent(request, env, consumerScope);
+  }
+
+  if (request.method === "POST" && url.pathname === "/events/batch") {
+    return handleCreateEvents(request, env, consumerScope);
   }
 
   if (request.method === "GET" && url.pathname === "/fridge-setup/status") {

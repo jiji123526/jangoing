@@ -37,6 +37,7 @@ import {
 import {
   addShoppingItem,
   createEvent,
+  createEvents,
   deleteShoppingItem,
   getInventoryData,
   getShoppingListData,
@@ -120,15 +121,45 @@ type EditableInterpretation = {
   expirationDate: string;
 };
 
+function editableFromAction(action: {
+  intent: Intent;
+  slots: LoggedInterpretation["slots"];
+}): EditableInterpretation {
+  return {
+    intent: action.intent,
+    itemName: action.slots.item_name ?? "",
+    quantity: action.slots.quantity?.toString() ?? "",
+    lowThreshold: action.slots.low_threshold?.toString() ?? "",
+    unit: action.slots.unit ?? "",
+    location: action.slots.location ?? "",
+    expirationDate: action.slots.expiration_date ?? "",
+  };
+}
+
 function toEditable(interpretation: LoggedInterpretation): EditableInterpretation {
+  return editableFromAction(interpretation);
+}
+
+function toEditableActions(
+  interpretation: LoggedInterpretation,
+): EditableInterpretation[] {
+  return interpretation.actions?.length
+    ? interpretation.actions.map(editableFromAction)
+    : [toEditable(interpretation)];
+}
+
+function buildOriginalInterpretation(
+  interpretation: LoggedInterpretation,
+) {
   return {
     intent: interpretation.intent,
-    itemName: interpretation.slots.item_name ?? "",
-    quantity: interpretation.slots.quantity?.toString() ?? "",
-    lowThreshold: interpretation.slots.low_threshold?.toString() ?? "",
-    unit: interpretation.slots.unit ?? "",
-    location: interpretation.slots.location ?? "",
-    expirationDate: interpretation.slots.expiration_date ?? "",
+    slots: interpretation.slots,
+    ...(interpretation.actions?.length
+      ? { actions: interpretation.actions }
+      : {}),
+    confidence: interpretation.confidence,
+    requires_confirmation: interpretation.requires_confirmation,
+    raw_utterance: interpretation.raw_utterance,
   };
 }
 
@@ -1329,6 +1360,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   const [interpretation, setInterpretation] =
     useState<LoggedInterpretation | null>(null);
   const [edited, setEdited] = useState<EditableInterpretation | null>(null);
+  const [editedBatch, setEditedBatch] = useState<EditableInterpretation[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setError] = useState<string | null>(null);
   const error = localError ?? loadError;
@@ -2025,17 +2057,23 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         expiryDate || undefined,
       );
       setInterpretation(result);
-      const resolvedItemName = result.slots.item_name
-        ? resolveKnownItemName(
-            result.slots.item_name,
-            dashboard.inventory,
-            dashboard.shoppingList,
-          )
-        : null;
-      setEdited({
-        ...toEditable(result),
-        itemName: resolvedItemName ?? result.slots.item_name ?? "",
-      });
+      const resolvedActions = toEditableActions(result).map((action) => ({
+        ...action,
+        itemName: action.itemName
+          ? resolveKnownItemName(
+              action.itemName,
+              dashboard.inventory,
+              dashboard.shoppingList,
+            )
+          : "",
+      }));
+      if (resolvedActions.length > 1) {
+        setEdited(null);
+        setEditedBatch(resolvedActions);
+      } else {
+        setEditedBatch(null);
+        setEdited(resolvedActions[0] ?? toEditable(result));
+      }
 
       if (result.intent === "query_inventory" && result.slots.item_name) {
         const matchedItemName = resolveExistingItemName(
@@ -2103,6 +2141,90 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       }
       return;
     }
+    if (editedBatch?.length) {
+      const batchPayloads = editedBatch.flatMap((action) => {
+        const actionEventType = eventTypeByIntent[action.intent];
+        if (!actionEventType || !action.itemName.trim()) {
+          return [];
+        }
+        const actionQuantity = action.quantity ? Number(action.quantity) : null;
+        const actionLowThreshold = action.lowThreshold
+          ? Number(action.lowThreshold)
+          : null;
+        return [{
+          event_type: actionEventType,
+          item_name: action.itemName.trim().toLowerCase(),
+          quantity: action.intent === "set_low_threshold" ? null : actionQuantity,
+          unit: action.unit.trim().toLowerCase() || null,
+          location: action.location || null,
+          expiration_date: action.expirationDate || null,
+          low_threshold:
+            action.intent === "set_low_threshold" ? actionLowThreshold : null,
+          raw_utterance: interpretation.raw_utterance,
+          confidence: interpretation.confidence,
+          source: "web" as const,
+        }];
+      });
+
+      if (!batchPayloads.length) {
+        setError("At least one item is required.");
+        return;
+      }
+
+      for (const action of editedBatch) {
+        const actionQuantity = action.quantity ? Number(action.quantity) : null;
+        const actionLowThreshold = action.lowThreshold
+          ? Number(action.lowThreshold)
+          : null;
+        if (!action.itemName.trim()) {
+          setError("Every item needs a name.");
+          return;
+        }
+        if (
+          actionQuantity !== null &&
+          (!Number.isFinite(actionQuantity) || actionQuantity <= 0)
+        ) {
+          setError("Each quantity must be a number greater than zero.");
+          return;
+        }
+        if (
+          action.intent === "set_low_threshold" &&
+          (actionLowThreshold === null ||
+            !Number.isFinite(actionLowThreshold) ||
+            actionLowThreshold <= 0)
+        ) {
+          setError("Each low threshold must be a number greater than zero.");
+          return;
+        }
+      }
+
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        const createdEvents = await createEvents({
+          inference_id: interpretation.inference_id,
+          events: batchPayloads,
+          original_interpretation: buildOriginalInterpretation(interpretation),
+          parser_version: "rules-v2",
+        });
+        setCommand("");
+        setExpiryDate("");
+        setInterpretation(null);
+        setEdited(null);
+        setEditedBatch(null);
+        setNotice(`${createdEvents.length} items updated.`);
+        await loadDashboard();
+        if (view === "home") setHomeQuickUpdateOpen(false);
+      } catch (caught) {
+        setError(
+          caught instanceof Error ? caught.message : "Could not save the actions.",
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     if (!edited.itemName.trim()) return;
     const eventType = eventTypeByIntent[edited.intent];
     if (!eventType) return;
@@ -2146,19 +2268,14 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       const createdEvent = await createEvent({
         inference_id: interpretation.inference_id,
         event: payload,
-        original_interpretation: {
-          intent: interpretation.intent,
-          slots: interpretation.slots,
-          confidence: interpretation.confidence,
-          requires_confirmation: interpretation.requires_confirmation,
-          raw_utterance: interpretation.raw_utterance,
-        },
+        original_interpretation: buildOriginalInterpretation(interpretation),
         parser_version: "rules-v2",
       });
       setCommand("");
       setExpiryDate("");
       setInterpretation(null);
       setEdited(null);
+      setEditedBatch(null);
       setNotice(`${titleCase(createdEvent.item_name)} updated.`);
       await loadDashboard();
       if (view === "home") setHomeQuickUpdateOpen(false);
@@ -2184,15 +2301,25 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     }
     setInterpretation(null);
     setEdited(null);
+    setEditedBatch(null);
   }
 
   const canConfirm =
     interpretation &&
-    edited &&
-    (edited.intent === "needs_clarification" ||
-      (edited.itemName.trim() &&
-        eventTypeByIntent[edited.intent] &&
-        (edited.intent !== "set_low_threshold" || edited.lowThreshold)));
+    (
+      (edited &&
+        (edited.intent === "needs_clarification" ||
+          (edited.itemName.trim() &&
+            eventTypeByIntent[edited.intent] &&
+            (edited.intent !== "set_low_threshold" || edited.lowThreshold)))) ||
+      (editedBatch &&
+        editedBatch.length > 1 &&
+        editedBatch.every((action) =>
+          action.itemName.trim() &&
+          eventTypeByIntent[action.intent] &&
+          (action.intent !== "set_low_threshold" || action.lowThreshold)
+        ))
+    );
 
   return (
     <main id={view}>
@@ -2307,6 +2434,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                         setExpiryDate("");
                         setInterpretation(null);
                         setEdited(null);
+                        setEditedBatch(null);
                         setNotice(
                           "Review the consumed quantity, then interpret and confirm the update.",
                         );
@@ -2419,6 +2547,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                         setExpiryDate("");
                         setInterpretation(null);
                         setEdited(null);
+                        setEditedBatch(null);
                         setNotice(
                           "Enter the quantity at the end, then review the interpretation.",
                         );
@@ -2670,6 +2799,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   setCommand(event.target.value);
                   setInterpretation(null);
                   setEdited(null);
+                  setEditedBatch(null);
                   setNotice(null);
                 }}
                 placeholder="We are low on milk"
@@ -2704,6 +2834,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 setExpiryDate(event.target.value);
                 setInterpretation(null);
                 setEdited(null);
+                setEditedBatch(null);
               }}
             />
           </label>
@@ -2718,6 +2849,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 setCommand(example);
                 setInterpretation(null);
                 setEdited(null);
+                setEditedBatch(null);
                 setNotice(null);
               }}
             >
@@ -2739,7 +2871,118 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 Review every field. Fix anything the parser misunderstood before
                 saving.
               </p>
-              {edited && (
+              {editedBatch && editedBatch.length > 1 ? (
+                <div className="correction-batch">
+                  {editedBatch.map((action, index) => (
+                    <section className="correction-group" key={`${action.intent}-${index}`}>
+                      <div className="correction-group-title">
+                        {index + 1}. {titleCase(action.intent)}
+                      </div>
+                      <div className="correction-grid">
+                        <label className="field">
+                          <span>Item</span>
+                          <input
+                            required
+                            maxLength={120}
+                            value={action.itemName}
+                            onChange={(event) =>
+                              setEditedBatch((current) =>
+                                current?.map((entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? { ...entry, itemName: event.target.value }
+                                    : entry
+                                ) ?? null
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>
+                            Quantity <small>optional</small>
+                          </span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            value={action.quantity}
+                            onChange={(event) =>
+                              setEditedBatch((current) =>
+                                current?.map((entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? { ...entry, quantity: event.target.value }
+                                    : entry
+                                ) ?? null
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>
+                            Unit <small>optional</small>
+                          </span>
+                          <input
+                            maxLength={40}
+                            value={action.unit}
+                            onChange={(event) =>
+                              setEditedBatch((current) =>
+                                current?.map((entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? { ...entry, unit: event.target.value }
+                                    : entry
+                                ) ?? null
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>
+                            Location <small>optional</small>
+                          </span>
+                          <select
+                            value={action.location}
+                            onChange={(event) =>
+                              setEditedBatch((current) =>
+                                current?.map((entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? {
+                                        ...entry,
+                                        location: event.target
+                                          .value as EditableInterpretation["location"],
+                                      }
+                                    : entry
+                                ) ?? null
+                              )
+                            }
+                          >
+                            <option value="">Not specified</option>
+                            <option value="fridge">Fridge</option>
+                            <option value="freezer">Freezer</option>
+                            <option value="pantry">Pantry</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>
+                            Expiry date <small>optional</small>
+                          </span>
+                          <input
+                            type="date"
+                            value={action.expirationDate}
+                            onChange={(event) =>
+                              setEditedBatch((current) =>
+                                current?.map((entry, entryIndex) =>
+                                  entryIndex === index
+                                    ? { ...entry, expirationDate: event.target.value }
+                                    : entry
+                                ) ?? null
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              ) : edited ? (
                 <div className="correction-grid">
                   <label className="field">
                     <span>Action</span>
@@ -2855,7 +3098,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                     />
                   </label>
                 </div>
-              )}
+              ) : null}
               <span className="confidence">
                 {Math.round(interpretation.confidence * 100)}% confidence
               </span>
@@ -2881,7 +3124,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   <Check size={18} />
                   {edited?.intent === "needs_clarification"
                     ? "Save review"
-                    : "Confirm"}
+                    : editedBatch?.length
+                      ? `Confirm ${editedBatch.length} Items`
+                      : "Confirm"}
                 </button>
               )}
             </div>

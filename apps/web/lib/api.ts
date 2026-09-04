@@ -5,6 +5,7 @@ import {
   AnnotationQueueResponseSchema,
   CreatedHouseholdResponseSchema,
   CurrentHouseholdResponseSchema,
+  EventBatchResponseSchema,
   EventRecordSchema,
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
@@ -20,6 +21,7 @@ import {
   JoinedHouseholdResponseSchema,
   ShoppingListItemSchema,
   type ConfirmActionRequest,
+  type ConfirmActionsRequest,
   type AnnotationAssistantProposal,
   type AnnotationQueueItem,
   type AnnotationQueueType,
@@ -107,6 +109,7 @@ function pathUsesAppToken(path: string): boolean {
     path === "/commands/interpret" ||
     path === "/inferences/outcome" ||
     path === "/events" ||
+    path === "/events/batch" ||
     path.startsWith("/events?") ||
     path === "/inventory" ||
     path.startsWith("/inventory/") ||
@@ -268,6 +271,17 @@ export async function createEvent(
   });
 
   return EventRecordSchema.parse(body);
+}
+
+export async function createEvents(
+  submission: ConfirmActionsRequest,
+): Promise<EventRecord[]> {
+  const body = await apiRequest("/events/batch", {
+    method: "POST",
+    body: JSON.stringify(submission),
+  });
+
+  return EventBatchResponseSchema.parse(body).events;
 }
 
 export async function createAnnotation(

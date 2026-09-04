@@ -655,6 +655,94 @@ describe("household consumer-data isolation", () => {
     ).toEqual({ item_name: "eggs" });
   });
 
+  it("creates multiple shopping events from one interpreted command", async () => {
+    const interpreted = await request(
+      "/commands/interpret",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          text: "Add one apple, two bananas, one pineapple, and an ice cream to the shopping list",
+        }),
+      },
+      tokenA,
+    );
+    expect(interpreted.status).toBe(200);
+    const interpretation = await interpreted.json() as {
+      inference_id: string;
+      intent: string;
+      slots: { item_name?: string; quantity?: number; unit?: string };
+      confidence: number;
+      requires_confirmation: boolean;
+      raw_utterance: string;
+      actions?: Array<{
+        intent: string;
+        slots: {
+          item_name?: string;
+          quantity?: number;
+          unit?: string;
+          location?: string;
+          expiration_date?: string;
+        };
+      }>;
+    };
+    expect(interpretation.actions).toHaveLength(4);
+
+    const confirmed = await request(
+      "/events/batch",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          inference_id: interpretation.inference_id,
+          events: interpretation.actions?.map((action) => ({
+            event_type: "item_added_to_buy",
+            item_name: action.slots.item_name,
+            quantity: action.slots.quantity ?? null,
+            unit: action.slots.unit ?? null,
+            location: action.slots.location ?? null,
+            expiration_date: action.slots.expiration_date ?? null,
+            low_threshold: null,
+            raw_utterance: interpretation.raw_utterance,
+            confidence: interpretation.confidence,
+            source: "web",
+          })),
+          original_interpretation: {
+            intent: interpretation.intent,
+            slots: interpretation.slots,
+            actions: interpretation.actions,
+            confidence: interpretation.confidence,
+            requires_confirmation: interpretation.requires_confirmation,
+            raw_utterance: interpretation.raw_utterance,
+          },
+          parser_version: "rules-v2",
+        }),
+      },
+      tokenA,
+    );
+
+    expect(confirmed.status).toBe(201);
+    expect(await confirmed.json()).toMatchObject({
+      events: [
+        { item_name: "apple", event_type: "item_added_to_buy", quantity: 1 },
+        { item_name: "bananas", event_type: "item_added_to_buy", quantity: 2 },
+        { item_name: "pineapple", event_type: "item_added_to_buy", quantity: 1 },
+        { item_name: "ice cream", event_type: "item_added_to_buy", quantity: 1 },
+      ],
+    });
+    expect(
+      database.prepare(
+        `SELECT item_name, quantity
+         FROM events
+         WHERE household_id = ? AND event_type = 'item_added_to_buy'
+         ORDER BY created_at ASC, rowid ASC`,
+      ).all(householdA),
+    ).toEqual([
+      { item_name: "apple", quantity: 1 },
+      { item_name: "bananas", quantity: 2 },
+      { item_name: "pineapple", quantity: 1 },
+      { item_name: "ice cream", quantity: 1 },
+    ]);
+  });
+
   it("keeps fridge setup state independent per household and legacy mode", async () => {
     database.prepare(
       `INSERT INTO household_app_state (
