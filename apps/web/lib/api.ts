@@ -98,6 +98,8 @@ let signedOutRetryAfterMs = 0;
 
 function pathUsesAppToken(path: string): boolean {
   return (
+    path === "/dashboard" ||
+    path.startsWith("/dashboard?") ||
     path.startsWith("/households/") ||
     path === "/commands/interpret" ||
     path === "/inferences/outcome" ||
