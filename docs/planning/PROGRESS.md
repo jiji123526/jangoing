@@ -2,6 +2,27 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Default artwork thumbnails now use the same item-name style as photo cards
+
+### Completed
+
+- Replaced the old initial-and-category fallback artwork treatment on Home
+  `Recently Updated` cards with the same item-name overlay pattern used by
+  uploaded photo thumbnails.
+- Matched Search result fallback artwork to the same text-overlay structure so
+  photo and non-photo thumbnails no longer switch between different text
+  styles.
+- Added a subtle bottom fade to non-photo Home artwork so the overlay label
+  reads closer to the photo-card presentation.
+
+### Validation
+
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Home and search photo thumbnails now render without border seams
 
 ### Completed

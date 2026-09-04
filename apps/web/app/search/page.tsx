@@ -165,15 +165,11 @@ function SearchArtwork({
     );
   }
 
-  const initials = titleCase(itemName)
-    .split(" ")
-    .slice(0, 2)
-    .map((word) => word.charAt(0))
-    .join("");
-
   return (
     <span className={`search-result-artwork source-${source}`} aria-hidden="true">
-      {initials || "JG"}
+      <span className="search-result-artwork-overlay">
+        {titleCase(itemName)}
+      </span>
     </span>
   );
 }

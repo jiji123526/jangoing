@@ -584,19 +584,15 @@ function HomeArtwork({
     .toLowerCase()
     .replaceAll(" & ", "-")
     .replaceAll(" ", "-");
-  const initials = titleCase(itemName)
-    .split(" ")
-    .slice(0, 2)
-    .map((word) => word.charAt(0))
-    .join("");
 
   return (
     <div
       className={`home-update-artwork category-${categoryClass}`}
       aria-hidden="true"
     >
-      <span>{initials || "JG"}</span>
-      <small>{category}</small>
+      <span className="home-update-artwork-overlay">
+        {titleCase(itemName)}
+      </span>
     </div>
   );
 }
