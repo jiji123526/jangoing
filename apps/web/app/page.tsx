@@ -333,7 +333,11 @@ function ArtworkLabel({
   }, [compact, itemName, maximumSize, minimumSize]);
 
   return (
-    <span ref={labelRef} style={{ fontSize: `${fontSize}px` }}>
+    <span
+      ref={labelRef}
+      className="artwork-label"
+      style={{ fontSize: `${fontSize}px` }}
+    >
       {titleCase(itemName).split(" ").map((word, index) => (
         <span className="artwork-word" key={`${word}-${index}`}>
           {word}

@@ -2,6 +2,25 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Camera corner icons now sit cleanly in the card edge
+
+### Completed
+
+- Fixed the artwork-card CSS conflict that was stretching the camera affordance
+  into a wide rounded pill instead of a compact corner icon.
+- Removed the icon background and shadow so the affordance reads as a light
+  overlay instead of a badge.
+- Nudged the no-photo camera affordance tighter into the top-right corner on
+  both setup cards and inventory cards.
+
+### Validation
+
+- Re-ran Web typecheck.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Item names now stay visible on setup and inventory photo cards
 
 ### Completed

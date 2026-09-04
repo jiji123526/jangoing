@@ -2439,8 +2439,8 @@ html.household-tab-fade-in main#search {
   pointer-events: none;
 }
 
-.fridge-setup-artwork-overlay > span,
-.inventory-artwork-overlay > span {
+.fridge-setup-artwork-overlay > .artwork-label,
+.inventory-artwork-overlay > .artwork-label {
   width: 100%;
   overflow: hidden;
   display: -webkit-box;
@@ -2458,17 +2458,14 @@ html.household-tab-fade-in main#search {
 .fridge-setup-artwork-corner-indicator,
 .inventory-artwork-corner-indicator {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  width: 24px;
-  height: 24px;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  color: rgba(60, 60, 67, 0.72);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  color: rgba(60, 60, 67, 0.56);
   pointer-events: none;
 }
 
@@ -4614,7 +4611,7 @@ h1 {
   cursor: pointer;
 }
 
-.inventory-artwork > span {
+.inventory-artwork > .artwork-label {
   width: 100%;
   overflow: hidden;
   display: -webkit-box;
