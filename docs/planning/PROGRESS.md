@@ -2,6 +2,29 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Fridge setup photo cards gained crop and skeleton loading
+
+### Completed
+
+- Added a square crop step before setup-card photo attachment so users can
+  trim the selected image before it is converted into the uploaded thumbnail.
+- Updated setup-card artwork tiles so uploaded photos fully cover the tile,
+  while custom overlay text stays on the photo instead of showing a native
+  file-input marker.
+- Replaced the old loading marker behavior with a shimmering skeleton fallback
+  while setup-card thumbnails finish loading.
+- Added pure helper coverage for the default square-crop calculation.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Added and ran `item-thumbnail.test.ts`.
+- Re-ran the fridge-setup thumbnail helper tests.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - No-op inventory saves no longer create analytics updates
 
 ### Completed

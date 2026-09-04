@@ -5,7 +5,7 @@ import type {
   FridgeSetupResponse,
   InventoryItem,
 } from "@jangoing/contracts";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Camera, ChevronDown, Plus, Trash2, X } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -21,7 +21,13 @@ import {
   applyUploadedThumbnails,
   setupThumbnailUploads,
 } from "../lib/fridge-setup-thumbnail";
-import { prepareItemThumbnailDataUrl } from "../lib/item-thumbnail";
+import {
+  defaultSquareThumbnailCrop,
+  prepareItemThumbnailDataUrl,
+  readItemThumbnailFile,
+  releaseItemThumbnailObjectUrl,
+  type ItemThumbnailCrop,
+} from "../lib/item-thumbnail";
 
 const draftStorageKey = "jangoing.fridge-setup-draft.v1";
 const units = [
@@ -51,6 +57,15 @@ type SetupDraft = {
   location: "" | "fridge" | "freezer" | "pantry";
   expirationDate: string;
   lowThreshold: string;
+};
+
+type PendingThumbnailCrop = {
+  crop: ItemThumbnailCrop;
+  draftId: string;
+  file: File;
+  objectUrl: string;
+  width: number;
+  height: number;
 };
 
 function canonicalItemName(value: string): string {
@@ -191,6 +206,12 @@ export function FridgeSetupDialog({
   );
   const [restored, setRestored] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [applyingCrop, setApplyingCrop] = useState(false);
+  const [pendingThumbnailCrop, setPendingThumbnailCrop] =
+    useState<PendingThumbnailCrop | null>(null);
+  const [thumbnailLoadedByDraftId, setThumbnailLoadedByDraftId] = useState<
+    Record<string, boolean>
+  >({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -221,6 +242,15 @@ export function FridgeSetupDialog({
   }, [drafts, restored]);
 
   useEffect(() => {
+    const objectUrl = pendingThumbnailCrop?.objectUrl;
+    return () => {
+      if (objectUrl) {
+        releaseItemThumbnailObjectUrl(objectUrl);
+      }
+    };
+  }, [pendingThumbnailCrop?.objectUrl]);
+
+  useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
@@ -243,8 +273,15 @@ export function FridgeSetupDialog({
   ) {
     if (!file) return;
     try {
-      const thumbnailUrl = await prepareItemThumbnailDataUrl(file);
-      updateDraft(draftId, { thumbnailUrl });
+      const prepared = await readItemThumbnailFile(file);
+      setPendingThumbnailCrop({
+        crop: defaultSquareThumbnailCrop(prepared.width, prepared.height),
+        draftId,
+        file,
+        objectUrl: prepared.objectUrl,
+        width: prepared.width,
+        height: prepared.height,
+      });
       setError(null);
     } catch (caught) {
       setError(
@@ -253,6 +290,55 @@ export function FridgeSetupDialog({
           : "Could not prepare the selected image.",
       );
     }
+  }
+
+  function closePendingThumbnailCrop() {
+    if (pendingThumbnailCrop) {
+      releaseItemThumbnailObjectUrl(pendingThumbnailCrop.objectUrl);
+    }
+    setPendingThumbnailCrop(null);
+    setApplyingCrop(false);
+  }
+
+  async function applyPendingThumbnailCrop() {
+    if (!pendingThumbnailCrop) return;
+    setApplyingCrop(true);
+    try {
+      const thumbnailUrl = await prepareItemThumbnailDataUrl(
+        pendingThumbnailCrop.file,
+        pendingThumbnailCrop.crop,
+      );
+      updateDraft(pendingThumbnailCrop.draftId, { thumbnailUrl });
+      setThumbnailLoadedByDraftId((current) => ({
+        ...current,
+        [pendingThumbnailCrop.draftId]: false,
+      }));
+      setError(null);
+      closePendingThumbnailCrop();
+    } catch (caught) {
+      setApplyingCrop(false);
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not prepare the selected image.",
+      );
+    }
+  }
+
+  function updatePendingThumbnailCrop(
+    axis: "x" | "y",
+    nextValue: number,
+  ) {
+    setPendingThumbnailCrop((current) => {
+      if (!current) return null;
+      return {
+        ...current,
+        crop: {
+          ...current.crop,
+          [axis]: nextValue,
+        },
+      };
+    });
   }
 
   function draftSummary(draft: SetupDraft): string {
@@ -375,6 +461,10 @@ export function FridgeSetupDialog({
               const isExpanded = expandedDraftId === draft.id;
               const displayName = titleCase(draft.name) || `Item ${index + 1}`;
               const summary = draftSummary(draft);
+              const photoInputId = `fridge-setup-photo-${draft.id}`;
+              const thumbnailLoaded =
+                draft.thumbnailUrl !== "" &&
+                (thumbnailLoadedByDraftId[draft.id] ?? false);
 
               return (
                 <section
@@ -382,29 +472,66 @@ export function FridgeSetupDialog({
                   className={isExpanded ? "is-expanded" : undefined}
                 >
                   <div className="inventory-item-row fridge-setup-item-shell">
-                    <label className="inventory-artwork fridge-setup-artwork-button">
+                    <input
+                      id={photoInputId}
+                      className="fridge-setup-hidden-file-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/*"
+                      aria-label={`${draft.thumbnailUrl ? "Change" : "Add"} photo for ${displayName}`}
+                      onChange={(event) => {
+                        const [file] = event.target.files ?? [];
+                        event.currentTarget.value = "";
+                        void handleDraftThumbnail(draft.id, file ?? null);
+                      }}
+                    />
+                    <label
+                      htmlFor={photoInputId}
+                      className={`inventory-artwork fridge-setup-artwork-button${
+                        draft.thumbnailUrl ? " has-photo" : ""
+                      }`}
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        document.getElementById(photoInputId)?.click();
+                      }}
+                    >
+                      {draft.thumbnailUrl && !thumbnailLoaded && (
+                        <span
+                          className="fridge-setup-artwork-skeleton"
+                          aria-hidden="true"
+                        />
+                      )}
                       {draft.thumbnailUrl ? (
                         <img
-                          className="item-artwork-image"
+                          className={`item-artwork-image${
+                            thumbnailLoaded
+                              ? " fridge-setup-artwork-image-visible"
+                              : " fridge-setup-artwork-image-hidden"
+                          }`}
                           src={draft.thumbnailUrl}
                           alt=""
+                          onLoad={() =>
+                            setThumbnailLoadedByDraftId((current) => ({
+                              ...current,
+                              [draft.id]: true,
+                            }))
+                          }
+                          onError={() =>
+                            setThumbnailLoadedByDraftId((current) => ({
+                              ...current,
+                              [draft.id]: true,
+                            }))
+                          }
                         />
                       ) : (
                         <SetupArtworkLabel itemName={displayName} />
                       )}
-                      <small className="fridge-setup-artwork-hint">
-                        {draft.thumbnailUrl ? "Change Photo" : "Add Photo"}
-                      </small>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/*"
-                        aria-label={`${draft.thumbnailUrl ? "Change" : "Add"} photo for ${displayName}`}
-                        onChange={(event) => {
-                          const [file] = event.target.files ?? [];
-                          event.currentTarget.value = "";
-                          void handleDraftThumbnail(draft.id, file ?? null);
-                        }}
-                      />
+                      {draft.thumbnailUrl && thumbnailLoaded && (
+                        <small className="fridge-setup-artwork-overlay">
+                          Tap to replace
+                        </small>
+                      )}
                     </label>
                     <div className="inventory-item-copy fridge-setup-item-copy">
                       <div className="fridge-setup-item-copy-header">
@@ -423,6 +550,14 @@ export function FridgeSetupDialog({
                           />
                         </label>
                         <span className="inventory-item-row-actions fridge-setup-item-actions">
+                          {!draft.thumbnailUrl && (
+                            <span
+                              className="fridge-setup-missing-photo-indicator"
+                              aria-label="No photo"
+                            >
+                              <Camera size={14} strokeWidth={2.2} />
+                            </span>
+                          )}
                           <button
                             type="button"
                             className="fridge-setup-toggle"
@@ -449,11 +584,11 @@ export function FridgeSetupDialog({
                       </div>
                       <p>{summary}</p>
                       <div className="inventory-item-footer fridge-setup-item-footer">
-                        <small className="inventory-item-added-at">
-                          {draft.thumbnailUrl
-                            ? "Photo ready. Tap thumbnail to replace."
-                            : "Tap thumbnail to add a photo."}
-                        </small>
+                        {!draft.thumbnailUrl && (
+                          <small className="inventory-item-added-at">
+                            Tap thumbnail to add a photo.
+                          </small>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -580,6 +715,109 @@ export function FridgeSetupDialog({
           </button>
         </footer>
       </form>
+      {pendingThumbnailCrop && (
+        <div
+          className="fridge-setup-crop-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fridge-setup-crop-title"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !applyingCrop) {
+              closePendingThumbnailCrop();
+            }
+          }}
+        >
+          <div className="fridge-setup-crop-panel">
+            <div className="fridge-setup-crop-header">
+              <div>
+                <small>PHOTO CROP</small>
+                <h3 id="fridge-setup-crop-title">Trim to square</h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close photo crop"
+                disabled={applyingCrop}
+                onClick={closePendingThumbnailCrop}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p>Adjust the square crop before using this photo.</p>
+            <div className="fridge-setup-crop-preview">
+              <div className="fridge-setup-crop-preview-frame">
+                <img
+                  src={pendingThumbnailCrop.objectUrl}
+                  alt=""
+                  style={{
+                    width: `${(pendingThumbnailCrop.width / pendingThumbnailCrop.crop.size) * 100}%`,
+                    height: `${(pendingThumbnailCrop.height / pendingThumbnailCrop.crop.size) * 100}%`,
+                    left: `${(-pendingThumbnailCrop.crop.x / pendingThumbnailCrop.crop.size) * 100}%`,
+                    top: `${(-pendingThumbnailCrop.crop.y / pendingThumbnailCrop.crop.size) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="fridge-setup-crop-controls">
+              <label>
+                <span>Horizontal</span>
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.max(
+                    0,
+                    pendingThumbnailCrop.width - pendingThumbnailCrop.crop.size,
+                  )}
+                  step="1"
+                  value={pendingThumbnailCrop.crop.x}
+                  disabled={
+                    applyingCrop ||
+                    pendingThumbnailCrop.width === pendingThumbnailCrop.crop.size
+                  }
+                  onChange={(event) =>
+                    updatePendingThumbnailCrop("x", Number(event.target.value))
+                  }
+                />
+              </label>
+              <label>
+                <span>Vertical</span>
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.max(
+                    0,
+                    pendingThumbnailCrop.height - pendingThumbnailCrop.crop.size,
+                  )}
+                  step="1"
+                  value={pendingThumbnailCrop.crop.y}
+                  disabled={
+                    applyingCrop ||
+                    pendingThumbnailCrop.height === pendingThumbnailCrop.crop.size
+                  }
+                  onChange={(event) =>
+                    updatePendingThumbnailCrop("y", Number(event.target.value))
+                  }
+                />
+              </label>
+            </div>
+            <div className="fridge-setup-crop-actions">
+              <button
+                type="button"
+                disabled={applyingCrop}
+                onClick={closePendingThumbnailCrop}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={applyingCrop}
+                onClick={() => void applyPendingThumbnailCrop()}
+              >
+                {applyingCrop ? "Preparing…" : "Use Photo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </dialog>
   );
 }

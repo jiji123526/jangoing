@@ -6,6 +6,12 @@ const allowedContentTypes = new Set([
   "image/webp",
 ]);
 
+export type ItemThumbnailCrop = {
+  x: number;
+  y: number;
+  size: number;
+};
+
 function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -15,26 +21,74 @@ function loadImage(source: string): Promise<HTMLImageElement> {
   });
 }
 
-export async function prepareItemThumbnailDataUrl(
-  file: File,
-): Promise<string> {
+export function validateItemThumbnailFile(file: File): void {
   if (!allowedContentTypes.has(file.type)) {
     throw new Error("Use a JPEG, PNG, or WebP image.");
   }
   if (file.size > 12 * 1024 * 1024) {
     throw new Error("Choose an image smaller than 12MB.");
   }
+}
+
+export async function readItemThumbnailFile(file: File): Promise<{
+  objectUrl: string;
+  width: number;
+  height: number;
+}> {
+  validateItemThumbnailFile(file);
 
   const objectUrl = URL.createObjectURL(file);
   try {
     const image = await loadImage(objectUrl);
-    const edge = Math.min(image.naturalWidth, image.naturalHeight);
-    if (!Number.isFinite(edge) || edge <= 0) {
+    return {
+      objectUrl,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+export function releaseItemThumbnailObjectUrl(objectUrl: string): void {
+  URL.revokeObjectURL(objectUrl);
+}
+
+export function defaultSquareThumbnailCrop(
+  width: number,
+  height: number,
+): ItemThumbnailCrop {
+  const size = Math.min(width, height);
+  return {
+    x: Math.max(0, Math.floor((width - size) / 2)),
+    y: Math.max(0, Math.floor((height - size) / 2)),
+    size,
+  };
+}
+
+export async function prepareItemThumbnailDataUrl(
+  file: File,
+  crop?: ItemThumbnailCrop,
+): Promise<string> {
+  validateItemThumbnailFile(file);
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await loadImage(objectUrl);
+    const resolvedCrop =
+      crop ?? defaultSquareThumbnailCrop(image.naturalWidth, image.naturalHeight);
+    if (
+      !Number.isFinite(resolvedCrop.size) ||
+      resolvedCrop.size <= 0 ||
+      resolvedCrop.x < 0 ||
+      resolvedCrop.y < 0 ||
+      resolvedCrop.x + resolvedCrop.size > image.naturalWidth ||
+      resolvedCrop.y + resolvedCrop.size > image.naturalHeight
+    ) {
       throw new Error("Could not read the selected image.");
     }
 
-    const sourceX = Math.max(0, Math.floor((image.naturalWidth - edge) / 2));
-    const sourceY = Math.max(0, Math.floor((image.naturalHeight - edge) / 2));
     const canvas = document.createElement("canvas");
     canvas.width = 480;
     canvas.height = 480;
@@ -45,10 +99,10 @@ export async function prepareItemThumbnailDataUrl(
 
     context.drawImage(
       image,
-      sourceX,
-      sourceY,
-      edge,
-      edge,
+      resolvedCrop.x,
+      resolvedCrop.y,
+      resolvedCrop.size,
+      resolvedCrop.size,
       0,
       0,
       canvas.width,
