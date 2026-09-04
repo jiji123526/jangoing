@@ -5,7 +5,7 @@ import type {
   FridgeSetupResponse,
   InventoryItem,
 } from "@jangoing/contracts";
-import { ChevronLeft, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -135,9 +135,11 @@ export function FridgeSetupDialog({
   onNotice?: (message: string) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [step, setStep] = useState(1);
   const [drafts, setDrafts] = useState<SetupDraft[]>(() =>
     inventoryDrafts(inventory)
+  );
+  const [expandedDraftId, setExpandedDraftId] = useState<string | null>(
+    drafts[0]?.id ?? null,
   );
   const [restored, setRestored] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -156,6 +158,16 @@ export function FridgeSetupDialog({
   }, [inventory, restored]);
 
   useEffect(() => {
+    if (drafts.length === 0) {
+      setExpandedDraftId(null);
+      return;
+    }
+    if (!expandedDraftId || !drafts.some((draft) => draft.id === expandedDraftId)) {
+      setExpandedDraftId(drafts[0].id);
+    }
+  }, [drafts, expandedDraftId]);
+
+  useEffect(() => {
     if (!restored) return;
     localStorage.setItem(draftStorageKey, JSON.stringify(drafts));
   }, [drafts, restored]);
@@ -171,6 +183,10 @@ export function FridgeSetupDialog({
     setDrafts((current) =>
       current.map((draft) => draft.id === id ? { ...draft, ...update } : draft)
     );
+  }
+
+  function toggleDraft(id: string) {
+    setExpandedDraftId((current) => current === id ? null : id);
   }
 
   async function handleDraftThumbnail(
@@ -214,23 +230,8 @@ export function FridgeSetupDialog({
     return null;
   }
 
-  function advance() {
-    const validation = step === 1 ? validateNames() : validateDetails();
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    setError(null);
-    setStep((current) => Math.min(3, current + 1));
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (step < 3) {
-      advance();
-      return;
-    }
-
     const validation = validateNames() ?? validateDetails();
     if (validation) {
       setError(validation);
@@ -295,25 +296,10 @@ export function FridgeSetupDialog({
     >
       <form onSubmit={submit}>
         <header className="fridge-setup-header">
-          {step > 1 ? (
-            <button
-              type="button"
-              aria-label="Previous step"
-              onClick={() => {
-                setError(null);
-                setStep((current) => current - 1);
-              }}
-            >
-              <ChevronLeft size={24} />
-            </button>
-          ) : (
-            <span />
-          )}
+          <span />
           <div>
-            <small>STEP {step} OF 3</small>
-            <h2 id="fridge-setup-title">
-              {step === 1 ? "What do you have?" : step === 2 ? "Add details" : "Review"}
-            </h2>
+            <small>KITCHEN SETUP</small>
+            <h2 id="fridge-setup-title">Set Up My Fridge</h2>
           </div>
           <button type="button" aria-label="Close setup" onClick={onClose}>
             <X size={22} />
@@ -321,218 +307,228 @@ export function FridgeSetupDialog({
         </header>
 
         <div className="fridge-setup-body">
-          {step === 1 && (
-            <>
-              <p>Add the items currently in your fridge, freezer, or pantry.</p>
-              <div className="fridge-setup-name-list">
-                {drafts.map((draft, index) => (
-                  <label key={draft.id}>
-                    <span>{index + 1}</span>
-                    <input
-                      autoFocus={index === 0}
-                      maxLength={120}
-                      placeholder="e.g. Oat milk"
-                      value={draft.name}
-                      onChange={(event) =>
-                        updateDraft(draft.id, { name: event.target.value })
-                      }
-                    />
-                    <button
-                      type="button"
-                      aria-label={`Remove item ${index + 1}`}
-                      disabled={drafts.length === 1}
-                      onClick={() =>
-                        setDrafts((current) =>
-                          current.filter((item) => item.id !== draft.id)
-                        )
-                      }
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </label>
-                ))}
-              </div>
-              <button
-                className="fridge-setup-add"
-                type="button"
-                disabled={drafts.length >= 100}
-                onClick={() => setDrafts((current) => [...current, emptyDraft()])}
-              >
-                <Plus size={18} />
-                Add Another Item
-              </button>
-            </>
-          )}
+          <p>
+            Add what you currently have. Each item keeps its name and details
+            together, and you can collapse rows you are done with.
+          </p>
+          <div className="fridge-setup-detail-list is-collapsible">
+            {drafts.map((draft, index) => {
+              const isExpanded = expandedDraftId === draft.id;
+              const displayName = titleCase(draft.name) || `Item ${index + 1}`;
+              const summaryParts = [
+                draft.quantity ? `${draft.quantity}${draft.unit ? ` ${draft.unit}` : ""}` : null,
+                draft.location ? titleCase(draft.location) : null,
+                draft.expirationDate ? `Expires ${draft.expirationDate}` : null,
+              ].filter(Boolean);
 
-          {step === 2 && (
-            <>
-              <p>These values establish the starting state of your kitchen.</p>
-              <div className="fridge-setup-detail-list">
-                {drafts.map((draft) => (
-                  <section key={draft.id}>
-                    <h3>{titleCase(draft.name)}</h3>
-                    <div className="fridge-setup-photo-row">
-                      <div className="fridge-setup-photo-preview" aria-hidden="true">
-                        {draft.thumbnailUrl ? (
-                          <img
-                            className="item-artwork-image"
-                            src={draft.thumbnailUrl}
-                            alt=""
-                          />
-                        ) : (
-                          <span>{titleCase(draft.name).slice(0, 2) || "JG"}</span>
-                        )}
+              return (
+                <section
+                  key={draft.id}
+                  className={isExpanded ? "is-expanded" : undefined}
+                >
+                  <div className="fridge-setup-item-header">
+                    <label className="fridge-setup-item-name">
+                      <span>{index + 1}</span>
+                      <input
+                        autoFocus={index === 0}
+                        maxLength={120}
+                        placeholder="e.g. Oat milk"
+                        value={draft.name}
+                        onFocus={() => setExpandedDraftId(draft.id)}
+                        onChange={(event) => {
+                          updateDraft(draft.id, { name: event.target.value });
+                          setError(null);
+                        }}
+                      />
+                    </label>
+                    <div className="fridge-setup-item-controls">
+                      {summaryParts.length > 0 && !isExpanded ? (
+                        <small>{summaryParts.join(" · ")}</small>
+                      ) : (
+                        <small>{displayName}</small>
+                      )}
+                      <button
+                        type="button"
+                        className="fridge-setup-toggle"
+                        aria-expanded={isExpanded}
+                        aria-controls={`fridge-setup-item-${draft.id}`}
+                        onClick={() => toggleDraft(draft.id)}
+                      >
+                        <ChevronDown size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Remove item ${index + 1}`}
+                        disabled={drafts.length === 1}
+                        onClick={() => {
+                          setDrafts((current) =>
+                            current.filter((item) => item.id !== draft.id)
+                          );
+                          setError(null);
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div id={`fridge-setup-item-${draft.id}`}>
+                      <div className="fridge-setup-photo-row">
+                        <div className="fridge-setup-photo-preview" aria-hidden="true">
+                          {draft.thumbnailUrl ? (
+                            <img
+                              className="item-artwork-image"
+                              src={draft.thumbnailUrl}
+                              alt=""
+                            />
+                          ) : (
+                            <span>{displayName.slice(0, 2) || "JG"}</span>
+                          )}
+                        </div>
+                        <div className="fridge-setup-photo-actions">
+                          <label className="inventory-photo-button">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/*"
+                              onChange={(event) => {
+                                const [file] = event.target.files ?? [];
+                                event.currentTarget.value = "";
+                                void handleDraftThumbnail(draft.id, file ?? null);
+                              }}
+                            />
+                            Choose Photo
+                          </label>
+                          <label className="inventory-photo-button">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/*"
+                              capture="environment"
+                              onChange={(event) => {
+                                const [file] = event.target.files ?? [];
+                                event.currentTarget.value = "";
+                                void handleDraftThumbnail(draft.id, file ?? null);
+                              }}
+                            />
+                            Take Photo
+                          </label>
+                          {draft.thumbnailUrl && (
+                            <button
+                              className="inventory-photo-button is-secondary"
+                              type="button"
+                              onClick={() => {
+                                updateDraft(draft.id, { thumbnailUrl: "" });
+                                setError(null);
+                              }}
+                            >
+                              Remove Photo
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="fridge-setup-photo-actions">
-                        <label className="inventory-photo-button">
+                      <div>
+                        <label>
+                          <span>Quantity</span>
                           <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/*"
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            inputMode="decimal"
+                            value={draft.quantity}
                             onChange={(event) => {
-                              const [file] = event.target.files ?? [];
-                              event.currentTarget.value = "";
-                              void handleDraftThumbnail(draft.id, file ?? null);
+                              updateDraft(draft.id, { quantity: event.target.value });
+                              setError(null);
                             }}
                           />
-                          Choose Photo
                         </label>
-                        <label className="inventory-photo-button">
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/*"
-                            capture="environment"
+                        <label>
+                          <span>Unit</span>
+                          <select
+                            value={draft.unit}
                             onChange={(event) => {
-                              const [file] = event.target.files ?? [];
-                              event.currentTarget.value = "";
-                              void handleDraftThumbnail(draft.id, file ?? null);
+                              updateDraft(draft.id, { unit: event.target.value });
+                              setError(null);
                             }}
-                          />
-                          Take Photo
-                        </label>
-                        {draft.thumbnailUrl && (
-                          <button
-                            className="inventory-photo-button is-secondary"
-                            type="button"
-                            onClick={() => updateDraft(draft.id, { thumbnailUrl: "" })}
                           >
-                            Remove Photo
-                          </button>
-                        )}
+                            <option value="">Not set</option>
+                            {units.map((unit) => (
+                              <option value={unit} key={unit}>{titleCase(unit)}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Location</span>
+                          <select
+                            value={draft.location}
+                            onChange={(event) => {
+                              updateDraft(draft.id, {
+                                location: event.target.value as SetupDraft["location"],
+                              });
+                              setError(null);
+                            }}
+                          >
+                            <option value="">Not set</option>
+                            <option value="fridge">Fridge</option>
+                            <option value="freezer">Freezer</option>
+                            <option value="pantry">Pantry</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Expiry</span>
+                          <input
+                            type="date"
+                            value={draft.expirationDate}
+                            onChange={(event) => {
+                              updateDraft(draft.id, {
+                                expirationDate: event.target.value,
+                              });
+                              setError(null);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          <span>Low at</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            inputMode="decimal"
+                            placeholder="Optional"
+                            value={draft.lowThreshold}
+                            onChange={(event) => {
+                              updateDraft(draft.id, {
+                                lowThreshold: event.target.value,
+                              });
+                              setError(null);
+                            }}
+                          />
+                        </label>
                       </div>
                     </div>
-                    <div>
-                      <label>
-                        <span>Quantity</span>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="any"
-                          inputMode="decimal"
-                          value={draft.quantity}
-                          onChange={(event) =>
-                            updateDraft(draft.id, { quantity: event.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Unit</span>
-                        <select
-                          value={draft.unit}
-                          onChange={(event) =>
-                            updateDraft(draft.id, { unit: event.target.value })
-                          }
-                        >
-                          <option value="">Not set</option>
-                          {units.map((unit) => (
-                            <option value={unit} key={unit}>{titleCase(unit)}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span>Location</span>
-                        <select
-                          value={draft.location}
-                          onChange={(event) =>
-                            updateDraft(draft.id, {
-                              location: event.target.value as SetupDraft["location"],
-                            })
-                          }
-                        >
-                          <option value="">Not set</option>
-                          <option value="fridge">Fridge</option>
-                          <option value="freezer">Freezer</option>
-                          <option value="pantry">Pantry</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>Expiry</span>
-                        <input
-                          type="date"
-                          value={draft.expirationDate}
-                          onChange={(event) =>
-                            updateDraft(draft.id, {
-                              expirationDate: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Low at</span>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="any"
-                          inputMode="decimal"
-                          placeholder="Optional"
-                          value={draft.lowThreshold}
-                          onChange={(event) =>
-                            updateDraft(draft.id, {
-                              lowThreshold: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <p>
-                Confirm this snapshot. Items you did not include will not be
-                removed or marked out.
-              </p>
-              <div className="fridge-setup-review-list">
-                {toSetupItems(drafts).map((item) => (
-                  <section key={item.item_name}>
-                    <strong>{titleCase(item.item_name)}</strong>
-                    <span>
-                      {item.quantity}{item.unit ? ` ${item.unit}` : ""}
-                      {item.location ? ` · ${titleCase(item.location)}` : ""}
-                    </span>
-                    <small>
-                      {item.expiration_date
-                        ? `Expires ${item.expiration_date}`
-                        : "No expiry"}
-                      {" · "}
-                      {item.low_threshold
-                        ? `Low at ${item.low_threshold}`
-                        : "No low threshold"}
-                    </small>
-                  </section>
-                ))}
-              </div>
-            </>
-          )}
+                  )}
+                </section>
+              );
+            })}
+          </div>
+          <button
+            className="fridge-setup-add"
+            type="button"
+            disabled={drafts.length >= 100}
+            onClick={() => {
+              const nextDraft = emptyDraft();
+              setDrafts((current) => [...current, nextDraft]);
+              setExpandedDraftId(nextDraft.id);
+              setError(null);
+            }}
+          >
+            <Plus size={18} />
+            Add Another Item
+          </button>
           {error && <p className="fridge-setup-error">{error}</p>}
         </div>
 
         <footer className="fridge-setup-footer">
           <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : step === 3 ? "Set My Fridge" : "Continue"}
+            {saving ? "Saving…" : "Set My Fridge"}
           </button>
         </footer>
       </form>

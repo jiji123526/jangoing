@@ -2,6 +2,28 @@
 
 Add new entries at the top of the log so the latest state is easy to find.
 
+## 2026-09-04 - Fridge setup input collapsed into one page
+
+### Completed
+
+- Replaced the multi-step `Set Up My Fridge` wizard with a single-page item
+  editor so item name and item details stay together.
+- Turned each setup item into a collapsible card with inline name editing,
+  summary text when collapsed, and the existing quantity, location, expiry,
+  threshold, and photo inputs when expanded.
+- Kept the existing fridge-setup save flow intact, including the post-save
+  thumbnail upload pass for drafted item photos.
+
+### Validation
+
+- Re-ran Web typecheck.
+- Re-ran the fridge-setup thumbnail helper tests that cover the post-save
+  upload path used by this dialog.
+
+### Deployment
+
+- Deploy the Web app.
+
 ## 2026-09-04 - Item thumbnails moved to R2-backed object storage
 
 ### Completed
