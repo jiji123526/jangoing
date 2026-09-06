@@ -21,6 +21,7 @@ import {
   LoaderCircle,
   Mic,
   PackageOpen,
+  Plus,
   Send,
   Trash2,
   X,
@@ -1680,7 +1681,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   }
 
   useEffect(() => {
-    if (view !== "home" || !homeQuickUpdateOpen) return;
+    if ((view !== "home" && view !== "inventory") || !homeQuickUpdateOpen) return;
 
     const focusFrame = window.requestAnimationFrame(() => {
       const input = commandInputRef.current;
@@ -2126,7 +2127,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         setEdited(null);
         setCommand("");
         setNotice("Saved as a request that needs clarification.");
-        if (view === "home") setHomeQuickUpdateOpen(false);
+        if (view === "home" || view === "inventory") setHomeQuickUpdateOpen(false);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "Could not save review.");
       } finally {
@@ -2208,7 +2209,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         setEditedBatch(null);
         setNotice(`${createdEvents.length} items updated.`);
         await loadDashboard();
-        if (view === "home") setHomeQuickUpdateOpen(false);
+        if (view === "home" || view === "inventory") setHomeQuickUpdateOpen(false);
       } catch (caught) {
         setError(
           caught instanceof Error ? caught.message : "Could not save the actions.",
@@ -2272,7 +2273,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       setEditedBatch(null);
       setNotice(`${titleCase(createdEvent.item_name)} updated.`);
       await loadDashboard();
-      if (view === "home") setHomeQuickUpdateOpen(false);
+      if (view === "home" || view === "inventory") setHomeQuickUpdateOpen(false);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not save the action.",
@@ -2722,9 +2723,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         </div>
       )}
 
-      {(view === "home" || view === "search") && (
+      {(view === "home" || view === "inventory" || view === "search") && (
       <>
-      {view === "home" && homeQuickUpdateOpen && (
+      {(view === "home" || view === "inventory") && homeQuickUpdateOpen && (
         <button
           className="home-quick-update-backdrop"
           type="button"
@@ -2734,16 +2735,20 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       )}
       <section
         className={`command-band${
-          view === "home" ? " home-quick-update-dialog" : ""
+          view === "home" || view === "inventory"
+            ? " home-quick-update-dialog"
+            : ""
         }`}
         id="command"
         aria-labelledby="command-heading"
-        role={view === "home" ? "dialog" : undefined}
-        aria-modal={view === "home" ? true : undefined}
-        hidden={view === "home" && !homeQuickUpdateOpen}
-        ref={view === "home" ? homeQuickUpdateRef : undefined}
+        role={view === "home" || view === "inventory" ? "dialog" : undefined}
+        aria-modal={view === "home" || view === "inventory" ? true : undefined}
+        hidden={
+          (view === "home" || view === "inventory") && !homeQuickUpdateOpen
+        }
+        ref={view === "home" || view === "inventory" ? homeQuickUpdateRef : undefined}
         onKeyDown={
-          view === "home"
+          view === "home" || view === "inventory"
             ? (event) => {
                 if (event.key !== "Tab") return;
                 const focusable =
@@ -2769,7 +2774,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       >
         <div className="section-heading">
           {view === "search" && <p className="eyebrow">Kitchen command</p>}
-          {view === "home" ? (
+          {view === "home" || view === "inventory" ? (
             <>
               <h2 id="command-heading">Quick Update</h2>
               <button
@@ -2791,7 +2796,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
             <span>English command</span>
             <div className="command-input-wrap">
               <input
-                ref={view === "home" ? commandInputRef : undefined}
+                ref={
+                  view === "home" || view === "inventory"
+                    ? commandInputRef
+                    : undefined
+                }
                 value={command}
                 onChange={(event) => {
                   setCommand(event.target.value);
@@ -3159,7 +3168,10 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       {(view === "inventory" || view === "shopping") && (
       <div className={`dashboard-grid dashboard-grid-${view}`}>
         {view === "inventory" && (
-        <section className="data-section inventory-section" id="inventory">
+        <section
+          className={`data-section inventory-section${editingInventory ? " is-editing" : ""}`}
+          id="inventory"
+        >
           <div className="inventory-titlebar">
             <div>
               <h2>Inventory</h2>
@@ -3182,20 +3194,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           </div>
 
           {error && <p className="message error inventory-message">{error}</p>}
-
-          {editingInventory && dashboard.inventory.length > 0 && (
-            <div className="inventory-selection-bar">
-              <span aria-live="polite">{selectedInventoryItems.size} Selected</span>
-              <button
-                type="button"
-                aria-label={`Delete ${selectedInventoryItems.size} selected item${selectedInventoryItems.size === 1 ? "" : "s"}`}
-                disabled={selectedInventoryItems.size === 0 || inventorySaving !== null}
-                onClick={() => void handleRemoveSelectedInventoryItems()}
-              >
-                {inventorySaving === "__selection__" ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          )}
 
           {loading ? (
             <LoadingSkeleton
@@ -3410,6 +3408,44 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   </details>
                 )}
               </div>
+            </div>
+          )}
+
+          {editingInventory && (
+            <div className="inventory-edit-actions" aria-label="Inventory editing actions">
+              <button
+                className="inventory-edit-action inventory-edit-delete"
+                type="button"
+                aria-label={`Delete ${selectedInventoryItems.size} selected item${selectedInventoryItems.size === 1 ? "" : "s"}`}
+                disabled={selectedInventoryItems.size === 0 || inventorySaving !== null}
+                onClick={() => void handleRemoveSelectedInventoryItems()}
+              >
+                {inventorySaving === "__selection__" ? (
+                  <LoaderCircle size={26} className="spin" />
+                ) : (
+                  <Trash2 size={27} strokeWidth={1.8} />
+                )}
+              </button>
+              <button
+                className="inventory-edit-action inventory-edit-add"
+                type="button"
+                aria-label="Add items to inventory"
+                aria-haspopup="dialog"
+                aria-expanded={homeQuickUpdateOpen}
+                aria-controls="command"
+                onClick={() => {
+                  setCommand("");
+                  setExpiryDate("");
+                  setInterpretation(null);
+                  setEdited(null);
+                  setEditedBatch(null);
+                  setError(null);
+                  setNotice(null);
+                  setHomeQuickUpdateOpen(true);
+                }}
+              >
+                <Plus size={31} strokeWidth={1.8} />
+              </button>
             </div>
           )}
         </section>
