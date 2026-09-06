@@ -1686,6 +1686,31 @@ html.household-tab-fade-in main#search {
   font-size: 18px;
 }
 
+.account-household-status {
+  min-height: 44px;
+  padding: 12px 16px 12px 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(60, 60, 67, 0.6);
+  font-size: 13px;
+}
+
+.account-household-status.is-error {
+  color: #d12f2f;
+}
+
+.account-household-status button {
+  flex: none;
+  padding: 0;
+  border: 0;
+  color: var(--green);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+}
+
 .account-household-row::before,
 .account-settings-row + .account-settings-row::before {
   position: absolute;

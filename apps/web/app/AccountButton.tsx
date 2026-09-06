@@ -92,8 +92,9 @@ export function AccountButton() {
   const [profileColor, setProfileColor] = useState("#1F6B45");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [households, setHouseholds] = useState<HouseholdSummary[]>([]);
+  const [households, setHouseholds] = useState<HouseholdSummary[] | null>(null);
   const [householdsLoading, setHouseholdsLoading] = useState(false);
+  const [householdsError, setHouseholdsError] = useState<string | null>(null);
   const [householdAction, setHouseholdAction] = useState<"create" | "join" | "remove" | null>(null);
   const [newHouseholdName, setNewHouseholdName] = useState("");
   const [householdJoinDraft, setHouseholdJoinDraft] = useState("");
@@ -128,10 +129,12 @@ export function AccountButton() {
     if (open && members === null && !membersLoading) {
       void loadMembers();
     }
-    if (open && households.length === 0 && !householdsLoading) {
-      void loadHouseholds();
-    }
   }, [members, membersLoading, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadHouseholds();
+  }, [open]);
 
   useEffect(() => {
     setMembers(null);
@@ -169,8 +172,9 @@ export function AccountButton() {
     setProfileColor("#1F6B45");
     setProfileSaving(false);
     setProfileError(null);
-    setHouseholds([]);
+    setHouseholds(null);
     setHouseholdsLoading(false);
+    setHouseholdsError(null);
     setHouseholdAction(null);
     setNewHouseholdName("");
     setHouseholdJoinDraft("");
@@ -408,11 +412,13 @@ export function AccountButton() {
 
   async function loadHouseholds(): Promise<void> {
     setHouseholdsLoading(true);
-    setError(null);
+    setHouseholdsError(null);
     try {
       setHouseholds(await getHouseholds());
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load households.");
+      setHouseholdsError(
+        caught instanceof Error ? caught.message : "Could not load households.",
+      );
     } finally {
       setHouseholdsLoading(false);
     }
@@ -484,11 +490,7 @@ export function AccountButton() {
   const modalBusy =
     busy !== null || removingMemberId !== null || profileSaving || householdAction !== null;
   const inviteLoading = screen === "invite" && busy === "load" && !joinCode;
-  const displayedHouseholds = households.length > 0
-    ? households
-    : household
-      ? [household]
-      : [];
+  const displayedHouseholds = households ?? (household ? [household] : []);
 
   return (
     <>
@@ -620,6 +622,19 @@ export function AccountButton() {
                     )}
                   </button>
                 ))}
+                {householdsLoading && households === null && (
+                  <div className="account-household-status" role="status">
+                    Loading households…
+                  </div>
+                )}
+                {householdsError && (
+                  <div className="account-household-status is-error" role="alert">
+                    <span>{householdsError}</span>
+                    <button type="button" onClick={() => void loadHouseholds()}>
+                      Try Again
+                    </button>
+                  </div>
+                )}
               </section>
 
               <section className="account-group">
@@ -665,6 +680,32 @@ export function AccountButton() {
                     <ChevronRight size={20} aria-hidden="true" />
                   </button>
                 )}
+                <button
+                  className="account-settings-row is-destructive"
+                  type="button"
+                  disabled={householdAction !== null}
+                  onClick={() => void removeHousehold()}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <Trash2 size={20} />
+                  </span>
+                  <span>
+                    <strong>
+                      {householdAction === "remove"
+                        ? isOwner
+                          ? "Deleting…"
+                          : "Leaving…"
+                        : isOwner
+                          ? "Delete Household"
+                          : "Leave Household"}
+                    </strong>
+                    <small>
+                      {isOwner
+                        ? "Permanently delete this household"
+                        : "Remove this household from your profile"}
+                    </small>
+                  </span>
+                </button>
               </section>
 
               <section className="account-group account-current-household-group">
