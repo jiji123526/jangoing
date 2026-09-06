@@ -5004,15 +5004,15 @@ h1 {
 }
 
 .inventory-edit-action {
-  width: 62px;
-  height: 62px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   display: grid;
   place-items: center;
-  border: 0.5px solid rgba(60, 60, 67, 0.18);
+  border: 0;
   border-radius: 50%;
-  background: rgba(250, 250, 250, 0.9);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(20px);
   pointer-events: auto;
 }

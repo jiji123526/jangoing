@@ -3433,9 +3433,9 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 onClick={() => void handleRemoveSelectedInventoryItems()}
               >
                 {inventorySaving === "__selection__" ? (
-                  <LoaderCircle size={26} className="spin" />
+                  <LoaderCircle size={21} className="spin" />
                 ) : (
-                  <Trash2 size={27} strokeWidth={1.8} />
+                  <Trash2 size={22} strokeWidth={1.7} />
                 )}
               </button>
               <button
@@ -3456,7 +3456,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   setHomeQuickUpdateOpen(true);
                 }}
               >
-                <Plus size={31} strokeWidth={1.8} />
+                <Plus size={26} strokeWidth={1.8} />
               </button>
             </div>
           )}
