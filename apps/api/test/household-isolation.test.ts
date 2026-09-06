@@ -201,6 +201,7 @@ describe("household consumer-data isolation", () => {
       "0016_create_inventory_attention_acknowledgements.sql",
       "0018_create_item_media.sql",
       "0019_add_item_media_storage_fields.sql",
+      "0020_support_multiple_households.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -275,6 +276,24 @@ describe("household consumer-data isolation", () => {
       env,
     );
   }
+
+  it("lists every household membership from the exact households route", async () => {
+    database.prepare(
+      `INSERT INTO household_memberships (
+        household_id, user_id, role, created_at
+      ) VALUES (?, ?, 'member', ?)`,
+    ).run(householdB, userA, createdAt);
+
+    const response = await request("/households", {}, tokenA);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      households: [
+        { id: householdA, name: "Home A", role: "owner" },
+        { id: householdB, name: "Home B", role: "member" },
+      ],
+    });
+  });
 
   it("returns only the authenticated household and isolates anonymous legacy data", async () => {
     database.prepare(

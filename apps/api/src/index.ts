@@ -1630,7 +1630,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/households/")) {
+  if (
+    url.pathname === "/households" ||
+    url.pathname.startsWith("/households/")
+  ) {
     const identity = await authenticateRequest(request, env, {
       required: true,
       requireHousehold: false,
