@@ -1534,6 +1534,17 @@ html.household-tab-fade-in main#search {
   white-space: nowrap;
 }
 
+.account-modal-header.is-subpage {
+  grid-template-columns: 36px minmax(0, 1fr) 48px;
+  gap: 4px;
+}
+
+.account-modal-header.is-subpage .account-modal-back {
+  width: 36px;
+  margin-left: -6px;
+  justify-content: start;
+}
+
 .account-modal-brand,
 .account-modal-close,
 .account-modal-back {
@@ -1661,6 +1672,10 @@ html.household-tab-fade-in main#search {
   color: rgba(60, 60, 67, 0.3);
 }
 
+.account-household-row.is-actionable > .account-household-check {
+  color: var(--green);
+}
+
 .account-household-emoji {
   width: 32px;
   height: 32px;
@@ -1728,6 +1743,10 @@ html.household-tab-fade-in main#search {
 }
 
 .account-destructive-group {
+  margin-top: 28px;
+}
+
+.account-current-household-group {
   margin-top: 28px;
 }
 

@@ -8,6 +8,7 @@ import {
 } from "@jangoing/contracts";
 import {
   Ban,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -27,6 +28,7 @@ import {
   getCurrentHouseholdJoinCode,
   getHouseholds,
   getHouseholdMembers,
+  joinHousehold,
   removeCurrentHousehold,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
@@ -36,7 +38,7 @@ import {
 import { useCurrentHousehold } from "./HouseholdContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
-type AccountScreen = "overview" | "invite" | "members" | "edit" | "households" | "create";
+type AccountScreen = "overview" | "invite" | "members" | "edit" | "create" | "join";
 const accountModalTransitionMs = 420;
 const householdColorPresets = [
   "#5ED6A7",
@@ -92,8 +94,9 @@ export function AccountButton() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [households, setHouseholds] = useState<HouseholdSummary[]>([]);
   const [householdsLoading, setHouseholdsLoading] = useState(false);
-  const [householdAction, setHouseholdAction] = useState<"create" | "remove" | null>(null);
+  const [householdAction, setHouseholdAction] = useState<"create" | "join" | "remove" | null>(null);
   const [newHouseholdName, setNewHouseholdName] = useState("");
+  const [householdJoinDraft, setHouseholdJoinDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -170,6 +173,7 @@ export function AccountButton() {
     setHouseholdsLoading(false);
     setHouseholdAction(null);
     setNewHouseholdName("");
+    setHouseholdJoinDraft("");
     setError(null);
   }
 
@@ -438,6 +442,21 @@ export function AccountButton() {
     }
   }
 
+  async function joinAnotherHousehold(): Promise<void> {
+    const code = householdJoinDraft.trim();
+    if (!code) return;
+    setHouseholdAction("join");
+    setError(null);
+    try {
+      const joined = await joinHousehold(code);
+      setActiveHouseholdId(joined.household.id);
+      window.location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not join household.");
+      setHouseholdAction(null);
+    }
+  }
+
   async function removeHousehold(): Promise<void> {
     if (!household) return;
     const message = isOwner
@@ -465,6 +484,11 @@ export function AccountButton() {
   const modalBusy =
     busy !== null || removingMemberId !== null || profileSaving || householdAction !== null;
   const inviteLoading = screen === "invite" && busy === "load" && !joinCode;
+  const displayedHouseholds = households.length > 0
+    ? households
+    : household
+      ? [household]
+      : [];
 
   return (
     <>
@@ -500,7 +524,7 @@ export function AccountButton() {
         onClose={resetDialog}
       >
         <div className="account-modal-page">
-          <header className="account-modal-header">
+          <header className={`account-modal-header${screen !== "overview" ? " is-subpage" : ""}`}>
             {screen !== "overview" ? (
               <button
                 className="account-modal-back"
@@ -532,10 +556,10 @@ export function AccountButton() {
                     : "Current Kitchen Code"
                   : screen === "members"
                     ? "Household Members"
-                    : screen === "households"
-                      ? "Households"
-                      : screen === "create"
+                    : screen === "create"
                         ? "New Household"
+                        : screen === "join"
+                          ? "Join Household"
                         : "Edit Household"}
             </h2>
             <button
@@ -563,71 +587,42 @@ export function AccountButton() {
                     <small>{user.email}</small>
                   </div>
                 </div>
-                {isOwner ? (
+                {displayedHouseholds.map((entry) => (
                   <button
                     className="account-household-row is-actionable"
                     type="button"
-                    onClick={openHouseholdEditor}
+                    key={entry.id}
+                    onClick={() => {
+                      if (entry.id !== household?.id) {
+                        switchHousehold(entry.id);
+                      } else if (entry.role === "owner") {
+                        openHouseholdEditor();
+                      } else {
+                        openInviteScreen();
+                      }
+                    }}
                   >
                     <span
                       className="account-household-emoji"
-                      style={{ backgroundColor: household?.icon_color }}
+                      style={{ backgroundColor: entry.icon_color }}
                       aria-hidden="true"
                     >
-                      {household?.profile_emoji ?? "🏠"}
+                      {entry.profile_emoji}
                     </span>
                     <span>
-                      <strong>{household?.name}</strong>
-                      <small>Owner · Edit household</small>
+                      <strong>{entry.name}</strong>
+                      <small>{entry.role === "owner" ? "Owner" : "Member"}</small>
                     </span>
-                    <ChevronRight size={20} aria-hidden="true" />
+                    {entry.id === household?.id ? (
+                      <Check className="account-household-check" size={20} aria-label="Current household" />
+                    ) : (
+                      <ChevronRight size={20} aria-hidden="true" />
+                    )}
                   </button>
-                ) : (
-                  <button
-                    className="account-household-row is-actionable"
-                    type="button"
-                    onClick={openInviteScreen}
-                  >
-                    <span
-                      className="account-household-emoji"
-                      style={{ backgroundColor: household?.icon_color }}
-                      aria-hidden="true"
-                    >
-                      {household?.profile_emoji ?? "🏠"}
-                    </span>
-                    <span>
-                      <strong>{household?.name}</strong>
-                      <small>Member · View current code</small>
-                    </span>
-                    <ChevronRight size={20} aria-hidden="true" />
-                  </button>
-                )}
+                ))}
               </section>
 
-              <p className="account-group-note">
-                Inventory and shopping data are shared with members of{" "}
-                {household?.name}.
-              </p>
-
               <section className="account-group">
-                <button
-                  className="account-settings-row"
-                  type="button"
-                  onClick={() => {
-                    setScreen("households");
-                    setError(null);
-                    void loadHouseholds();
-                  }}
-                >
-                  <span className="account-row-icon" aria-hidden="true">
-                    <UsersRound size={20} />
-                  </span>
-                  <span>
-                    <strong>Households</strong>
-                    <small>Switch between your shared kitchens</small>
-                  </span>
-                  <ChevronRight size={20} aria-hidden="true" />
-                </button>
                 <button
                   className="account-settings-row"
                   type="button"
@@ -646,6 +641,27 @@ export function AccountButton() {
                   </span>
                   <ChevronRight size={20} aria-hidden="true" />
                 </button>
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
+                    setHouseholdJoinDraft("");
+                    setError(null);
+                    setScreen("join");
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <UserPlus size={20} />
+                  </span>
+                  <span>
+                    <strong>Join Household</strong>
+                    <small>Enter a shared household code</small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
+              </section>
+
+              <section className="account-group account-current-household-group">
                 <button
                   className="account-settings-row"
                   type="button"
@@ -694,56 +710,11 @@ export function AccountButton() {
                 <button
                   className="account-signout-row"
                   type="button"
-                  disabled={householdAction !== null}
-                  onClick={() => void removeHousehold()}
-                >
-                  {householdAction === "remove"
-                    ? isOwner ? "Deleting…" : "Leaving…"
-                    : isOwner ? "Delete Household" : "Leave Household"}
-                </button>
-                <button
-                  className="account-signout-row"
-                  type="button"
                   onClick={() => void signOut({ redirectTo: "/" })}
                 >
                   Sign Out
                 </button>
               </section>
-            </div>
-          ) : screen === "households" ? (
-            <div className="account-modal-content account-households-content">
-              {householdsLoading && households.length === 0 ? (
-                <LoadingSkeleton variant="rows" rows={3} label="Loading households" />
-              ) : (
-                <section className="account-group">
-                  {households.map((entry) => (
-                    <button
-                      className="account-settings-row"
-                      type="button"
-                      key={entry.id}
-                      onClick={() => switchHousehold(entry.id)}
-                    >
-                      <span
-                        className="account-row-icon account-household-switch-icon"
-                        style={{ backgroundColor: entry.icon_color }}
-                        aria-hidden="true"
-                      >
-                        {entry.profile_emoji}
-                      </span>
-                      <span>
-                        <strong>{entry.name}</strong>
-                        <small>{entry.role === "owner" ? "Owner" : "Member"}</small>
-                      </span>
-                      {entry.id === household?.id ? (
-                        <span className="account-current-household">Current</span>
-                      ) : (
-                        <ChevronRight size={20} aria-hidden="true" />
-                      )}
-                    </button>
-                  ))}
-                </section>
-              )}
-              {error && <p className="account-feedback is-error" role="alert">{error}</p>}
             </div>
           ) : screen === "create" ? (
             <div className="account-modal-content account-create-household-content">
@@ -772,6 +743,37 @@ export function AccountButton() {
                 onClick={() => void addHousehold()}
               >
                 {householdAction === "create" ? "Creating…" : "Create Household"}
+              </button>
+              {error && <p className="account-feedback is-error" role="alert">{error}</p>}
+            </div>
+          ) : screen === "join" ? (
+            <div className="account-modal-content account-create-household-content">
+              <section className="account-group account-edit-group">
+                <label>
+                  <span>Code</span>
+                  <input
+                    autoFocus
+                    maxLength={32}
+                    autoComplete="off"
+                    placeholder="ABCD-EFGH-J2"
+                    value={householdJoinDraft}
+                    onChange={(event) => setHouseholdJoinDraft(event.target.value.toUpperCase())}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void joinAnotherHousehold();
+                    }}
+                  />
+                </label>
+              </section>
+              <p className="account-edit-help">
+                Enter the code shared by the household owner.
+              </p>
+              <button
+                className="account-household-create-button"
+                type="button"
+                disabled={!householdJoinDraft.trim() || householdAction !== null}
+                onClick={() => void joinAnotherHousehold()}
+              >
+                {householdAction === "join" ? "Joining…" : "Join Household"}
               </button>
               {error && <p className="account-feedback is-error" role="alert">{error}</p>}
             </div>
@@ -884,6 +886,19 @@ export function AccountButton() {
                       ? "Stopping Existing Invites…"
                       : "Stop Existing Invites"}
                   </button>}
+                </section>
+              )}
+
+              {!isOwner && (
+                <section className="account-group account-destructive-group">
+                  <button
+                    className="account-signout-row"
+                    type="button"
+                    disabled={householdAction !== null}
+                    onClick={() => void removeHousehold()}
+                  >
+                    {householdAction === "remove" ? "Leaving…" : "Leave Household"}
+                  </button>
                 </section>
               )}
 
@@ -1067,6 +1082,17 @@ export function AccountButton() {
               >
                 {profileSaving ? "Saving…" : "Save Household"}
               </button>
+
+              <section className="account-group account-destructive-group">
+                <button
+                  className="account-signout-row"
+                  type="button"
+                  disabled={householdAction !== null}
+                  onClick={() => void removeHousehold()}
+                >
+                  {householdAction === "remove" ? "Deleting…" : "Delete Household"}
+                </button>
+              </section>
             </div>
           )}
         </div>
