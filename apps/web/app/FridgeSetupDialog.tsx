@@ -5,7 +5,7 @@ import type {
   FridgeSetupResponse,
   InventoryItem,
 } from "@jangoing/contracts";
-import { Camera, ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Camera, Plus, Trash2, X } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -448,7 +448,7 @@ export function FridgeSetupDialog({
             <h2 id="fridge-setup-title">Set Up My Fridge</h2>
           </div>
           <button type="button" aria-label="Close setup" onClick={onClose}>
-            <X size={22} />
+            <X size={28} strokeWidth={2} />
           </button>
         </header>
 
@@ -474,6 +474,11 @@ export function FridgeSetupDialog({
                 <section
                   key={draft.id}
                   className={isExpanded ? "is-expanded" : undefined}
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement;
+                    if (target.closest("button, input, select, label")) return;
+                    toggleDraft(draft.id);
+                  }}
                 >
                   <div className="inventory-item-row fridge-setup-item-shell">
                     <input
@@ -564,15 +569,6 @@ export function FridgeSetupDialog({
                           />
                         </label>
                         <span className="inventory-item-row-actions fridge-setup-item-actions">
-                          <button
-                            type="button"
-                            className="fridge-setup-toggle"
-                            aria-expanded={isExpanded}
-                            aria-controls={`fridge-setup-item-${draft.id}`}
-                            onClick={() => toggleDraft(draft.id)}
-                          >
-                            <ChevronDown size={18} />
-                          </button>
                           <button
                             type="button"
                             aria-label={`Remove item ${index + 1}`}
