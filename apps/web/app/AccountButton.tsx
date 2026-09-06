@@ -627,45 +627,6 @@ export function AccountButton() {
                   className="account-settings-row"
                   type="button"
                   onClick={() => {
-                    setNewHouseholdName("");
-                    setError(null);
-                    setScreen("create");
-                  }}
-                >
-                  <span className="account-row-icon" aria-hidden="true">
-                    <Plus size={20} />
-                  </span>
-                  <span>
-                    <strong>New Household</strong>
-                    <small>Create another shared kitchen</small>
-                  </span>
-                  <ChevronRight size={20} aria-hidden="true" />
-                </button>
-                <button
-                  className="account-settings-row"
-                  type="button"
-                  onClick={() => {
-                    setHouseholdJoinDraft("");
-                    setError(null);
-                    setScreen("join");
-                  }}
-                >
-                  <span className="account-row-icon" aria-hidden="true">
-                    <UserPlus size={20} />
-                  </span>
-                  <span>
-                    <strong>Join Household</strong>
-                    <small>Enter a shared household code</small>
-                  </span>
-                  <ChevronRight size={20} aria-hidden="true" />
-                </button>
-              </section>
-
-              <section className="account-group account-current-household-group">
-                <button
-                  className="account-settings-row"
-                  type="button"
-                  onClick={() => {
                     setScreen("members");
                     setError(null);
                     if (members === null && !membersLoading) {
@@ -704,6 +665,45 @@ export function AccountButton() {
                     <ChevronRight size={20} aria-hidden="true" />
                   </button>
                 )}
+              </section>
+
+              <section className="account-group account-current-household-group">
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
+                    setNewHouseholdName("");
+                    setError(null);
+                    setScreen("create");
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <Plus size={20} />
+                  </span>
+                  <span>
+                    <strong>New Household</strong>
+                    <small>Create another shared kitchen</small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
+                    setHouseholdJoinDraft("");
+                    setError(null);
+                    setScreen("join");
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <UserPlus size={20} />
+                  </span>
+                  <span>
+                    <strong>Join Household</strong>
+                    <small>Enter a shared household code</small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
               </section>
 
               <section className="account-group account-destructive-group">
