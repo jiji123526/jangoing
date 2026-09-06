@@ -10,8 +10,10 @@ import {
   FridgeSetupResponseSchema,
   FridgeSetupStatusSchema,
   HouseholdJoinCodeResponseSchema,
+  HouseholdListResponseSchema,
   HouseholdMemberRemovalResponseSchema,
   HouseholdMembersResponseSchema,
+  HouseholdRemovalResponseSchema,
   InventoryAttentionAcknowledgementResponseSchema,
   InventoryAttentionAcknowledgementsResponseSchema,
   ItemThumbnailResponseSchema,
@@ -99,6 +101,16 @@ interface CachedAppToken {
 let cachedAppToken: CachedAppToken | null = null;
 let pendingAppToken: Promise<string | null> | null = null;
 let signedOutRetryAfterMs = 0;
+const activeHouseholdStorageKey = "jangoing.activeHouseholdId";
+
+export function setActiveHouseholdId(householdId: string | null): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  if (householdId) {
+    window.localStorage.setItem(activeHouseholdStorageKey, householdId);
+  } else {
+    window.localStorage.removeItem(activeHouseholdStorageKey);
+  }
+}
 
 function pathUsesAppToken(path: string): boolean {
   return (
@@ -200,6 +212,10 @@ async function apiRequest(
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (typeof window !== "undefined" && window.localStorage) {
+    const householdId = window.localStorage.getItem(activeHouseholdStorageKey);
+    if (householdId) headers.set("X-Household-Id", householdId);
+  }
 
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
@@ -382,6 +398,20 @@ export async function acknowledgeInventoryAttention(
 export async function getCurrentHousehold(): Promise<CurrentHouseholdResponse> {
   const body = await apiRequest("/households/current");
   return CurrentHouseholdResponseSchema.parse(body);
+}
+
+export async function getHouseholds(): Promise<HouseholdSummary[]> {
+  const body = await apiRequest("/households");
+  return HouseholdListResponseSchema.parse(body).households;
+}
+
+export async function removeCurrentHousehold(): Promise<{
+  households: HouseholdSummary[];
+  household: HouseholdSummary | null;
+}> {
+  const body = await apiRequest("/households/current", { method: "DELETE" });
+  const parsed = HouseholdRemovalResponseSchema.parse(body);
+  return { households: parsed.households, household: parsed.household };
 }
 
 export async function updateHouseholdProfile(

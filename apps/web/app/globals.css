@@ -1741,6 +1741,37 @@ html.household-tab-fade-in main#search {
   text-align: center;
 }
 
+.account-signout-row + .account-signout-row {
+  border-top: 0.5px solid rgba(60, 60, 67, 0.22);
+}
+
+.account-current-household {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-household-switch-icon {
+  font-size: 18px;
+}
+
+.account-household-create-button {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--green);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.account-household-create-button:disabled {
+  color: rgba(60, 60, 67, 0.3);
+  background: rgba(118, 118, 128, 0.12);
+}
+
 .account-invite-content {
   padding-top: 10px;
 }

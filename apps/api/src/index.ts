@@ -66,7 +66,9 @@ import {
   getCurrentHousehold,
   getCurrentHouseholdJoinCode,
   joinHousehold,
+  listHouseholds,
   listHouseholdMembers,
+  removeCurrentHousehold,
   removeHouseholdMember,
   revokeHouseholdJoinCodes,
   rotateHouseholdJoinCode,
@@ -250,7 +252,7 @@ function configuredOrigins(env: Env): string[] {
 
 function corsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers({
-    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Household-Id",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     Vary: "Origin",
   });
@@ -1639,6 +1641,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 
     if (request.method === "GET" && url.pathname === "/households/current") {
       return json(request, env, await getCurrentHousehold(env, identity));
+    }
+
+    if (request.method === "GET" && url.pathname === "/households") {
+      return json(request, env, await listHouseholds(env, identity));
+    }
+
+    if (request.method === "DELETE" && url.pathname === "/households/current") {
+      return json(request, env, await removeCurrentHousehold(env, identity));
     }
 
     if (request.method === "PATCH" && url.pathname === "/households/current") {

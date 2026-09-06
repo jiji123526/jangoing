@@ -4,12 +4,14 @@ import {
   UpdateHouseholdProfileRequestSchema,
   type HouseholdJoinCode,
   type HouseholdMember,
+  type HouseholdSummary,
 } from "@jangoing/contracts";
 import {
   Ban,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Plus,
   RotateCcw,
   Share2,
   Trash2,
@@ -20,17 +22,21 @@ import {
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
+  createHousehold,
   createHouseholdJoinCode,
   getCurrentHouseholdJoinCode,
+  getHouseholds,
   getHouseholdMembers,
+  removeCurrentHousehold,
   removeHouseholdMember,
   revokeHouseholdJoinCode,
+  setActiveHouseholdId,
   updateHouseholdProfile,
 } from "../lib/api";
 import { useCurrentHousehold } from "./HouseholdContext";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 
-type AccountScreen = "overview" | "invite" | "members" | "edit";
+type AccountScreen = "overview" | "invite" | "members" | "edit" | "households" | "create";
 const accountModalTransitionMs = 420;
 const householdColorPresets = [
   "#5ED6A7",
@@ -84,6 +90,10 @@ export function AccountButton() {
   const [profileColor, setProfileColor] = useState("#1F6B45");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [households, setHouseholds] = useState<HouseholdSummary[]>([]);
+  const [householdsLoading, setHouseholdsLoading] = useState(false);
+  const [householdAction, setHouseholdAction] = useState<"create" | "remove" | null>(null);
+  const [newHouseholdName, setNewHouseholdName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,6 +124,9 @@ export function AccountButton() {
   useEffect(() => {
     if (open && members === null && !membersLoading) {
       void loadMembers();
+    }
+    if (open && households.length === 0 && !householdsLoading) {
+      void loadHouseholds();
     }
   }, [members, membersLoading, open]);
 
@@ -153,6 +166,10 @@ export function AccountButton() {
     setProfileColor("#1F6B45");
     setProfileSaving(false);
     setProfileError(null);
+    setHouseholds([]);
+    setHouseholdsLoading(false);
+    setHouseholdAction(null);
+    setNewHouseholdName("");
     setError(null);
   }
 
@@ -385,6 +402,60 @@ export function AccountButton() {
     }
   }
 
+  async function loadHouseholds(): Promise<void> {
+    setHouseholdsLoading(true);
+    setError(null);
+    try {
+      setHouseholds(await getHouseholds());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not load households.");
+    } finally {
+      setHouseholdsLoading(false);
+    }
+  }
+
+  function switchHousehold(householdId: string): void {
+    if (householdId === household?.id) {
+      setScreen("overview");
+      return;
+    }
+    setActiveHouseholdId(householdId);
+    window.location.reload();
+  }
+
+  async function addHousehold(): Promise<void> {
+    const name = newHouseholdName.trim();
+    if (!name) return;
+    setHouseholdAction("create");
+    setError(null);
+    try {
+      const created = await createHousehold(name);
+      setActiveHouseholdId(created.household.id);
+      window.location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not create household.");
+      setHouseholdAction(null);
+    }
+  }
+
+  async function removeHousehold(): Promise<void> {
+    if (!household) return;
+    const message = isOwner
+      ? `Delete ${household.name}? Its inventory, shopping list, and member access will be permanently deleted.`
+      : `Leave ${household.name}? You will lose access to its shared inventory and shopping list.`;
+    if (!window.confirm(message)) return;
+    setHouseholdAction("remove");
+    setError(null);
+    try {
+      const result = await removeCurrentHousehold();
+      setActiveHouseholdId(result.household?.id ?? null);
+      window.location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update household access.");
+      setHouseholdAction(null);
+    }
+  }
+
   const displayName = user.display_name ?? "Jangoing user";
   const initial = (user.display_name ?? user.email).slice(0, 1).toUpperCase();
   const isOwner = household?.role === "owner";
@@ -392,7 +463,7 @@ export function AccountButton() {
     profileColor.toUpperCase(),
   );
   const modalBusy =
-    busy !== null || removingMemberId !== null || profileSaving;
+    busy !== null || removingMemberId !== null || profileSaving || householdAction !== null;
   const inviteLoading = screen === "invite" && busy === "load" && !joinCode;
 
   return (
@@ -461,7 +532,11 @@ export function AccountButton() {
                     : "Current Kitchen Code"
                   : screen === "members"
                     ? "Household Members"
-                    : "Edit Household"}
+                    : screen === "households"
+                      ? "Households"
+                      : screen === "create"
+                        ? "New Household"
+                        : "Edit Household"}
             </h2>
             <button
               className="account-modal-close"
@@ -539,6 +614,42 @@ export function AccountButton() {
                   className="account-settings-row"
                   type="button"
                   onClick={() => {
+                    setScreen("households");
+                    setError(null);
+                    void loadHouseholds();
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <UsersRound size={20} />
+                  </span>
+                  <span>
+                    <strong>Households</strong>
+                    <small>Switch between your shared kitchens</small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
+                    setNewHouseholdName("");
+                    setError(null);
+                    setScreen("create");
+                  }}
+                >
+                  <span className="account-row-icon" aria-hidden="true">
+                    <Plus size={20} />
+                  </span>
+                  <span>
+                    <strong>New Household</strong>
+                    <small>Create another shared kitchen</small>
+                  </span>
+                  <ChevronRight size={20} aria-hidden="true" />
+                </button>
+                <button
+                  className="account-settings-row"
+                  type="button"
+                  onClick={() => {
                     setScreen("members");
                     setError(null);
                     if (members === null && !membersLoading) {
@@ -583,11 +694,86 @@ export function AccountButton() {
                 <button
                   className="account-signout-row"
                   type="button"
+                  disabled={householdAction !== null}
+                  onClick={() => void removeHousehold()}
+                >
+                  {householdAction === "remove"
+                    ? isOwner ? "Deleting…" : "Leaving…"
+                    : isOwner ? "Delete Household" : "Leave Household"}
+                </button>
+                <button
+                  className="account-signout-row"
+                  type="button"
                   onClick={() => void signOut({ redirectTo: "/" })}
                 >
                   Sign Out
                 </button>
               </section>
+            </div>
+          ) : screen === "households" ? (
+            <div className="account-modal-content account-households-content">
+              {householdsLoading && households.length === 0 ? (
+                <LoadingSkeleton variant="rows" rows={3} label="Loading households" />
+              ) : (
+                <section className="account-group">
+                  {households.map((entry) => (
+                    <button
+                      className="account-settings-row"
+                      type="button"
+                      key={entry.id}
+                      onClick={() => switchHousehold(entry.id)}
+                    >
+                      <span
+                        className="account-row-icon account-household-switch-icon"
+                        style={{ backgroundColor: entry.icon_color }}
+                        aria-hidden="true"
+                      >
+                        {entry.profile_emoji}
+                      </span>
+                      <span>
+                        <strong>{entry.name}</strong>
+                        <small>{entry.role === "owner" ? "Owner" : "Member"}</small>
+                      </span>
+                      {entry.id === household?.id ? (
+                        <span className="account-current-household">Current</span>
+                      ) : (
+                        <ChevronRight size={20} aria-hidden="true" />
+                      )}
+                    </button>
+                  ))}
+                </section>
+              )}
+              {error && <p className="account-feedback is-error" role="alert">{error}</p>}
+            </div>
+          ) : screen === "create" ? (
+            <div className="account-modal-content account-create-household-content">
+              <section className="account-group account-edit-group">
+                <label>
+                  <span>Name</span>
+                  <input
+                    autoFocus
+                    maxLength={80}
+                    placeholder="e.g. Jiwoo's Kitchen"
+                    value={newHouseholdName}
+                    onChange={(event) => setNewHouseholdName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void addHousehold();
+                    }}
+                  />
+                </label>
+              </section>
+              <p className="account-edit-help">
+                Your existing households stay available. You can switch between them anytime.
+              </p>
+              <button
+                className="account-household-create-button"
+                type="button"
+                disabled={!newHouseholdName.trim() || householdAction !== null}
+                onClick={() => void addHousehold()}
+              >
+                {householdAction === "create" ? "Creating…" : "Create Household"}
+              </button>
+              {error && <p className="account-feedback is-error" role="alert">{error}</p>}
             </div>
           ) : screen === "invite" ? (
             <div className="account-modal-content account-invite-content">

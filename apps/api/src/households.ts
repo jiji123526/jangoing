@@ -11,6 +11,7 @@ import type { RequestIdentity } from "./auth";
 
 export interface HouseholdEnvironment {
   DB: D1Database;
+  ITEM_MEDIA_BUCKET?: R2Bucket;
   HOUSEHOLD_CODE_SECRET?: string;
 }
 
@@ -181,16 +182,6 @@ async function decryptJoinCode(
   return new TextDecoder().decode(plaintext);
 }
 
-function assertNoHousehold(identity: RequestIdentity): void {
-  if (identity.householdId) {
-    throw new HouseholdError(
-      409,
-      "household_already_assigned",
-      "User already belongs to a household",
-    );
-  }
-}
-
 function assertOwner(identity: RequestIdentity): asserts identity is RequestIdentity & {
   householdId: string;
   role: "owner";
@@ -218,6 +209,7 @@ function summary(row: HouseholdRow): HouseholdSummary {
 async function readHouseholdForUser(
   env: HouseholdEnvironment,
   userId: string,
+  householdId?: string | null,
 ): Promise<HouseholdSummary | null> {
   const row = await env.DB.prepare(
     `SELECT
@@ -225,8 +217,11 @@ async function readHouseholdForUser(
        hm.role, h.created_at
      FROM household_memberships hm
      JOIN households h ON h.id = hm.household_id
-     WHERE hm.user_id = ?`,
-  ).bind(userId).first<HouseholdRow>();
+     WHERE hm.user_id = ?
+       AND (? IS NULL OR h.id = ?)
+     ORDER BY hm.created_at ASC, h.id ASC
+     LIMIT 1`,
+  ).bind(userId, householdId ?? null, householdId ?? null).first<HouseholdRow>();
   return row ? summary(row) : null;
 }
 
@@ -242,9 +237,23 @@ export async function getCurrentHousehold(
       avatar_url: identity.user.avatarUrl,
     },
     household: identity.householdId
-      ? await readHouseholdForUser(env, identity.user.id)
+      ? await readHouseholdForUser(env, identity.user.id, identity.householdId)
       : null,
   };
+}
+
+export async function listHouseholds(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+): Promise<{ households: HouseholdSummary[] }> {
+  const result = await env.DB.prepare(
+    `SELECT h.id, h.name, h.profile_emoji, h.icon_color, hm.role, h.created_at
+     FROM household_memberships hm
+     JOIN households h ON h.id = hm.household_id
+     WHERE hm.user_id = ?
+     ORDER BY hm.created_at ASC, h.id ASC`,
+  ).bind(identity.user.id).all<HouseholdRow>();
+  return { households: result.results.map(summary) };
 }
 
 export async function updateHouseholdProfile(
@@ -266,7 +275,11 @@ export async function updateHouseholdProfile(
     identity.householdId,
   ).run();
 
-  const household = await readHouseholdForUser(env, identity.user.id);
+  const household = await readHouseholdForUser(
+    env,
+    identity.user.id,
+    identity.householdId,
+  );
   if (!household) {
     throw new HouseholdError(
       500,
@@ -353,7 +366,6 @@ export async function createHousehold(
   input: CreateHouseholdRequest,
   now = new Date(),
 ): Promise<{ household: HouseholdSummary; join_code: HouseholdJoinCode }> {
-  assertNoHousehold(identity);
   const householdId = crypto.randomUUID();
   const joinCodeId = crypto.randomUUID();
   const code = generateJoinCode();
@@ -417,7 +429,6 @@ export async function joinHousehold(
   input: JoinHouseholdRequest,
   now = new Date(),
 ): Promise<{ household: HouseholdSummary }> {
-  assertNoHousehold(identity);
   const codeHash = await hashJoinCode(input.code, env);
   const createdAt = now.toISOString();
 
@@ -457,7 +468,15 @@ export async function joinHousehold(
     throw error;
   }
 
-  const household = await readHouseholdForUser(env, identity.user.id);
+  const joined = await env.DB.prepare(
+    `SELECT h.id, h.name, h.profile_emoji, h.icon_color, hm.role, h.created_at
+     FROM household_memberships hm
+     JOIN households h ON h.id = hm.household_id
+     JOIN household_join_codes hjc ON hjc.household_id = h.id
+     WHERE hm.user_id = ? AND hjc.code_hash = ?
+     LIMIT 1`,
+  ).bind(identity.user.id, codeHash).first<HouseholdRow>();
+  const household = joined ? summary(joined) : null;
   if (!household) {
     throw new HouseholdError(
       500,
@@ -466,6 +485,38 @@ export async function joinHousehold(
     );
   }
   return { household };
+}
+
+export async function removeCurrentHousehold(
+  env: HouseholdEnvironment,
+  identity: RequestIdentity,
+): Promise<{ success: true; households: HouseholdSummary[]; household: HouseholdSummary | null }> {
+  if (!identity.householdId || !identity.role) {
+    throw new HouseholdError(409, "household_required", "Household setup is required");
+  }
+
+  if (identity.role === "owner") {
+    const media = await env.DB.prepare(
+      `SELECT object_key FROM item_media
+       WHERE household_id = ? AND object_key IS NOT NULL`,
+    ).bind(identity.householdId).all<{ object_key: string }>();
+    await env.DB.prepare("DELETE FROM households WHERE id = ?")
+      .bind(identity.householdId).run();
+    if (env.ITEM_MEDIA_BUCKET) {
+      await Promise.all(media.results.map((row) => env.ITEM_MEDIA_BUCKET!.delete(row.object_key)));
+    }
+  } else {
+    await env.DB.prepare(
+      "DELETE FROM household_memberships WHERE household_id = ? AND user_id = ?",
+    ).bind(identity.householdId, identity.user.id).run();
+  }
+
+  const remaining = await listHouseholds(env, identity);
+  return {
+    success: true,
+    households: remaining.households,
+    household: remaining.households[0] ?? null,
+  };
 }
 
 export async function rotateHouseholdJoinCode(

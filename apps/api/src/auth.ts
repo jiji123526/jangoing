@@ -324,24 +324,31 @@ async function upsertUser(
 async function resolveMembership(
   env: AuthEnvironment,
   userId: string,
+  preferredHouseholdId: string | null,
 ): Promise<MembershipRow | null> {
-  const result = await env.DB.prepare(
+  if (preferredHouseholdId) {
+    const preferred = await env.DB.prepare(
+      `SELECT household_id, role
+       FROM household_memberships
+       WHERE user_id = ? AND household_id = ?`,
+    ).bind(userId, preferredHouseholdId).first<MembershipRow>();
+    if (!preferred) {
+      throw new AuthError(
+        403,
+        "household_access_denied",
+        "You do not have access to the selected household",
+      );
+    }
+    return preferred;
+  }
+
+  return await env.DB.prepare(
     `SELECT household_id, role
      FROM household_memberships
      WHERE user_id = ?
      ORDER BY created_at ASC, household_id ASC
-     LIMIT 2`,
-  ).bind(userId).all<MembershipRow>();
-
-  if (result.results.length > 1) {
-    throw new AuthError(
-      500,
-      "multiple_households_not_supported",
-      "Multiple household memberships are not supported",
-    );
-  }
-
-  return result.results[0] ?? null;
+     LIMIT 1`,
+  ).bind(userId).first<MembershipRow>();
 }
 
 export async function authenticateRequest(
@@ -360,7 +367,8 @@ export async function authenticateRequest(
 
   const claims = await verifyAppJwt(token, env);
   const user = await upsertUser(env, claims);
-  const membership = await resolveMembership(env, user.id);
+  const preferredHouseholdId = request.headers.get("X-Household-Id")?.trim() || null;
+  const membership = await resolveMembership(env, user.id, preferredHouseholdId);
 
   if (options.requireHousehold && !membership) {
     throw new AuthError(

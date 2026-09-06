@@ -147,6 +147,10 @@ const itemMediaStorageFieldsMigrationPath = resolve(
   apiDirectory,
   "migrations/0019_add_item_media_storage_fields.sql",
 );
+const multipleHouseholdsMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0020_support_multiple_households.sql",
+);
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
 const localMediaDirectory = resolve(apiDirectory, ".local/item-media");
@@ -279,6 +283,13 @@ const itemMediaColumns = database.prepare(
 ).all() as Array<{ name: string }>;
 if (!itemMediaColumns.some((column) => column.name === "media_id")) {
   database.exec(readFileSync(itemMediaStorageFieldsMigrationPath, "utf8"));
+}
+const remainingSingleHouseholdIndex = database.prepare(
+  `SELECT name FROM sqlite_master
+   WHERE type = 'index' AND name = 'idx_household_memberships_one_per_user'`,
+).get() as { name?: string } | undefined;
+if (remainingSingleHouseholdIndex?.name) {
+  database.exec(readFileSync(multipleHouseholdsMigrationPath, "utf8"));
 }
 database.prepare(
   `INSERT INTO households (

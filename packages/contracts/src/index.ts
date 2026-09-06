@@ -779,6 +779,15 @@ export const CurrentHouseholdResponseSchema = z.object({
   household: HouseholdSummarySchema.nullable(),
 });
 
+export const HouseholdListResponseSchema = z.object({
+  households: z.array(HouseholdSummarySchema),
+});
+
+export const HouseholdRemovalResponseSchema = HouseholdListResponseSchema.extend({
+  success: z.literal(true),
+  household: HouseholdSummarySchema.nullable(),
+});
+
 export const JoinedHouseholdResponseSchema = z.object({
   household: HouseholdSummarySchema,
 });
@@ -850,6 +859,8 @@ export type CreateHouseholdRequest = z.infer<
 >;
 export type JoinHouseholdRequest = z.infer<typeof JoinHouseholdRequestSchema>;
 export type HouseholdSummary = z.infer<typeof HouseholdSummarySchema>;
+export type HouseholdListResponse = z.infer<typeof HouseholdListResponseSchema>;
+export type HouseholdRemovalResponse = z.infer<typeof HouseholdRemovalResponseSchema>;
 export type UpdateHouseholdProfileRequest = z.infer<
   typeof UpdateHouseholdProfileRequestSchema
 >;
