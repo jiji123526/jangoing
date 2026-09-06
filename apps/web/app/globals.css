@@ -749,7 +749,7 @@ html.household-tab-fade-in main#search {
   min-height: 76px;
   padding: 12px 18px 0;
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) 64px;
+  grid-template-columns: 84px minmax(0, 1fr) 48px;
   align-items: center;
 }
 
@@ -775,13 +775,15 @@ html.household-tab-fade-in main#search {
 }
 
 .auth-onboarding-close {
-  width: 44px;
+  width: 48px;
+  height: 48px !important;
   justify-self: end;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: rgba(60, 60, 67, 0.58) !important;
-  background: rgba(118, 118, 128, 0.12) !important;
+  color: #000 !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 8px 24px rgba(30, 30, 35, 0.08);
 }
 
 .auth-onboarding-body {
@@ -825,7 +827,7 @@ html.household-tab-fade-in main#search {
   min-height: 108px;
   padding: 18px 16px;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 24px;
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   border: 2px solid transparent;
@@ -874,23 +876,6 @@ html.household-tab-fade-in main#search {
 
 .auth-onboarding-options .is-selected small {
   color: rgba(255, 255, 255, 0.84);
-}
-
-.auth-onboarding-options i {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(60, 60, 67, 0.24);
-  border-radius: 50%;
-  color: #fff;
-  background: #fff;
-}
-
-.auth-onboarding-options .is-selected i {
-  border-color: #fff;
-  color: #857fd8;
-  background: #fff;
 }
 
 .auth-onboarding-form-group {
@@ -949,11 +934,11 @@ html.household-tab-fade-in main#search {
 
 .auth-onboarding-footer > button {
   width: 100%;
-  min-height: 58px;
+  min-height: 50px;
   border: 0;
-  border-radius: 13px;
+  border-radius: 12px;
   color: #fff;
-  background: #ef3d45;
+  background: #ff2d55;
   font-size: 17px;
   font-weight: 650;
 }

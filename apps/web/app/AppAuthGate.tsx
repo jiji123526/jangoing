@@ -361,7 +361,7 @@ function Gate({ children }: { children: ReactNode }) {
                 onClick={dismissOnboarding}
                 disabled={submitting}
               >
-                <X size={22} strokeWidth={3} />
+                <X size={28} strokeWidth={2} />
               </button>
             </header>
 
@@ -391,7 +391,9 @@ function Gate({ children }: { children: ReactNode }) {
                     type="button"
                     className={choice === "join" ? "is-selected" : ""}
                     aria-pressed={choice === "join"}
-                    onClick={() => setChoice("join")}
+                    onClick={() =>
+                      setChoice((current) => current === "join" ? null : "join")
+                    }
                   >
                     <span className="auth-onboarding-option-icon">
                       <KeyRound size={22} />
@@ -400,13 +402,14 @@ function Gate({ children }: { children: ReactNode }) {
                       <strong>Join an existing household</strong>
                       <small>Use a code shared by someone at home</small>
                     </span>
-                    <i>{choice === "join" && <Check size={16} />}</i>
                   </button>
                   <button
                     type="button"
                     className={choice === "create" ? "is-selected" : ""}
                     aria-pressed={choice === "create"}
-                    onClick={() => setChoice("create")}
+                    onClick={() =>
+                      setChoice((current) => current === "create" ? null : "create")
+                    }
                   >
                     <span className="auth-onboarding-option-icon">
                       <UsersRound size={22} />
@@ -415,7 +418,6 @@ function Gate({ children }: { children: ReactNode }) {
                       <strong>Create a new household</strong>
                       <small>Start a new inventory and shopping list</small>
                     </span>
-                    <i>{choice === "create" && <Check size={16} />}</i>
                   </button>
                 </div>
               )}
