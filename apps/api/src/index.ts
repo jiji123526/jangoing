@@ -451,6 +451,19 @@ async function loadKitchenProjection(
   return { projection, sourceEvents };
 }
 
+async function writeKitchenProjectionFromEvents(
+  env: Env,
+  scope: ConsumerScope | null,
+  events: EventRecord[],
+): Promise<KitchenProjection> {
+  const projection = {
+    inventory: projectInventory(events),
+    shoppingList: projectShoppingList(events),
+  };
+  await writeKitchenProjection(env, scope, projection);
+  return projection;
+}
+
 async function attachKitchenProjectionMedia(
   env: Env,
   scope: ConsumerScope | null,
@@ -900,7 +913,14 @@ async function handleCreateEvent(
       scope?.userId ?? null,
     )
     .run();
-  await invalidateKitchenProjection(env, scope);
+  if (projectedState?.sourceEvents) {
+    await writeKitchenProjectionFromEvents(env, scope, [
+      ...projectedState.sourceEvents,
+      event,
+    ]);
+  } else {
+    await invalidateKitchenProjection(env, scope);
+  }
 
   const correctedInterpretation = buildCorrectedInterpretation([event]);
   const predicted = {
@@ -1002,7 +1022,14 @@ async function handleCreateEvents(
       scope?.userId ?? null,
     ).run();
   }
-  await invalidateKitchenProjection(env, scope);
+  if (projectedState?.sourceEvents) {
+    await writeKitchenProjectionFromEvents(env, scope, [
+      ...projectedState.sourceEvents,
+      ...events,
+    ]);
+  } else {
+    await invalidateKitchenProjection(env, scope);
+  }
 
   const correctedInterpretation = buildCorrectedInterpretation(events);
   const predicted = {
@@ -1464,22 +1491,18 @@ async function handleFridgeSetup(
           "INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?)",
         ).bind(fridgeSetupCompletedKey, completedAt, completedAt),
   );
-  statements.push(
-    scope
-      ? env.DB.prepare(
-          `DELETE FROM household_app_state
-           WHERE household_id = ? AND key = ?`,
-        ).bind(scope.householdId, kitchenProjectionKey)
-      : env.DB.prepare(
-          "DELETE FROM app_state WHERE key = ?",
-        ).bind(kitchenProjectionKey),
-  );
-
   await env.DB.batch(statements);
-  const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
-    inventory: projectInventory([...existingEvents, ...setupEvents]),
-    shoppingList: [],
-  }, request.url);
+  const nextProjection = await writeKitchenProjectionFromEvents(
+    env,
+    scope,
+    [...existingEvents, ...setupEvents],
+  );
+  const projectionWithMedia = await attachKitchenProjectionMedia(
+    env,
+    scope,
+    nextProjection,
+    request.url,
+  );
   return json(
     request,
     env,
@@ -1595,16 +1618,23 @@ async function handleShoppingMutation(
     scope?.householdId ?? null,
     scope?.userId ?? null,
   ).run();
-  await invalidateKitchenProjection(env, scope);
+  const nextEvents = action === "add" ? null : [...existingEvents, event];
+  let nextProjection: KitchenProjection | null = null;
+  if (nextEvents) {
+    nextProjection = await writeKitchenProjectionFromEvents(env, scope, nextEvents);
+  } else {
+    await invalidateKitchenProjection(env, scope);
+  }
 
   const includeProjections =
     new URL(request.url).searchParams.get("include") === "projections";
   if (action !== "add" && includeProjections) {
-    const nextEvents = [...existingEvents, event];
-    const projectionWithMedia = await attachKitchenProjectionMedia(env, scope, {
-      inventory: projectInventory(nextEvents),
-      shoppingList: projectShoppingList(nextEvents),
-    }, request.url);
+    const projectionWithMedia = await attachKitchenProjectionMedia(
+      env,
+      scope,
+      nextProjection!,
+      request.url,
+    );
     return json(
       request,
       env,

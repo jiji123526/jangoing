@@ -21,6 +21,7 @@ interface HouseholdRow {
   profile_emoji: string;
   icon_color: string;
   role: "owner" | "member";
+  member_count?: number;
   created_at: string;
 }
 
@@ -202,6 +203,7 @@ function summary(row: HouseholdRow): HouseholdSummary {
     profile_emoji: row.profile_emoji,
     icon_color: row.icon_color,
     role: row.role,
+    ...(row.member_count !== undefined ? { member_count: row.member_count } : {}),
     created_at: row.created_at,
   };
 }
@@ -247,7 +249,9 @@ export async function listHouseholds(
   identity: RequestIdentity,
 ): Promise<{ households: HouseholdSummary[] }> {
   const result = await env.DB.prepare(
-    `SELECT h.id, h.name, h.profile_emoji, h.icon_color, hm.role, h.created_at
+    `SELECT h.id, h.name, h.profile_emoji, h.icon_color, hm.role, h.created_at,
+            (SELECT COUNT(*) FROM household_memberships members
+             WHERE members.household_id = h.id) AS member_count
      FROM household_memberships hm
      JOIN households h ON h.id = hm.household_id
      WHERE hm.user_id = ?

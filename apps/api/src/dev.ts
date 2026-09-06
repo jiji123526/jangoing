@@ -151,6 +151,10 @@ const multipleHouseholdsMigrationPath = resolve(
   apiDirectory,
   "migrations/0020_support_multiple_households.sql",
 );
+const householdEventOrderMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0021_optimize_household_event_order.sql",
+);
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
 const localMediaDirectory = resolve(apiDirectory, ".local/item-media");
@@ -290,6 +294,13 @@ const remainingSingleHouseholdIndex = database.prepare(
 ).get() as { name?: string } | undefined;
 if (remainingSingleHouseholdIndex?.name) {
   database.exec(readFileSync(multipleHouseholdsMigrationPath, "utf8"));
+}
+const householdEventIndexColumns = database.prepare(
+  `SELECT group_concat(name, ',') AS columns
+   FROM pragma_index_info('idx_events_household_created_at')`,
+).get() as { columns: string | null } | undefined;
+if (householdEventIndexColumns?.columns !== "household_id,created_at,id") {
+  database.exec(readFileSync(householdEventOrderMigrationPath, "utf8"));
 }
 database.prepare(
   `INSERT INTO households (

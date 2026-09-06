@@ -724,6 +724,7 @@ export const HouseholdSummarySchema = z.object({
   profile_emoji: HouseholdProfileEmojiSchema,
   icon_color: HouseholdIconColorSchema,
   role: HouseholdRoleSchema,
+  member_count: z.number().int().nonnegative().optional(),
   created_at: z.string().datetime(),
 });
 

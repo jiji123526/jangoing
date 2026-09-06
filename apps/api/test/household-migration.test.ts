@@ -268,4 +268,15 @@ describe("household ownership migration", () => {
       );
     }).toThrow();
   });
+
+  it("covers deterministic household event ordering with one index", () => {
+    database.exec(migration("0021_optimize_household_event_order.sql"));
+
+    expect(
+      database.prepare(
+        `SELECT group_concat(name, ',') AS columns
+         FROM pragma_index_info('idx_events_household_created_at')`,
+      ).get(),
+    ).toEqual({ columns: "household_id,created_at,id" });
+  });
 });

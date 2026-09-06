@@ -126,12 +126,6 @@ export function AccountButton() {
   }, [open]);
 
   useEffect(() => {
-    if (open && members === null && !membersLoading) {
-      void loadMembers();
-    }
-  }, [members, membersLoading, open]);
-
-  useEffect(() => {
     if (!open) return;
     void loadHouseholds();
   }, [open]);
@@ -491,6 +485,9 @@ export function AccountButton() {
     busy !== null || removingMemberId !== null || profileSaving || householdAction !== null;
   const inviteLoading = screen === "invite" && busy === "load" && !joinCode;
   const displayedHouseholds = households ?? (household ? [household] : []);
+  const currentHouseholdSummary = displayedHouseholds.find(
+    (entry) => entry.id === household?.id,
+  );
 
   return (
     <>
@@ -657,8 +654,10 @@ export function AccountButton() {
                     <small>
                       {members
                         ? `${members.length} member${members.length === 1 ? "" : "s"}`
-                        : membersLoading
-                          ? "Loading members…"
+                        : currentHouseholdSummary?.member_count !== undefined
+                          ? `${currentHouseholdSummary.member_count} member${
+                              currentHouseholdSummary.member_count === 1 ? "" : "s"
+                            }`
                           : "View shared access"}
                     </small>
                   </span>

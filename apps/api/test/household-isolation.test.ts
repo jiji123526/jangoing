@@ -202,6 +202,7 @@ describe("household consumer-data isolation", () => {
       "0018_create_item_media.sql",
       "0019_add_item_media_storage_fields.sql",
       "0020_support_multiple_households.sql",
+      "0021_optimize_household_event_order.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -289,8 +290,8 @@ describe("household consumer-data isolation", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       households: [
-        { id: householdA, name: "Home A", role: "owner" },
-        { id: householdB, name: "Home B", role: "member" },
+        { id: householdA, name: "Home A", role: "owner", member_count: 2 },
+        { id: householdB, name: "Home B", role: "member", member_count: 2 },
       ],
     });
   });
