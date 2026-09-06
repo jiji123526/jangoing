@@ -12,7 +12,6 @@ import {
 } from "@jangoing/contracts";
 import {
   Camera,
-  CalendarDays,
   Check,
   ChevronDown,
   ChevronUp,
@@ -1345,7 +1344,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     refresh,
   } = useKitchenData();
   const [command, setCommand] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
   const [interpretation, setInterpretation] =
     useState<LoggedInterpretation | null>(null);
   const [edited, setEdited] = useState<EditableInterpretation | null>(null);
@@ -2041,10 +2039,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
     setNotice(null);
 
     try {
-      const result = await interpretCommand(
-        command.trim(),
-        expiryDate || undefined,
-      );
+      const result = await interpretCommand(command.trim());
       setInterpretation(result);
       const resolvedActions = toEditableActions(result).map((action) => ({
         ...action,
@@ -2203,7 +2198,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           parser_version: "rules-v2",
         });
         setCommand("");
-        setExpiryDate("");
         setInterpretation(null);
         setEdited(null);
         setEditedBatch(null);
@@ -2267,7 +2261,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
         parser_version: "rules-v2",
       });
       setCommand("");
-      setExpiryDate("");
       setInterpretation(null);
       setEdited(null);
       setEditedBatch(null);
@@ -2426,7 +2419,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                       aria-label={`Log ${titleCase(item.item_name)} as consumed`}
                       onClick={() => {
                         setCommand(consumeCommand);
-                        setExpiryDate("");
                         setInterpretation(null);
                         setEdited(null);
                         setEditedBatch(null);
@@ -2539,7 +2531,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                             homeThresholdSuggestion.item_name,
                           )} to `,
                         );
-                        setExpiryDate("");
                         setInterpretation(null);
                         setEdited(null);
                         setEditedBatch(null);
@@ -2839,23 +2830,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 )}
               </button>
             </div>
-          </label>
-
-          <label className="field expiry-field">
-            <span>
-              <CalendarDays size={16} />
-              Expiry date <small>optional</small>
-            </span>
-            <input
-              type="date"
-              value={expiryDate}
-              onChange={(event) => {
-                setExpiryDate(event.target.value);
-                setInterpretation(null);
-                setEdited(null);
-                setEditedBatch(null);
-              }}
-            />
           </label>
         </form>
 
@@ -3447,7 +3421,6 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                 aria-controls="command"
                 onClick={() => {
                   setCommand("");
-                  setExpiryDate("");
                   setInterpretation(null);
                   setEdited(null);
                   setEditedBatch(null);
