@@ -49,6 +49,11 @@ interface MembershipRow {
   role: "owner" | "member";
 }
 
+interface UserWithMembershipRow extends UserRow {
+  household_id: string | null;
+  role: "owner" | "member" | null;
+}
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const maximumTokenLifetimeSeconds = 15 * 60;
@@ -260,15 +265,46 @@ export function isConsumerPath(pathname: string): boolean {
   );
 }
 
-async function upsertUser(
+function authenticatedUser(row: UserRow): AuthenticatedUser {
+  return {
+    id: row.id,
+    googleSubject: row.google_subject,
+    email: row.email,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+  };
+}
+
+function membershipFromRow(
+  row: UserWithMembershipRow,
+): MembershipRow | null {
+  return row.household_id && row.role
+    ? { household_id: row.household_id, role: row.role }
+    : null;
+}
+
+async function upsertUserAndResolveMembership(
   env: AuthEnvironment,
   claims: AppJwtClaims,
-): Promise<AuthenticatedUser> {
+  preferredHouseholdId: string | null,
+): Promise<{ user: AuthenticatedUser; membership: MembershipRow | null }> {
   const existing = await env.DB.prepare(
-    `SELECT id, google_subject, email, display_name, avatar_url
-     FROM users
-     WHERE google_subject = ?`,
-  ).bind(claims.sub).first<UserRow>();
+    `SELECT
+       u.id, u.google_subject, u.email, u.display_name, u.avatar_url,
+       hm.household_id, hm.role
+     FROM users u
+     LEFT JOIN household_memberships hm
+       ON hm.user_id = u.id
+      AND hm.household_id = COALESCE(
+        ?,
+        (SELECT selected.household_id
+         FROM household_memberships selected
+         WHERE selected.user_id = u.id
+         ORDER BY selected.created_at ASC, selected.household_id ASC
+         LIMIT 1)
+      )
+     WHERE u.google_subject = ?`,
+  ).bind(preferredHouseholdId, claims.sub).first<UserWithMembershipRow>();
   const displayName = claims.name ?? existing?.display_name ?? null;
   const avatarUrl = claims.picture ?? existing?.avatar_url ?? null;
 
@@ -278,13 +314,15 @@ async function upsertUser(
     existing.display_name === displayName &&
     existing.avatar_url === avatarUrl
   ) {
-    return {
-      id: existing.id,
-      googleSubject: existing.google_subject,
-      email: existing.email,
-      displayName: existing.display_name,
-      avatarUrl: existing.avatar_url,
-    };
+    const membership = membershipFromRow(existing);
+    if (preferredHouseholdId && !membership) {
+      throw new AuthError(
+        403,
+        "household_access_denied",
+        "You do not have access to the selected household",
+      );
+    }
+    return { user: authenticatedUser(existing), membership };
   }
 
   const now = new Date().toISOString();
@@ -313,11 +351,8 @@ async function upsertUser(
   }
 
   return {
-    id: row.id,
-    googleSubject: row.google_subject,
-    email: row.email,
-    displayName: row.display_name,
-    avatarUrl: row.avatar_url,
+    user: authenticatedUser(row),
+    membership: await resolveMembership(env, row.id, preferredHouseholdId),
   };
 }
 
@@ -366,9 +401,12 @@ export async function authenticateRequest(
   }
 
   const claims = await verifyAppJwt(token, env);
-  const user = await upsertUser(env, claims);
   const preferredHouseholdId = request.headers.get("X-Household-Id")?.trim() || null;
-  const membership = await resolveMembership(env, user.id, preferredHouseholdId);
+  const { user, membership } = await upsertUserAndResolveMembership(
+    env,
+    claims,
+    preferredHouseholdId,
+  );
 
   if (options.requireHousehold && !membership) {
     throw new AuthError(

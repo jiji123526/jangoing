@@ -166,9 +166,6 @@ export function AccountButton() {
     setProfileColor("#1F6B45");
     setProfileSaving(false);
     setProfileError(null);
-    setHouseholds(null);
-    setHouseholdsLoading(false);
-    setHouseholdsError(null);
     setHouseholdAction(null);
     setNewHouseholdName("");
     setHouseholdJoinDraft("");

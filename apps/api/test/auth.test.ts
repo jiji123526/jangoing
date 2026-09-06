@@ -71,9 +71,13 @@ function environment(overrides: Partial<AuthEnvironment> = {}): AuthEnvironment 
   };
 }
 
-function sqliteD1(database: DatabaseSync): D1Database {
+function sqliteD1(
+  database: DatabaseSync,
+  onPrepare?: (query: string) => void,
+): D1Database {
   return {
     prepare(query: string) {
+      onPrepare?.(query);
       let parameters: SQLInputValue[] = [];
       const statement = {
         bind(...values: unknown[]) {
@@ -190,6 +194,7 @@ describe("consumer auth boundary", () => {
 
   it("upserts one Google identity and resolves its household membership", async () => {
     const database = new DatabaseSync(":memory:");
+    const preparedQueries: string[] = [];
     database.exec("PRAGMA foreign_keys = ON");
     for (const name of [
       "0001_create_events.sql",
@@ -201,7 +206,7 @@ describe("consumer auth boundary", () => {
       );
     }
     const env = environment({
-      DB: sqliteD1(database),
+      DB: sqliteD1(database, (query) => preparedQueries.push(query)),
       AUTH_REQUIRED: "false",
     });
     const requestNow = Math.floor(Date.now() / 1000);
@@ -258,6 +263,7 @@ describe("consumer auth boundary", () => {
     expect(
       database.prepare("SELECT COUNT(*) AS count FROM users").get(),
     ).toEqual({ count: 1 });
+    preparedQueries.length = 0;
     const changesBeforeRepeat = database.prepare(
       "SELECT total_changes() AS count",
     ).get();
@@ -268,6 +274,8 @@ describe("consumer auth boundary", () => {
     expect(
       database.prepare("SELECT total_changes() AS count").get(),
     ).toEqual(changesBeforeRepeat);
+    expect(preparedQueries).toHaveLength(1);
+    expect(preparedQueries[0]).toContain("LEFT JOIN household_memberships");
 
     database.close();
   });
