@@ -3493,6 +3493,7 @@ html.household-tab-fade-in main#search {
   max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 0px)));
   margin: 0;
   padding: 12px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden;
   overflow-y: auto;
   border: 0;
   border-radius: 28px 28px 0 0;
@@ -3609,18 +3610,14 @@ html.household-tab-fade-in main#search {
 
 .home-quick-update-dialog .examples {
   margin-top: 18px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.home-quick-update-dialog .examples::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  overflow-x: hidden;
 }
 
 .home-quick-update-dialog .examples button {
   padding: 8px 12px;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 0 1 auto;
   border: 0;
   border-radius: 999px;
   color: rgba(60, 60, 67, 0.75);
@@ -3630,12 +3627,16 @@ html.household-tab-fade-in main#search {
 }
 
 .home-quick-update-dialog .interpretation {
+  width: 100%;
+  min-width: 0;
   margin-top: 22px;
   padding-top: 20px;
   border-top-color: rgba(60, 60, 67, 0.2);
 }
 
 .home-quick-update-dialog .correction-group {
+  width: 100%;
+  min-width: 0;
   border: 0;
   border-radius: 14px;
   background: #f2f2f7;
@@ -3643,17 +3644,28 @@ html.household-tab-fade-in main#search {
 
 .home-quick-update-dialog .correction-grid input,
 .home-quick-update-dialog .correction-grid select {
+  max-width: 100%;
   border: 0;
   border-radius: 10px;
   background: #f2f2f7;
 }
 
 .home-quick-update-dialog .interpretation-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
   align-items: stretch;
-  flex-direction: column-reverse;
+  gap: 10px;
+}
+
+.home-quick-update-dialog .interpretation-actions .icon-button {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
 }
 
 .home-quick-update-dialog .confirm-button {
+  width: 100%;
   min-height: 50px;
   justify-content: center;
   border-radius: 12px;
@@ -4554,7 +4566,7 @@ h1 {
 
 .correction-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
