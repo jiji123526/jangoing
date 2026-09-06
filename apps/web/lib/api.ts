@@ -117,6 +117,7 @@ function pathUsesAppToken(path: string): boolean {
     path === "/dashboard" ||
     path.startsWith("/dashboard?") ||
     path.startsWith("/items/") ||
+    path === "/households" ||
     path.startsWith("/households/") ||
     path === "/commands/interpret" ||
     path === "/inferences/outcome" ||

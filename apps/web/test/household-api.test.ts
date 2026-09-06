@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createHouseholdJoinCode,
+  getHouseholds,
   getHouseholdMembers,
   removeItemThumbnail,
   removeHouseholdMember,
@@ -12,6 +13,49 @@ import {
 describe("household invite API client", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("attaches an app token when loading the exact households route", async () => {
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "http:",
+        hostname: "localhost",
+        port: "3000",
+      },
+      localStorage: {
+        getItem: vi.fn().mockReturnValue(null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          token: "household-list-token",
+          expires_at: "2099-09-05T22:00:00.000Z",
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ households: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getHouseholds()).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/app-token",
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:8787/households",
+      expect.objectContaining({
+        headers: expect.objectContaining({}),
+      }),
+    );
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(new Headers(request.headers).get("Authorization")).toBe(
+      "Bearer household-list-token",
+    );
   });
 
   it("creates and validates a household join code", async () => {
