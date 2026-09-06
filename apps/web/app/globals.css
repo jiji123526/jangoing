@@ -2565,7 +2565,10 @@ html.household-tab-fade-in main#search {
 }
 
 .fridge-setup-item-name {
+  width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
   align-items: center;
@@ -2635,7 +2638,7 @@ html.household-tab-fade-in main#search {
   gap: 8px;
 }
 
-.fridge-setup-detail-list label {
+.fridge-setup-detail-list > section > div[id^="fridge-setup-item-"] label {
   position: relative;
   min-height: 52px;
   padding: 0 16px;
@@ -2645,7 +2648,7 @@ html.household-tab-fade-in main#search {
   gap: 8px;
 }
 
-.fridge-setup-detail-list label > span {
+.fridge-setup-detail-list > section > div[id^="fridge-setup-item-"] label > span {
   font-size: 17px;
   line-height: 22px;
 }
