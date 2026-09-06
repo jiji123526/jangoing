@@ -2087,28 +2087,33 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
   }
 
   async function handleConfirm() {
-    if (!interpretation || !edited) return;
+    const primaryEdited = edited ?? editedBatch?.[0];
+    if (!interpretation || !primaryEdited) return;
     const reviewedInterpretation = {
-      intent: edited.intent,
+      intent: primaryEdited.intent,
       slots: {
-        ...(edited.itemName.trim()
-          ? { item_name: edited.itemName.trim().toLowerCase() }
+        ...(primaryEdited.itemName.trim()
+          ? { item_name: primaryEdited.itemName.trim().toLowerCase() }
           : {}),
-        ...(edited.quantity ? { quantity: Number(edited.quantity) } : {}),
-        ...(edited.lowThreshold
-          ? { low_threshold: Number(edited.lowThreshold) }
+        ...(primaryEdited.quantity
+          ? { quantity: Number(primaryEdited.quantity) }
           : {}),
-        ...(edited.unit.trim() ? { unit: edited.unit.trim().toLowerCase() } : {}),
-        ...(edited.location ? { location: edited.location } : {}),
-        ...(edited.expirationDate
-          ? { expiration_date: edited.expirationDate }
+        ...(primaryEdited.lowThreshold
+          ? { low_threshold: Number(primaryEdited.lowThreshold) }
+          : {}),
+        ...(primaryEdited.unit.trim()
+          ? { unit: primaryEdited.unit.trim().toLowerCase() }
+          : {}),
+        ...(primaryEdited.location ? { location: primaryEdited.location } : {}),
+        ...(primaryEdited.expirationDate
+          ? { expiration_date: primaryEdited.expirationDate }
           : {}),
       },
       confidence: interpretation.confidence,
       requires_confirmation: true,
       raw_utterance: interpretation.raw_utterance,
     };
-    if (edited.intent === "needs_clarification") {
+    if (edited?.intent === "needs_clarification") {
       setSubmitting(true);
       setError(null);
       try {
@@ -2213,6 +2218,7 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
       }
       return;
     }
+    if (!edited) return;
     if (!edited.itemName.trim()) return;
     const eventType = eventTypeByIntent[edited.intent];
     if (!eventType) return;
