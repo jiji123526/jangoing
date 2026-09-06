@@ -2776,15 +2776,17 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
           {view === "search" && <p className="eyebrow">Kitchen command</p>}
           {view === "home" || view === "inventory" ? (
             <>
-              <h2 id="command-heading">Quick Update</h2>
               <button
                 className="home-quick-update-close"
                 type="button"
-                aria-label="Close Quick Update"
                 onClick={() => setHomeQuickUpdateOpen(false)}
               >
-                <X size={20} />
+                Cancel
               </button>
+              <h2 id="command-heading">
+                {view === "inventory" ? "Add to Inventory" : "Quick Update"}
+              </h2>
+              <span className="home-quick-update-header-spacer" aria-hidden="true" />
             </>
           ) : (
             <h1 id="command-heading">What changed?</h1>
@@ -2793,7 +2795,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
         <form onSubmit={handleInterpret} className="command-form">
           <label className="field command-field">
-            <span>English command</span>
+            <span>
+              {view === "inventory"
+                ? "Tell Jangoing what you added"
+                : "Tell Jangoing what changed"}
+            </span>
             <div className="command-input-wrap">
               <input
                 ref={
@@ -2809,7 +2815,11 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
                   setEditedBatch(null);
                   setNotice(null);
                 }}
-                placeholder="We are low on milk"
+                placeholder={
+                  view === "inventory"
+                    ? "Add two cartons of oat milk to the fridge"
+                    : "We are low on milk"
+                }
                 maxLength={500}
                 autoComplete="off"
               />
@@ -2822,6 +2832,8 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
               >
                 {submitting ? (
                   <LoaderCircle size={20} className="spin" />
+                ) : view === "home" || view === "inventory" ? (
+                  <span>Continue</span>
                 ) : (
                   <Send size={20} />
                 )}
