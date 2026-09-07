@@ -5281,14 +5281,14 @@ h1 {
   outline-offset: 2px;
 }
 
-.inventory-edit-actions {
+.inventory-item-edit-actions {
   min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.inventory-edit-actions button {
+.inventory-item-edit-actions button {
   min-height: 32px;
   padding: 0;
   border: 0;
@@ -5308,11 +5308,11 @@ h1 {
   color: #ff2d55;
 }
 
-.inventory-edit-actions button:disabled {
+.inventory-item-edit-actions button:disabled {
   color: rgba(60, 60, 67, 0.33);
 }
 
-.inventory-edit-actions button:focus-visible {
+.inventory-item-edit-actions button:focus-visible {
   border-radius: 4px;
   outline: 2px solid #007aff;
   outline-offset: 2px;

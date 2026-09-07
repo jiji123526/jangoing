@@ -1187,7 +1187,7 @@ function InventoryItemRow({
               </p>
             )}
 
-            <div className="inventory-edit-actions">
+            <div className="inventory-item-edit-actions">
               <button
                 className="inventory-edit-cancel"
                 type="button"
