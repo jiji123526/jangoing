@@ -33,6 +33,102 @@ completion gates.
 - [ ] Generate gap-targeted `synthetic-v2` candidates.
 - [ ] Collect enough reviewed English data for the first human-data baseline.
 
+## Runtime Pipeline Track
+
+The annotation track above remains active. The following checklist implements
+the Classic Alexa-based linear pipeline in parallel; it does not replace the
+human-review gates. See the [architecture decision](../decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)
+for the design and the [execution roadmap](./LINEAR_NLU_PIPELINE_ROADMAP.md)
+for dependencies and exit criteria.
+
+### Phase 0: Contracts and trace
+
+- [ ] Define versioned `InterpretationRequest`, stage results, and
+  `ActionProposal` in `packages/contracts`.
+- [ ] Add `PipelineTrace` with stage status, version, latency, fallback, and
+  reason code.
+- [ ] Preserve the current `interpret` response and confirmation behavior.
+- [ ] Add regression tests proving that only confirmed proposals create events.
+
+### Phase 1: Relevance gate
+
+- [ ] Connect reviewed relevance labels to a runtime baseline.
+- [ ] Keep `actionable`, `preference_context`, `domain_non_actionable`, and
+  `unrelated` distinct.
+- [ ] Stop unrelated input before NLU/entity resolution/mutation.
+- [ ] Record relevance false positives and false negatives for annotation.
+
+### Phase 2: Orchestrator
+
+- [ ] Wrap the current rule-based parser as the first NLU adapter.
+- [ ] Move stage ordering into one pipeline orchestrator.
+- [ ] Add explicit `continue`, `fallback`, `clarify`, `reject`, and `fail`
+  outcomes.
+- [ ] Test normal, unknown, multi-action, parser failure, and clarification
+  paths.
+
+### Phase 3: NLU and normalization
+
+- [ ] Store raw intent/entity output separately from normalized values.
+- [ ] Keep reference date, timezone, and inference timestamp in the request
+  context.
+- [ ] Evaluate date, quantity, unit, location, and item normalization
+  independently.
+- [ ] Run schema validation immediately before proposal creation.
+
+### Phase 4: Entity resolution
+
+- [ ] Add shared catalog candidate lookup.
+- [ ] Define household-scoped aliases without changing shared catalog truth.
+- [ ] Return candidate scores and ambiguity instead of silently selecting the
+  first match.
+- [ ] Add household-isolation and clarification tests.
+
+### Phase 5: Correction reuse
+
+- [ ] Store correction evidence separately from the original prediction.
+- [ ] Run FLARE-style correction hints in shadow mode first.
+- [ ] Compare hint-applied and baseline metrics.
+- [ ] Fall back to the baseline when a hint lowers confidence or increases
+  ambiguity.
+
+### Phase 6: Routing and proposal safety
+
+- [ ] Define mutation risk and confirmation policy by action type.
+- [ ] Add proposal states from draft through confirmed/cancelled/executed.
+- [ ] Preserve per-action structure for multi-action requests.
+- [ ] Ensure event execution accepts only confirmed proposals.
+
+### Phase 7: Stage evaluation
+
+- [ ] Add stage-level metrics to the model evaluation workflow.
+- [ ] Separate phrase-family, household, input-source, and context slices.
+- [ ] Build offline replay for comparing pipeline versions.
+- [ ] Define shadow, canary, rollback, latency, and safety gates.
+
+### Phase 8: Conversation state
+
+- [ ] Add expiring `conversation_states` for unresolved slots and active goals.
+- [ ] Resolve references only when the context is relevant and permitted.
+- [ ] Add stale-state and distractor-turn evaluation sets.
+- [ ] Prefer clarification over mutation when state remains ambiguous.
+
+### Phase 9: Voice insertion
+
+- [ ] Insert ASR before the shared text pipeline.
+- [ ] Report ASR WER/SER and structured-slot survival separately.
+- [ ] Connect Raspberry Pi and TTS only after the text pipeline has stable
+  confirmation and rollback behavior.
+- [ ] Test timeout, retry, duplicate request, and text fallback behavior.
+
+### Immediate runtime order
+
+1. Contracts and `PipelineTrace`
+2. Current parser as an orchestrated baseline adapter
+3. Relevance gate before NLU
+4. Confirmation/event regression tests
+5. Entity resolution schema and household boundary
+
 ## 1. Apply Current Changes
 
 - [x] Push the temporal commits to `main`.

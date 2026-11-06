@@ -55,6 +55,14 @@ Python is not currently deployed to Vercel or Cloudflare. `ml/` is a toolset
 for running training and evaluation on the developer machine. Trained models
 are not yet used to handle production requests.
 
+The target replacement path is documented in
+[LINEAR_NLU_PIPELINE_ARCHITECTURE.md](./LINEAR_NLU_PIPELINE_ARCHITECTURE.md),
+and its staged implementation order is tracked in
+[LINEAR_NLU_PIPELINE_ROADMAP.md](../planning/LINEAR_NLU_PIPELINE_ROADMAP.md).
+The current parser remains the first baseline adapter; the new architecture
+must preserve confirmation-before-event execution while adding explicit
+relevance, normalization, entity resolution, routing, and stage tracing.
+
 ## 4. Implemented Features
 
 ### 4.1 Editable Interpretation UI

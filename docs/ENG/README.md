@@ -19,15 +19,21 @@ phases below and stop after Phase 2 if the immediate task is annotation.
 2. [Academic goals and research approach](./decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
    — Research questions, hypotheses, methodology, and reasons behind major
    technical choices.
-3. [Product and model plan](./planning/PLAN.md) — Full roadmap from the text MVP
+3. [Linear NLU pipeline architecture](./decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)
+   — Classic Alexa-based linear runtime architecture, entity resolution,
+   confirmation, and stage boundaries.
+4. [Linear NLU pipeline roadmap](./planning/LINEAR_NLU_PIPELINE_ROADMAP.md) —
+   Korean execution plan with implementation order, migrations, tests, and
+   release gates.
+5. [Product and model plan](./planning/PLAN.md) — Full roadmap from the text MVP
    through annotation, model training, recommendations, and voice.
-4. [Implementation notes](./decisions/IMPLEMENTATION_NOTES.md) — What is
+6. [Implementation notes](./decisions/IMPLEMENTATION_NOTES.md) — What is
    implemented, what remains planned, and why the current architecture was selected.
-5. [Progress log](../planning/PROGRESS.md) — Reverse-chronological development
+7. [Progress log](../planning/PROGRESS.md) — Reverse-chronological development
    history; search this document when tracing when a behavior changed.
-6. [Current action items](./planning/ACTION_ITEMS.md) — Immediate migrations,
+8. [Current action items](./planning/ACTION_ITEMS.md) — Immediate migrations,
    annotation gates, model work, and product-catalog tasks.
-7. [Local and production setup](./operations/SETUP.md) — SQLite, D1, Worker,
+9. [Local and production setup](./operations/SETUP.md) — SQLite, D1, Worker,
    Vercel, dataset seed/export, and deployment commands.
 
 ### Phase 2: Perform Annotation
@@ -101,6 +107,7 @@ For the current annotation milestone, reading through this phase is sufficient.
 ### Planning and Status
 
 - [Product and model plan](./planning/PLAN.md)
+- [Linear NLU pipeline roadmap](./planning/LINEAR_NLU_PIPELINE_ROADMAP.md)
 - [Current action items](./planning/ACTION_ITEMS.md)
 - [Progress log](../planning/PROGRESS.md)
 - [Item media and vision recognition plan](./planning/ITEM_MEDIA_AND_VISION_PLAN.md)
@@ -129,6 +136,7 @@ For the current annotation milestone, reading through this phase is sufficient.
 ### Decisions
 
 - [Academic goals and research approach](./decisions/ACADEMIC_GOALS_AND_RESEARCH_APPROACH.md)
+- [Linear NLU pipeline architecture](./decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)
 - [Implementation notes](./decisions/IMPLEMENTATION_NOTES.md)
 - [Conversation data collection](./decisions/CONVERSATION_DATA_COLLECTION_DECISION.md)
 - [Temporal grounding and expiry](./decisions/TEMPORAL_GROUNDING_AND_EXPIRY_FIX.md)

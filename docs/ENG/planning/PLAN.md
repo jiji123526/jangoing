@@ -491,29 +491,44 @@ Interpretation requests support date, conversation, and activation context:
 
 ## Language Understanding Architecture
 
+The canonical architecture decision is documented in
+[LINEAR_NLU_PIPELINE_ARCHITECTURE.md](../decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md).
+The implementation sequence, migration order, and exit criteria are tracked in
+[LINEAR_NLU_PIPELINE_ROADMAP.md](./LINEAR_NLU_PIPELINE_ROADMAP.md).
+
 The target language pipeline is:
 
 ```text
-English command
+Input / activation
       |
       v
-Intent classification
+Relevance gate
       |
       v
-Slot span extraction
+Optional correction hint
       |
       v
-Date, quantity, unit, and item normalizers
+Kitchen NLU: intent and entity spans
       |
       v
-Zod schema validation
+Deterministic date, quantity, unit, and item normalization
       |
       v
-User correction or confirmation
+Shared catalog + household entity resolution
+      |
+      v
+Dynamic routing
+      |
+      v
+Action proposal -> user correction or confirmation
       |
       v
 Append-only event
 ```
+
+ASR is inserted before `Input / activation`; it does not create a separate
+fulfillment path. The existing text MVP remains the first baseline adapter for
+the shared pipeline.
 
 ### Intent Model
 
@@ -754,6 +769,8 @@ remain open.
 
 - Log all interpretation attempts, including unknown, cancelled, and rejected
 - Version model, parser, normalizer, schema, dataset, and context snapshot
+- Record the ordered stage trace, stage status, stage latency, fallback reason,
+  and final proposal outcome
 - Add immutable run metadata, artifact hashes, seeds, and split manifests
 - Build a comparison dashboard for aggregate, slice, calibration, and latency metrics
 - Define privacy retention, deletion, redaction, and training-export policies
@@ -763,10 +780,15 @@ to its code, model, data, configuration, context, and user outcome.
 
 ### M6: English NLP Model
 
+- Insert the relevance gate and keep `actionable`,
+  `preference_context`, `domain_non_actionable`, and `unrelated` distinct
+- Separate NLU predictions from deterministic normalization and schema validation
 - Fine-tune `distilbert-base-uncased` for intent classification.
 - Fine-tune token classification for slot spans.
 - Evaluate normalization separately from span extraction.
 - Compare model and hybrid output against the deterministic baseline.
+- Add the first shared-catalog entity resolver and a safe ambiguity/clarification
+  result before proposal creation.
 - Add confidence thresholds, `unknown` fallback, and confirmation policy.
 
 Completion: intent macro-F1, entity-level slot F1, and end-to-end exact match are reported and improve over baseline.
@@ -777,6 +799,7 @@ Completion: intent macro-F1, entity-level slot F1, and end-to-end exact match ar
 - Benchmark latency and memory on Raspberry Pi.
 - Keep Cloudflare responsible for schema validation and event persistence.
 - Version every prediction with model and normalizer versions.
+- Run new model versions in shadow/canary mode with stage-level rollback criteria.
 - Preserve deterministic fallback behavior.
 
 Completion: the deployed pipeline meets accuracy targets without bypassing confirmation.
@@ -790,6 +813,8 @@ Completion: the deployed pipeline meets accuracy targets without bypassing confi
 - Separately versioned shared base and personal adapter context
 - Worker API client
 - Confirmation feedback
+- Send ASR text into the same relevance-to-proposal pipeline used by web text;
+  record ASR metrics separately from NLU metrics.
 
 Completion: voice input follows the same confirmed event path as web text input,
 and personalized context improves the frozen personal evaluation set without
@@ -799,6 +824,7 @@ changing shared truth or bypassing confirmation.
 
 - Detect kitchen requests inside multi-turn everyday conversation
 - Resolve references and entities across turns
+- Store clarification state, unresolved slots, and source turn with expiry
 - Retrieve only relevant, permitted household and user context
 - Represent goals, preferences, dietary constraints, budget, and uncertainty
 - Resolve product mentions through a versioned item/category taxonomy, including
