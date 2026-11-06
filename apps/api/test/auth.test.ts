@@ -199,6 +199,7 @@ describe("consumer auth boundary", () => {
     for (const name of [
       "0001_create_events.sql",
       "0003_create_inference_logs.sql",
+      "0022_add_pipeline_trace.sql",
       "0012_add_household_ownership.sql",
     ]) {
       database.exec(

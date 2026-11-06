@@ -203,6 +203,7 @@ describe("household consumer-data isolation", () => {
       "0019_add_item_media_storage_fields.sql",
       "0020_support_multiple_households.sql",
       "0021_optimize_household_event_order.sql",
+      "0022_add_pipeline_trace.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -567,11 +568,25 @@ describe("household consumer-data isolation", () => {
       tokenA,
     );
     const interpretation = await interpreted.json() as { inference_id: string };
-    expect(
-      database.prepare(
-        "SELECT household_id, user_id FROM inference_logs WHERE id = ?",
-      ).get(interpretation.inference_id),
-    ).toEqual({ household_id: householdA, user_id: userA });
+    const inferenceLog = database.prepare(
+      `SELECT household_id, user_id, pipeline_version, stage_trace_json
+       FROM inference_logs WHERE id = ?`,
+    ).get(interpretation.inference_id) as {
+      household_id: string;
+      user_id: string;
+      pipeline_version: string;
+      stage_trace_json: string;
+    };
+    expect(inferenceLog).toMatchObject({
+      household_id: householdA,
+      user_id: userA,
+      pipeline_version: "linear-v1",
+    });
+    expect(JSON.parse(inferenceLog.stage_trace_json)).toMatchObject({
+      terminal_stage: "nlu",
+      outcome: "proposal",
+      stages: [{ stage: "nlu", version: "rules-v2" }],
+    });
 
     const wrongHousehold = await request(
       "/inferences/outcome",

@@ -825,6 +825,51 @@ orchestrator가 trace를 생성하고 저장하는 Step 2에서 migration과 함
 - 제한을 schema에서 강제해 로그 부풀리기와 accidental PII 저장 위험을
   줄인다.
 
+### Step 2 — 현재 parser의 baseline NLU adapter
+
+상태: Worker와 local development server에 연결 완료.
+
+추가된 구성:
+
+- `apps/api/src/nlp/rules-nlu-adapter.ts`
+  - 현재 `parseCommand()`를 변경하지 않고 NLU adapter 경계로 감싼다.
+  - 기존 `Interpretation`을 그대로 반환한다.
+  - `nlu` stage의 version, confidence, latency, safe reason code를 만든다.
+- `apps/api/migrations/0022_add_pipeline_trace.sql`
+  - `inference_logs.pipeline_version`
+  - `inference_logs.stage_trace_json`
+- `apps/api/src/index.ts`
+  - production Worker가 adapter와 trace를 사용한다.
+- `apps/api/src/dev.ts`
+  - local development server도 같은 adapter와 migration을 사용한다.
+- `apps/api/test/rules-nlu-adapter.test.ts`
+  - 기존 parser 결과 보존과 unknown 처리 검증
+- household integration test
+  - inference log에 pipeline version과 NLU trace가 저장되는지 검증
+
+이번 단계에서 의도적으로 하지 않은 것:
+
+- relevance gate
+- 별도 pipeline orchestrator
+- NLU와 normalization의 내부 로직 분리
+- public API response 변경
+- event confirmation 규칙 변경
+
+현재 adapter는 parser 내부에 normalization이 함께 있는 현실을 숨기지
+않는다. `StageTrace.reason_code`는 이를 사용자 데이터가 아닌
+`rules_parser_baseline`으로만 표시한다. normalization을 별도 stage로
+분리하는 작업은 Step 4에서 수행한다.
+
+효율·보안 결정:
+
+- 새 table이나 stage별 index를 추가하지 않고 기존 `inference_logs`에
+  bounded JSON trace만 저장한다.
+- trace에는 raw utterance나 household context를 복제하지 않는다.
+- Worker와 local server가 서로 다른 parser 경로를 갖지 않도록 동일 adapter를
+  공유한다.
+- 기존 public response와 confirmation/event path를 유지해 rollback 비용을
+  낮춘다.
+
 ## 참고 문서
 
 - [선형 NLU 파이프라인 아키텍처 결정](../decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)

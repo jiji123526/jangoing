@@ -63,12 +63,14 @@ The current parser remains the first baseline adapter; the new architecture
 must preserve confirmation-before-event execution while adding explicit
 relevance, normalization, entity resolution, routing, and stage tracing.
 
-The first implementation slice now defines the API-internal stage and trace
-contracts in `apps/api/src/nlp/pipeline-contracts.ts` and provides the pure
-trace builder in `apps/api/src/nlp/pipeline-trace.ts`. Runtime persistence is
-intentionally deferred until the parser adapter/orchestrator is introduced,
-so the database does not receive unused trace columns and the Web-facing
-contract package does not expose internal telemetry types.
+The first implementation slices now define the API-internal stage and trace
+contracts in `apps/api/src/nlp/pipeline-contracts.ts`, provide the pure trace
+builder in `apps/api/src/nlp/pipeline-trace.ts`, and wrap the existing parser
+with `apps/api/src/nlp/rules-nlu-adapter.ts`. Runtime trace persistence uses
+the existing `inference_logs` table through migration 0022. The public Web
+contract still does not expose internal telemetry types, and the parser's
+combined NLU/normalization behavior remains unchanged until the normalization
+separation phase.
 
 ## 4. Implemented Features
 

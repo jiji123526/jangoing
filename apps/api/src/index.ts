@@ -48,7 +48,12 @@ import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
-import { parseCommand } from "./nlp/parse-command";
+import {
+  buildBaselinePipelineTrace,
+  linearPipelineVersion,
+  rulesNluVersion,
+  runRulesNluAdapter,
+} from "./nlp/rules-nlu-adapter";
 import {
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
@@ -107,7 +112,7 @@ interface ItemMediaRow {
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
-const parserVersion = "rules-v2";
+const parserVersion = rulesNluVersion;
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const kitchenProjectionKey = "kitchen_projection_v1";
@@ -542,15 +547,18 @@ async function handleInterpret(
   }
 
   const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
-  const result = parseCommand({ ...parsed.data, ...temporalContext });
+  const nlu = runRulesNluAdapter({ ...parsed.data, ...temporalContext });
+  const result = nlu.interpretation;
+  const pipelineTrace = buildBaselinePipelineTrace(nlu);
   const inferenceId = crypto.randomUUID();
   const latencyMs = Date.now() - startedAt;
   await env.DB.prepare(
     `INSERT INTO inference_logs (
       id, raw_utterance, request_context, predicted_interpretation,
-      parser_version, normalizer_version, schema_version, source,
+      parser_version, normalizer_version, schema_version,
+      pipeline_version, stage_trace_json, source,
       outcome, latency_ms, created_at, household_id, user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
   ).bind(
     inferenceId,
     result.raw_utterance,
@@ -567,6 +575,8 @@ async function handleInterpret(
     parserVersion,
     normalizerVersion,
     schemaVersion,
+    linearPipelineVersion,
+    JSON.stringify(pipelineTrace),
     "web",
     latencyMs,
     new Date().toISOString(),

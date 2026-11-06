@@ -43,11 +43,11 @@ for dependencies and exit criteria.
 
 ### Phase 0: Contracts and trace
 
-- [ ] Define versioned `InterpretationRequest`, stage results, and
-  `ActionProposal` in `packages/contracts`.
-- [ ] Add `PipelineTrace` with stage status, version, latency, fallback, and
-  reason code.
-- [ ] Preserve the current `interpret` response and confirmation behavior.
+- [x] Define the versioned interpretation request and NLU stage result
+  contract. Keep `ActionProposal` for the later routing phase.
+- [x] Add `PipelineTrace` with stage status, version, latency, fallback, and
+  safe reason code.
+- [x] Preserve the current `interpret` response and confirmation behavior.
 - [ ] Add regression tests proving that only confirmed proposals create events.
 
 ### Phase 1: Relevance gate
@@ -60,7 +60,7 @@ for dependencies and exit criteria.
 
 ### Phase 2: Orchestrator
 
-- [ ] Wrap the current rule-based parser as the first NLU adapter.
+- [x] Wrap the current rule-based parser as the first NLU adapter.
 - [ ] Move stage ordering into one pipeline orchestrator.
 - [ ] Add explicit `continue`, `fallback`, `clarify`, `reject`, and `fail`
   outcomes.

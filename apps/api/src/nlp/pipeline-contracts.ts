@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const safeIdentifierPattern = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+const safeIdentifierPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 
 const SafeIdentifierSchema = z
   .string()
@@ -10,7 +10,12 @@ const SafeIdentifierSchema = z
 
 export const PipelineVersionSchema = SafeIdentifierSchema.max(80);
 export const StageVersionSchema = SafeIdentifierSchema.max(80);
-export const ReasonCodeSchema = SafeIdentifierSchema.max(100);
+export const ReasonCodeSchema = z.enum([
+  "kitchen_command",
+  "confirmation_required",
+  "legacy_parser_baseline",
+  "rules_parser_baseline",
+]);
 
 const pipelineStageOrder = [
   "relevance",

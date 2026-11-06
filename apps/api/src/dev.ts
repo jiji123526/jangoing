@@ -56,7 +56,12 @@ import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
-import { parseCommand } from "./nlp/parse-command";
+import {
+  buildBaselinePipelineTrace,
+  linearPipelineVersion,
+  rulesNluVersion,
+  runRulesNluAdapter,
+} from "./nlp/rules-nlu-adapter";
 import {
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
@@ -154,6 +159,10 @@ const multipleHouseholdsMigrationPath = resolve(
 const householdEventOrderMigrationPath = resolve(
   apiDirectory,
   "migrations/0021_optimize_household_event_order.sql",
+);
+const pipelineTraceMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0022_add_pipeline_trace.sql",
 );
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
@@ -302,6 +311,12 @@ const householdEventIndexColumns = database.prepare(
 if (householdEventIndexColumns?.columns !== "household_id,created_at,id") {
   database.exec(readFileSync(householdEventOrderMigrationPath, "utf8"));
 }
+const inferenceColumns = database.prepare(
+  "PRAGMA table_info(inference_logs)",
+).all() as Array<{ name: string }>;
+if (!inferenceColumns.some((column) => column.name === "pipeline_version")) {
+  database.exec(readFileSync(pipelineTraceMigrationPath, "utf8"));
+}
 database.prepare(
   `INSERT INTO households (
     id, name, created_at, updated_at, profile_emoji, icon_color
@@ -320,7 +335,7 @@ database.prepare(
   ) VALUES (?, ?, 'owner', datetime('now'))
   ON CONFLICT(household_id, user_id) DO NOTHING`,
 ).run(localMediaHouseholdId, localMediaUserId);
-const parserVersion = "rules-v2";
+const parserVersion = rulesNluVersion;
 const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const annotationSchemaVersion = "annotation-v3";
@@ -529,15 +544,18 @@ async function route(
     }
 
     const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
-    const result = parseCommand({ ...parsed.data, ...temporalContext });
+    const nlu = runRulesNluAdapter({ ...parsed.data, ...temporalContext });
+    const result = nlu.interpretation;
+    const pipelineTrace = buildBaselinePipelineTrace(nlu);
     const inferenceId = crypto.randomUUID();
     const latencyMs = Date.now() - startedAt;
     database.prepare(
       `INSERT INTO inference_logs (
         id, raw_utterance, request_context, predicted_interpretation,
-        parser_version, normalizer_version, schema_version, source,
+        parser_version, normalizer_version, schema_version,
+        pipeline_version, stage_trace_json, source,
         outcome, latency_ms, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
     ).run(
       inferenceId, result.raw_utterance,
       JSON.stringify({
@@ -550,6 +568,7 @@ async function route(
         activation_mode: parsed.data.activation_mode ?? null,
       }),
       JSON.stringify(result), parserVersion, normalizerVersion, schemaVersion,
+      linearPipelineVersion, JSON.stringify(pipelineTrace),
       "web", latencyMs, new Date().toISOString(),
     );
     sendJson(response, origin, {

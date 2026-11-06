@@ -24,7 +24,7 @@ export function createPipelineTrace(
 
 export function appendStageTrace(
   trace: PipelineTraceBuilder,
-  stage: StageTrace,
+  stage: unknown,
 ): PipelineTraceBuilder {
   const validatedStage = StageTraceSchema.parse(stage);
 
