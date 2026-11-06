@@ -446,9 +446,14 @@ NLU는 canonical item ID나 ISO date를 직접 결정하지 않는다. 그 책�
 - expiry normalization 연결
 - confidence와 confirmation flag 생성
 
-첫 리팩터링에서는 외부 API를 깨지 않도록 `parseCommand()`를 유지하고,
-내부 helper 또는 새 `nlp/nlu.ts`에서 raw extraction과 normalization을
-분리한다.
+현재 구현은 사용자 호환성보다 내부 경계의 명확성을 우선한다.
+`parse-command.ts`의 규칙은 `runRulesNlu()`로 raw slot과 원문 entity span을
+생성하고, `normalization.ts`의 `normalizeNluResult()`가 canonical 값을
+생성한다. `parseCommand()`는 parser 단위 테스트를 위한 얇은 조합 helper로만
+남아 있으며 runtime route는 이 helper를 호출하지 않는다.
+
+이렇게 하면 규칙 parser를 교체하지 않고도 normalization만 독립 평가할 수
+있고, 향후 ML NLU adapter도 동일한 raw NLU contract를 반환하면 된다.
 
 #### multi-action 정책
 
@@ -702,7 +707,7 @@ actions
   "pipeline": {
     "relevance_version": "rules-relevance-v1",
     "nlu_version": "rules-v3",
-    "normalizer_version": "normalizers-v1",
+    "normalizer_version": "normalizers-v2",
     "resolver_version": "resolver-v1",
     "router_version": "router-v1"
   }
@@ -912,12 +917,42 @@ interface PipelineResult {
 
 ### Phase 3: NLU와 normalization 분리
 
-- [ ] 현재 parser에서 raw extraction helper를 분리한다.
-- [ ] entity span과 canonical value를 별도 구조로 표현한다.
-- [ ] quantity/unit/date normalization을 독립 test한다.
+- [x] 현재 parser에서 raw extraction helper를 분리한다.
+- [x] entity span과 canonical value를 별도 구조로 표현한다.
+- [x] quantity/unit/date normalization을 독립 stage와 contract로 분리한다.
 - [ ] `ITEM_CONDITION` 등 annotation-only label의 runtime 사용 여부를
   별도로 결정한다.
-- [ ] multi-action action-to-entity 연결을 보존한다.
+- [x] multi-action action-to-entity 연결을 보존한다.
+
+구현된 내부 경계:
+
+```text
+runRulesNlu()
+  -> RawNluResult
+     intent
+     raw slots: "two", "cartons", "eggs"
+     raw entity spans: { type, text, start, end }
+
+normalizeNluResult()
+  -> Interpretation
+     quantity: 2
+     unit: "carton"
+     item_name: "egg"
+     expiration_date: "YYYY-MM-DD"
+```
+
+추가 정책:
+
+- NLU는 canonical item ID나 ISO date를 만들지 않는다.
+- normalization은 request의 `reference_date`와 `timezone`을 사용하며,
+  현재 시각을 다시 계산하지 않는다.
+- raw span은 원문 substring과 위치가 일치하는지 schema에서 검증한다.
+- NLU 실패와 normalization 실패는 각각 `nlu`와 `normalization` trace로
+  기록한다.
+- trace에는 raw utterance를 복제하지 않고, 제한된 version/reason code와
+  latency만 저장한다.
+- 현재 실사용자가 없으므로 호환성 shim을 runtime 경로로 확장하지 않는다.
+  얇은 `parseCommand()` helper는 테스트와 로컬 parser 비교용으로만 둔다.
 
 완료 조건:
 

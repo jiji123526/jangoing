@@ -12,17 +12,18 @@ describe("interpretation pipeline", () => {
       control: "continue",
       inferenceOutcome: "pending",
       parserVersion: "rules-v2",
-      normalizerVersion: "normalizers-v1",
+      normalizerVersion: "normalizers-v2",
       interpretation: {
         intent: "add_item",
         relevance: "actionable",
       },
       trace: {
-        terminal_stage: "nlu",
+        terminal_stage: "normalization",
         outcome: "proposal",
         stages: [
           { stage: "relevance", status: "completed" },
           { stage: "nlu", status: "completed" },
+          { stage: "normalization", status: "completed" },
         ],
       },
     });
@@ -62,10 +63,11 @@ describe("interpretation pipeline", () => {
       control: "clarify",
       inferenceOutcome: "pending",
       trace: {
-        terminal_stage: "nlu",
+        terminal_stage: "normalization",
         stages: [
           { stage: "relevance", status: "fallback" },
           { stage: "nlu", status: "completed" },
+          { stage: "normalization", status: "completed" },
         ],
       },
     });
@@ -98,6 +100,37 @@ describe("interpretation pipeline", () => {
             stage: "nlu",
             status: "failed",
             reason_code: "rules_parser_failure",
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(result.trace)).not.toContain("do not persist");
+  });
+
+  it("keeps normalization failures separate from NLU failures", () => {
+    const result = runInterpretationPipeline(
+      { text: "Add milk" },
+      new Date("2026-11-06T12:00:00.000Z"),
+      {
+        normalize: () => {
+          throw new Error("do not persist this error");
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      control: "fail",
+      inferenceOutcome: "failed",
+      trace: {
+        terminal_stage: "normalization",
+        outcome: "failed",
+        stages: [
+          { stage: "relevance", status: "completed" },
+          { stage: "nlu", status: "completed" },
+          {
+            stage: "normalization",
+            status: "failed",
+            reason_code: "rules_normalization_failure",
           },
         ],
       },

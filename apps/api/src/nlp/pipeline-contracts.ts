@@ -16,6 +16,8 @@ export const ReasonCodeSchema = z.enum([
   "legacy_parser_baseline",
   "rules_parser_baseline",
   "rules_parser_failure",
+  "rules_normalization_baseline",
+  "rules_normalization_failure",
   "relevance_actionable",
   "relevance_contextual_preference",
   "relevance_domain_non_actionable",

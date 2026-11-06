@@ -593,11 +593,12 @@ describe("household consumer-data isolation", () => {
       outcome: "pending",
     });
     expect(JSON.parse(inferenceLog.stage_trace_json)).toMatchObject({
-      terminal_stage: "nlu",
+      terminal_stage: "normalization",
       outcome: "proposal",
       stages: [
         { stage: "relevance", version: "rules-relevance-v1" },
         { stage: "nlu", version: "rules-v2" },
+        { stage: "normalization", version: "normalizers-v2" },
       ],
     });
 

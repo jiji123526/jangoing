@@ -72,10 +72,10 @@ for dependencies and exit criteria.
 
 ### Phase 3: NLU and normalization
 
-- [ ] Store raw intent/entity output separately from normalized values.
-- [ ] Keep reference date, timezone, and inference timestamp in the request
+- [x] Store raw intent/entity output separately from normalized values.
+- [x] Keep reference date, timezone, and inference timestamp in the request
   context.
-- [ ] Evaluate date, quantity, unit, location, and item normalization
+- [x] Evaluate date, quantity, unit, location, and item normalization
   independently.
 - [ ] Run schema validation immediately before proposal creation.
 

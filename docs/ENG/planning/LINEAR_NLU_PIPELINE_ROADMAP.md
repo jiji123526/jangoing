@@ -851,14 +851,11 @@ orchestrator가 trace를 생성하고 저장하는 Step 2에서 migration과 함
 
 - relevance gate
 - 별도 pipeline orchestrator
-- NLU와 normalization의 내부 로직 분리
 - public API response 변경
 - event confirmation 규칙 변경
 
-현재 adapter는 parser 내부에 normalization이 함께 있는 현실을 숨기지
-않는다. `StageTrace.reason_code`는 이를 사용자 데이터가 아닌
-`rules_parser_baseline`으로만 표시한다. normalization을 별도 stage로
-분리하는 작업은 Step 4에서 수행한다.
+초기 adapter는 parser 내부 normalization을 그대로 감쌌지만, 다음 단계에서
+그 경계를 실제 코드로 분리했다.
 
 효율·보안 결정:
 
@@ -928,6 +925,44 @@ high-confidence non-actionable
 
 - ML relevance classifier 배포
 - 독립 frozen evaluation set 구축
+
+### Step 4 — NLU와 normalization 분리
+
+상태: rules baseline에 적용 완료.
+
+구현:
+
+- `apps/api/src/nlp/nlu-contracts.ts`
+  - raw slot은 문자열 surface form으로 제한한다.
+  - entity span은 `type`, `text`, `start`, `end`를 가진다.
+  - span이 원문과 일치하고 utterance 범위를 넘지 않는지 검증한다.
+- `apps/api/src/nlp/parse-command.ts`
+  - `runRulesNlu()`는 intent, raw slot, confidence, raw span만 생성한다.
+  - quantity 숫자 변환, plural alias, expiry ISO 변환을 수행하지 않는다.
+- `apps/api/src/nlp/normalization.ts`
+  - quantity, unit, item alias, location, expiry date를 canonical 값으로
+    변환한다.
+  - 기존 `reference_date`와 `timezone`을 그대로 사용한다.
+- `apps/api/src/nlp/pipeline.ts`
+  - `relevance -> nlu -> normalization` 순서와 각 stage 결과를 기록한다.
+  - NLU 실패와 normalization 실패를 다른 reason code와 terminal stage로
+    반환한다.
+
+의도적인 단순화:
+
+- 별도 raw-NLU DB table이나 normalization table을 추가하지 않는다.
+- raw value를 `inference_logs`에 중복 저장하지 않는다.
+- action별 별도 pipeline을 만들지 않고 하나의 linear trace 안에서 action
+  구조를 보존한다.
+- 현재 실사용자가 없으므로 runtime compatibility layer를 만들지 않는다.
+  `parseCommand()`는 parser regression test용 thin helper다.
+
+검증:
+
+- raw NLU adapter test
+- quantity/unit/date가 canonical 값으로 변환되는 기존 parser test
+- 정상/unknown/relevance reject/NLU failure/normalization failure pipeline test
+- household isolation trace test
 - relevance false-positive/false-negative annotation queue 자동화
 
 ### Phase 2 — Linear pipeline orchestrator
