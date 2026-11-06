@@ -962,13 +962,30 @@ normalizeNluResult()
 
 ### Phase 4: Entity resolution v1
 
-- [ ] `ml/taxonomy/grocery-v1.json`을 base catalog 입력으로 연결한다.
-- [ ] exact alias resolver를 만든다.
+- [x] `ml/taxonomy/grocery-v1.json`을 base catalog 입력으로 연결한다.
+- [x] exact alias resolver를 만든다.
 - [ ] 현재 inventory/shopping 이름을 household candidate로 사용한다.
 - [ ] `household_entity_aliases` migration을 추가한다.
-- [ ] singular/plural resolver를 새 resolver의 adapter로 이동한다.
-- [ ] 후보가 여러 개인 경우 ambiguity 결과를 만든다.
-- [ ] canonical key, surface, display name을 분리한다.
+- [x] singular/plural resolver를 shared catalog resolver의 fallback으로
+  연결한다.
+- [x] 후보가 여러 개인 경우 ambiguity 결과를 만든다.
+- [x] canonical key, surface, display name을 분리한다.
+
+현재 구현:
+
+- `apps/api/src/nlp/entity-resolution.ts`가 `grocery-v1.json`을 단일 source로
+  읽는다.
+- exact alias를 먼저 찾고, 기존 `itemNameMatchKeys()`를 사용한
+  singular/plural fallback은 낮은 score로만 사용한다.
+- 결과는 `resolved`, `ambiguous`, `unresolved`와 최대 4개의 후보를 가진다.
+- `Interpretation.entity_resolution`과 multi-action의
+  `action.entity_resolution`에 metadata를 추가하지만 `item_name`을
+  canonical ID로 덮어쓰지 않는다.
+- `entity_resolution` stage는 현재 shadow stage다. unresolved/ambiguous가
+  아직 자동 mutation이나 clarification을 발생시키지 않는다. 다음 routing
+  단계에서 이 결과를 소비한다.
+- catalog를 DB에 복제하거나 fuzzy/vector index를 만들지 않는다. 작은 정적
+  taxonomy를 Worker bundle에 포함해 조회 비용과 운영 복잡도를 제한한다.
 
 완료 조건:
 

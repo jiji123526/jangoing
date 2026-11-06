@@ -30,6 +30,11 @@ import {
   type NormalizationResult,
 } from "./normalization";
 import {
+  catalogResolverVersion,
+  resolveInterpretationEntities,
+  type EntityResolutionResult,
+} from "./entity-resolution";
+import {
   resolveTemporalGrounding,
   type TemporalGroundingContext,
 } from "./temporal-grounding";
@@ -58,6 +63,9 @@ export interface InterpretationPipelineDependencies {
     nlu: NluAdapterResult["nlu"],
     temporalContext: TemporalGroundingContext,
   ) => NormalizationResult;
+  resolveEntities?: (
+    interpretation: Interpretation,
+  ) => EntityResolutionResult;
 }
 
 function withRelevance(
@@ -115,6 +123,8 @@ export function runInterpretationPipeline(
 
   const runNlu = dependencies.runNlu ?? runRulesNluAdapter;
   const runNormalization = dependencies.normalize ?? normalizeNluResult;
+  const runEntityResolution =
+    dependencies.resolveEntities ?? resolveInterpretationEntities;
   const nluStartedAt = Date.now();
 
   let nlu: NluAdapterResult;
@@ -149,33 +159,95 @@ export function runInterpretationPipeline(
   const normalizationStartedAt = Date.now();
   try {
     const normalized = runNormalization(nlu.nlu, temporalContext);
-    const interpretation = withRelevance(
-      normalized.interpretation,
-      relevance,
-    );
     const isClarification =
       normalized.interpretation.intent === "unknown" ||
       normalized.interpretation.intent === "needs_clarification";
-
-    return {
-      relevance,
-      interpretation,
-      trace: buildPipelineTrace(
-        linearPipelineVersion,
-        [relevance.trace, nlu.trace, normalized.trace],
-        "normalization",
-        isClarification ? "clarification" : "proposal",
+    const hasEntityToResolve = Boolean(
+      normalized.interpretation.slots.item_name ||
+      normalized.interpretation.actions?.some((action) =>
+        Boolean(action.slots.item_name)
       ),
-      temporalContext,
-      control: isClarification
-        ? "clarify"
-        : relevance.trace.status === "fallback"
-          ? "fallback"
-          : "continue",
-      inferenceOutcome: "pending",
-      parserVersion: rulesNluVersion,
-      normalizerVersion,
-    };
+    );
+
+    if (!hasEntityToResolve) {
+      const interpretation = withRelevance(
+        normalized.interpretation,
+        relevance,
+      );
+
+      return {
+        relevance,
+        interpretation,
+        trace: buildPipelineTrace(
+          linearPipelineVersion,
+          [relevance.trace, nlu.trace, normalized.trace],
+          "normalization",
+          isClarification ? "clarification" : "proposal",
+        ),
+        temporalContext,
+        control: isClarification
+          ? "clarify"
+          : relevance.trace.status === "fallback"
+            ? "fallback"
+            : "continue",
+        inferenceOutcome: "pending",
+        parserVersion: rulesNluVersion,
+        normalizerVersion,
+      };
+    }
+
+    const resolutionStartedAt = Date.now();
+    try {
+      const resolved = runEntityResolution(normalized.interpretation);
+      const interpretation = withRelevance(
+        resolved.interpretation,
+        relevance,
+      );
+
+      return {
+        relevance,
+        interpretation,
+        trace: buildPipelineTrace(
+          linearPipelineVersion,
+          [relevance.trace, nlu.trace, normalized.trace, resolved.trace],
+          "entity_resolution",
+          isClarification ? "clarification" : "proposal",
+        ),
+        temporalContext,
+        control: isClarification
+          ? "clarify"
+          : relevance.trace.status === "fallback"
+            ? "fallback"
+            : "continue",
+        inferenceOutcome: "pending",
+        parserVersion: rulesNluVersion,
+        normalizerVersion,
+      };
+    } catch {
+      const failedStage = StageTraceSchema.parse({
+        stage: "entity_resolution",
+        status: "failed",
+        version: catalogResolverVersion,
+        latency_ms: Date.now() - resolutionStartedAt,
+        reason_code: "catalog_resolution_failure",
+      });
+
+      return {
+        relevance,
+        interpretation: failedInterpretation(request, relevance),
+        trace: buildPipelineTrace(
+          linearPipelineVersion,
+          [relevance.trace, nlu.trace, normalized.trace, failedStage],
+          "entity_resolution",
+          "failed",
+        ),
+        temporalContext,
+        control: "fail",
+        inferenceOutcome: "failed",
+        parserVersion: rulesNluVersion,
+        normalizerVersion,
+      };
+    }
   } catch {
     const failedStage = StageTraceSchema.parse({
       stage: "normalization",

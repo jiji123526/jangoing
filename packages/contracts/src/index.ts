@@ -55,10 +55,61 @@ export const CommandSlotsSchema = z
   })
   .strict();
 
+export const EntityResolutionCandidateSchema = z
+  .object({
+    canonical_key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/),
+    category_id: z.string().trim().min(1).max(80),
+    matched_alias: z.string().trim().min(1).max(120),
+    score: z.number().min(0).max(1),
+    source: z.literal("shared_catalog"),
+  })
+  .strict();
+
+export const EntityResolutionSchema = z
+  .object({
+    surface: z.string().trim().min(1).max(120),
+    status: z.enum(["resolved", "ambiguous", "unresolved"]),
+    canonical_key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/)
+      .optional(),
+    candidates: z.array(EntityResolutionCandidateSchema).max(4),
+    resolver_version: z.string().trim().min(1).max(80),
+  })
+  .strict()
+  .superRefine((resolution, context) => {
+    if (resolution.status === "resolved" && !resolution.canonical_key) {
+      context.addIssue({
+        code: "custom",
+        path: ["canonical_key"],
+        message: "Resolved entities require a canonical key",
+      });
+    }
+    if (
+      resolution.status === "ambiguous" &&
+      resolution.candidates.length < 2
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["candidates"],
+        message: "Ambiguous entities require multiple candidates",
+      });
+    }
+  });
+
 export const InterpretationActionSchema = z
   .object({
     intent: IntentSchema,
     slots: CommandSlotsSchema,
+    entity_resolution: EntityResolutionSchema.optional(),
   })
   .strict();
 
@@ -95,6 +146,7 @@ export const InterpretationSchema = z
     relevance: RelevanceSchema.optional(),
     relevance_confidence: z.number().min(0).max(1).optional(),
     relevance_version: z.string().trim().min(1).max(80).optional(),
+    entity_resolution: EntityResolutionSchema.optional(),
   })
   .strict();
 
@@ -806,6 +858,10 @@ export type Intent = z.infer<typeof IntentSchema>;
 export type SpeakerRole = z.infer<typeof SpeakerRoleSchema>;
 export type ActivationMode = z.infer<typeof ActivationModeSchema>;
 export type CommandSlots = z.infer<typeof CommandSlotsSchema>;
+export type EntityResolutionCandidate = z.infer<
+  typeof EntityResolutionCandidateSchema
+>;
+export type EntityResolution = z.infer<typeof EntityResolutionSchema>;
 export type InterpretCommandRequest = z.infer<
   typeof InterpretCommandRequestSchema
 >;

@@ -963,6 +963,30 @@ high-confidence non-actionable
 - quantity/unit/date가 canonical 값으로 변환되는 기존 parser test
 - 정상/unknown/relevance reject/NLU failure/normalization failure pipeline test
 - household isolation trace test
+
+### Step 5 — Shared catalog entity resolution
+
+상태: shared catalog shadow resolver 적용 완료.
+
+구현:
+
+- `ml/taxonomy/grocery-v1.json`을 runtime catalog source로 사용한다.
+- exact alias를 우선하고, `itemNameMatchKeys()` 기반 singular/plural
+  fallback은 낮은 score로만 사용한다.
+- 결과를 `resolved`, `ambiguous`, `unresolved`로 구분한다.
+- 후보는 canonical key, category, matched alias, score, source를 가진다.
+- 기존 `item_name`은 유지하고 `entity_resolution` metadata만 추가한다.
+- multi-action은 action별 resolution을 유지한다.
+- trace에 `entity_resolution` stage와 `catalog-v1` version을 기록한다.
+
+의도적인 제한:
+
+- household alias DB와 candidate lookup은 아직 추가하지 않는다.
+- fuzzy/vector retrieval은 추가하지 않는다.
+- unresolved/ambiguous 결과를 mutation 차단이나 clarification으로
+  연결하지 않는다. 다음 routing 단계에서 정책을 결정한다.
+- catalog를 D1에 복제하지 않아 migration, index, 동기화 비용을 만들지
+  않는다.
 - relevance false-positive/false-negative annotation queue 자동화
 
 ### Phase 2 — Linear pipeline orchestrator

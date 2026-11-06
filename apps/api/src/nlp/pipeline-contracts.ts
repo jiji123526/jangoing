@@ -18,6 +18,8 @@ export const ReasonCodeSchema = z.enum([
   "rules_parser_failure",
   "rules_normalization_baseline",
   "rules_normalization_failure",
+  "catalog_resolution_baseline",
+  "catalog_resolution_failure",
   "relevance_actionable",
   "relevance_contextual_preference",
   "relevance_domain_non_actionable",

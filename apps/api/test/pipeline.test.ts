@@ -16,14 +16,19 @@ describe("interpretation pipeline", () => {
       interpretation: {
         intent: "add_item",
         relevance: "actionable",
+        entity_resolution: {
+          status: "resolved",
+          canonical_key: "milk",
+        },
       },
       trace: {
-        terminal_stage: "normalization",
+        terminal_stage: "entity_resolution",
         outcome: "proposal",
         stages: [
           { stage: "relevance", status: "completed" },
           { stage: "nlu", status: "completed" },
           { stage: "normalization", status: "completed" },
+          { stage: "entity_resolution", status: "completed" },
         ],
       },
     });

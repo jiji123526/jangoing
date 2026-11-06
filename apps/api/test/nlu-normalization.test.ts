@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveCatalogItem } from "../src/nlp/entity-resolution";
 import { normalizeNluResult } from "../src/nlp/normalization";
 import { runRulesNlu } from "../src/nlp/parse-command";
 import { resolveTemporalGrounding } from "../src/nlp/temporal-grounding";
@@ -60,6 +61,28 @@ describe("NLU and normalization boundary", () => {
       stage: "normalization",
       version: "normalizers-v2",
       reason_code: "rules_normalization_baseline",
+    });
+  });
+
+  it("resolves catalog aliases without changing the user-facing item name", () => {
+    expect(resolveCatalogItem("red apples")).toMatchObject({
+      surface: "red apples",
+      status: "resolved",
+      canonical_key: "apple",
+      candidates: [
+        {
+          canonical_key: "apple",
+          category_id: "produce",
+          matched_alias: "red apples",
+          source: "shared_catalog",
+          score: 1,
+        },
+      ],
+    });
+    expect(resolveCatalogItem("unlisted pantry item")).toMatchObject({
+      surface: "unlisted pantry item",
+      status: "unresolved",
+      candidates: [],
     });
   });
 });

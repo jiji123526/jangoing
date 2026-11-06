@@ -81,9 +81,9 @@ for dependencies and exit criteria.
 
 ### Phase 4: Entity resolution
 
-- [ ] Add shared catalog candidate lookup.
+- [x] Add shared catalog candidate lookup.
 - [ ] Define household-scoped aliases without changing shared catalog truth.
-- [ ] Return candidate scores and ambiguity instead of silently selecting the
+- [x] Return candidate scores and ambiguity instead of silently selecting the
   first match.
 - [ ] Add household-isolation and clarification tests.
 
