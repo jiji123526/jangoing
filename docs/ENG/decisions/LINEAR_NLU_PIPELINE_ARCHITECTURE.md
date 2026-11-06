@@ -101,7 +101,8 @@ Inventory / shopping projections
 
 | 역할 | 현재 위치 |
 |---|---|
-| 공유 계약과 Zod schema | `packages/contracts/src/index.ts` |
+| 외부 공유 계약과 Zod schema | `packages/contracts/src/index.ts` |
+| API 내부 pipeline trace contract | `apps/api/src/nlp/pipeline-contracts.ts` |
 | 규칙 기반 parser | `apps/api/src/nlp/parse-command.ts` |
 | temporal grounding | `apps/api/src/nlp/temporal-grounding.ts` |
 | 해석 API와 이벤트 API | `apps/api/src/index.ts` |

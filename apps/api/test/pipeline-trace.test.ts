@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PipelineTraceSchema } from "@jangoing/contracts";
 import {
   appendStageTrace,
   createPipelineTrace,
   finalizePipelineTrace,
 } from "../src/nlp/pipeline-trace";
+import { PipelineTraceSchema } from "../src/nlp/pipeline-contracts";
 
 describe("pipeline trace", () => {
   it("builds a bounded stage trace without storing request content", () => {
@@ -54,7 +54,6 @@ describe("pipeline trace", () => {
     });
     expect(completed).not.toHaveProperty("text");
     expect(completed).not.toHaveProperty("raw_utterance");
-    expect(PipelineTraceSchema.parse(completed)).toEqual(completed);
   });
 
   it("does not mutate an earlier trace when appending a stage", () => {
@@ -86,5 +85,91 @@ describe("pipeline trace", () => {
         reason_code: "x".repeat(101),
       }),
     ).toThrow();
+  });
+
+  it("rejects metadata that is not a safe identifier", () => {
+    expect(() =>
+      appendStageTrace(createPipelineTrace("linear-v1"), {
+        stage: "nlu",
+        status: "failed",
+        version: "rules v2",
+        latency_ms: 1,
+      }),
+    ).toThrow();
+    expect(() =>
+      appendStageTrace(createPipelineTrace("linear-v1"), {
+        stage: "nlu",
+        status: "failed",
+        version: "rules-v2",
+        latency_ms: 1,
+        reason_code: "user said my address is 123 Main Street",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects incomplete or inconsistent traces", () => {
+    expect(() =>
+      finalizePipelineTrace(createPipelineTrace("linear-v1"), "proposal", "proposal"),
+    ).toThrow();
+
+    const relevance = appendStageTrace(createPipelineTrace("linear-v1"), {
+      stage: "relevance",
+      status: "completed",
+      version: "rules-relevance-v1",
+      latency_ms: 0.4,
+    });
+    const proposal = appendStageTrace(relevance, {
+      stage: "proposal",
+      status: "completed",
+      version: "proposal-v1",
+      latency_ms: 0.2,
+    });
+
+    expect(() =>
+      finalizePipelineTrace(proposal, "routing", "proposal"),
+    ).toThrow();
+  });
+
+  it("rejects duplicate and out-of-order stages", () => {
+    const first = appendStageTrace(createPipelineTrace("linear-v1"), {
+      stage: "nlu",
+      status: "completed",
+      version: "rules-v2",
+      latency_ms: 1,
+    });
+    const duplicate = appendStageTrace(first, {
+      stage: "nlu",
+      status: "fallback",
+      version: "rules-v2",
+      latency_ms: 0.5,
+    });
+    expect(() =>
+      finalizePipelineTrace(duplicate, "nlu", "proposal"),
+    ).toThrow();
+
+    const outOfOrder = appendStageTrace(first, {
+      stage: "relevance",
+      status: "completed",
+      version: "rules-relevance-v1",
+      latency_ms: 0.5,
+    });
+    expect(() =>
+      finalizePipelineTrace(outOfOrder, "relevance", "proposal"),
+    ).toThrow();
+  });
+
+  it("keeps the local schema as the runtime validation boundary", () => {
+    const trace = finalizePipelineTrace(
+      appendStageTrace(createPipelineTrace("linear-v1"), {
+        stage: "proposal",
+        status: "completed",
+        version: "proposal-v1",
+        latency_ms: 0.2,
+      }),
+      "proposal",
+      "proposal",
+    );
+
+    expect(PipelineTraceSchema.parse(trace)).toEqual(trace);
   });
 });

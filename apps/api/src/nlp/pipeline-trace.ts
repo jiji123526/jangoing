@@ -1,11 +1,12 @@
 import {
   PipelineTraceSchema,
+  PipelineVersionSchema,
   StageTraceSchema,
   type PipelineOutcome,
   type PipelineStage,
   type PipelineTrace,
   type StageTrace,
-} from "@jangoing/contracts";
+} from "./pipeline-contracts";
 
 export type PipelineTraceBuilder = {
   readonly pipeline_version: string;
@@ -15,13 +16,8 @@ export type PipelineTraceBuilder = {
 export function createPipelineTrace(
   pipelineVersion: string,
 ): PipelineTraceBuilder {
-  const normalizedVersion = pipelineVersion.trim();
-  if (normalizedVersion.length === 0 || normalizedVersion.length > 80) {
-    throw new Error("pipeline_version must contain 1 to 80 characters");
-  }
-
   return {
-    pipeline_version: normalizedVersion,
+    pipeline_version: PipelineVersionSchema.parse(pipelineVersion),
     stages: [],
   };
 }

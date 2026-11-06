@@ -169,20 +169,17 @@ decision으로 사용하지 않는다. Phase 4의 entity resolution이 안정되
 
 ```ts
 type PipelineStage =
-  | "activation"
   | "relevance"
   | "correction_hint"
   | "nlu"
   | "normalization"
   | "entity_resolution"
   | "routing"
-  | "proposal"
-  | "confirmation"
-  | "execution";
+  | "proposal";
 
 type StageTrace = {
   stage: PipelineStage;
-  status: "completed" | "skipped" | "fallback" | "failed";
+  status: "completed" | "skipped" | "fallback" | "clarify" | "rejected" | "failed";
   version: string;
   latency_ms: number;
   confidence?: number;
@@ -193,6 +190,7 @@ type StageTrace = {
 구현 위치:
 
 - `packages/contracts/src/index.ts`: 외부 API와 공유하는 public contract
+- `apps/api/src/nlp/pipeline-contracts.ts`: API 내부 stage와 trace contract
 - `apps/api/src/`: 내부 stage 결과와 orchestrator
 - `inference_logs`: 원문, context snapshot, stage trace, 최종 결과
 - `corrections`: original proposal과 user-confirmed result
@@ -654,7 +652,8 @@ push-to-talk / wake word
 | `apps/web/app/page.tsx` | 입력, 결과 편집, 확인 UI | `ActionProposal` 표시와 correction 입력 |
 | `apps/web/lib/api.ts` | Worker API client | versioned interpretation/proposal API client |
 | `apps/api/src` | parser, validation, event API | stage adapters와 orchestrator |
-| `packages/contracts/src/index.ts` | 공유 TypeScript 계약 | stage output, proposal, trace 계약 |
+| `packages/contracts/src/index.ts` | 공유 TypeScript 계약 | public request/response와 proposal 계약 |
+| `apps/api/src/nlp/pipeline-contracts.ts` | API 내부 contract | stage output과 trace 계약 |
 | `events` | confirmed state change | 그대로 유지하는 실행 결과 |
 | `corrections` | prediction과 confirmed 값 | correction evidence와 평가 source |
 | `inference_logs` | inference context/log | 전체 stage trace와 version 저장 |
@@ -771,8 +770,8 @@ apps/api/src/
 
 현재 annotation 작업과 충돌하지 않는 가장 작은 시작점은 다음 네 가지다.
 
-1. `packages/contracts/src/index.ts`에서 pipeline stage 결과와 proposal
-   계약을 설계한다.
+1. `apps/api/src/nlp/pipeline-contracts.ts`에서 pipeline stage 결과와
+   trace 계약을 설계한다.
 2. 현재 `/commands/interpret` parser를 baseline NLU adapter로 감싸고
    stage trace를 남긴다.
 3. relevance 결과를 저장하고 unrelated/domain non-actionable 요청이
@@ -791,7 +790,7 @@ apps/api/src/
 
 추가된 구성:
 
-- `packages/contracts/src/index.ts`
+- `apps/api/src/nlp/pipeline-contracts.ts`
   - `PipelineStageSchema`
   - `StageStatusSchema`
   - `PipelineOutcomeSchema`
@@ -806,6 +805,7 @@ apps/api/src/
   - 불변 append
   - version 길이 제한
   - reason code 길이 제한
+  - 빈/순서 오류/중복 stage 거부
 
 이번 단계에서는 현재 `/commands/interpret` 동작을 변경하지 않는다. 따라서
 기존 parser의 결과와 public API response는 그대로 유지된다.
@@ -819,11 +819,11 @@ orchestrator가 trace를 생성하고 저장하는 Step 2에서 migration과 함
 
 - trace에는 raw utterance, access token, household profile, arbitrary JSON을
   저장하지 않는다.
-- stage metadata는 version, status, latency, confidence, 짧은 reason code로
-  제한한다.
-- 배열은 최대 20 stage로 제한한다.
-- reason code와 version의 길이를 제한해 로그 부풀리기와 accidental PII
-  저장 위험을 줄인다.
+- stage metadata의 version과 reason code는 safe identifier 형식만 허용한다.
+- trace는 실제 선형 해석 stage를 한 번씩만, 순서대로 기록한다.
+- 배열은 현재 7개 해석 stage를 넘지 않도록 제한한다.
+- 제한을 schema에서 강제해 로그 부풀리기와 accidental PII 저장 위험을
+  줄인다.
 
 ## 참고 문서
 

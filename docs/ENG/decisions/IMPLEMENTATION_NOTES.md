@@ -63,11 +63,12 @@ The current parser remains the first baseline adapter; the new architecture
 must preserve confirmation-before-event execution while adding explicit
 relevance, normalization, entity resolution, routing, and stage tracing.
 
-The first implementation slice now defines the shared stage and trace
-contracts in `packages/contracts/src/index.ts` and provides the pure trace
-builder in `apps/api/src/nlp/pipeline-trace.ts`. Runtime persistence is
+The first implementation slice now defines the API-internal stage and trace
+contracts in `apps/api/src/nlp/pipeline-contracts.ts` and provides the pure
+trace builder in `apps/api/src/nlp/pipeline-trace.ts`. Runtime persistence is
 intentionally deferred until the parser adapter/orchestrator is introduced,
-so the database does not receive unused trace columns.
+so the database does not receive unused trace columns and the Web-facing
+contract package does not expose internal telemetry types.
 
 ## 4. Implemented Features
 
