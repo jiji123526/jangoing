@@ -107,6 +107,7 @@ export const LoggedInterpretationSchema = InterpretationSchema.extend({
 export const InferenceOutcomeSchema = z.enum([
   "pending",
   "not_actionable",
+  "failed",
   "confirmed",
   "corrected",
   "cancelled",

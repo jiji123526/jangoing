@@ -878,12 +878,12 @@ low-confidence
 
 ### Phase 2: Linear pipeline orchestrator
 
-- [ ] `apps/api/src/nlp/pipeline.ts`를 추가한다.
-- [ ] `handleInterpret()`이 직접 `parseCommand()`를 호출하지 않고
+- [x] `apps/api/src/nlp/pipeline.ts`를 추가한다.
+- [x] `handleInterpret()`이 직접 `parseCommand()`를 호출하지 않고
   orchestrator를 호출하게 한다.
-- [ ] 각 stage의 input/output과 latency를 기록한다.
-- [ ] 외부 API response는 기존 구조와 호환한다.
-- [ ] parser fallback을 명시적인 pipeline status로 반환한다.
+- [x] 각 stage의 input/output과 latency를 기록한다.
+- [x] 외부 API response는 기존 구조와 호환한다.
+- [x] parser fallback을 명시적인 pipeline status로 반환한다.
 
 권장 내부 interface:
 

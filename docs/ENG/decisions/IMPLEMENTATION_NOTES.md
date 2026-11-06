@@ -73,7 +73,10 @@ combined NLU/normalization behavior remains unchanged until the normalization
 separation phase. Runtime relevance now runs before the adapter: high-confidence
 non-actionable utterances are recorded with `not_actionable` and do not reach
 the NLU or mutation review path, while ambiguous kitchen language remains a
-low-confidence NLU candidate.
+low-confidence NLU candidate. The shared
+`apps/api/src/nlp/pipeline.ts` now owns this relevance-to-NLU sequence for both
+the Worker and local development server; route handlers only persist the
+result and serialize the public response.
 
 ## 4. Implemented Features
 

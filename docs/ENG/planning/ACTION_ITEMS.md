@@ -64,10 +64,10 @@ for dependencies and exit criteria.
 ### Phase 2: Orchestrator
 
 - [x] Wrap the current rule-based parser as the first NLU adapter.
-- [ ] Move stage ordering into one pipeline orchestrator.
-- [ ] Add explicit `continue`, `fallback`, `clarify`, `reject`, and `fail`
+- [x] Move stage ordering into one pipeline orchestrator.
+- [x] Add explicit `continue`, `fallback`, `clarify`, `reject`, and `fail`
   outcomes.
-- [ ] Test normal, unknown, multi-action, parser failure, and clarification
+- [x] Test normal, unknown, multi-action, parser failure, and clarification
   paths.
 
 ### Phase 3: NLU and normalization

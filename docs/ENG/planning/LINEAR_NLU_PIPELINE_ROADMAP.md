@@ -929,7 +929,47 @@ high-confidence non-actionable
 - ML relevance classifier 배포
 - 독립 frozen evaluation set 구축
 - relevance false-positive/false-negative annotation queue 자동화
-- 별도 pipeline orchestrator 도입
+
+### Phase 2 — Linear pipeline orchestrator
+
+상태: Worker와 local development server가 공통 orchestrator를 사용하도록
+연결 완료.
+
+추가된 구성:
+
+- `apps/api/src/nlp/pipeline.ts`
+  - relevance → NLU stage 순서를 단일 함수가 소유한다.
+  - temporal grounding을 NLU 입력에 결합하고, 로그용 context를 반환한다.
+  - stage trace, parser/normalizer 실행 버전, inference outcome을 함께
+    반환한다.
+  - `continue`, `fallback`, `clarify`, `reject`, `fail` control 상태를
+    내부 결과로 구분한다.
+- `apps/api/test/pipeline.test.ts`
+  - 정상 actionable path
+  - relevance reject
+  - fallback 후 clarification
+  - parser failure와 안전한 failed trace
+
+route handler의 책임은 request validation, inference log persistence,
+public response serialization으로 제한된다. 실제 stage 실행과 순서는
+orchestrator에만 존재한다.
+
+효율·보안 결정:
+
+- Worker와 local server가 서로 다른 stage 순서를 구현하지 않도록 공통
+  pipeline 함수를 사용한다.
+- parser 예외 메시지는 trace나 inference log에 저장하지 않고
+  `rules_parser_failure`만 기록한다.
+- 실패 시에도 state-changing event를 만들 수 있는 proposal을 반환하지
+  않는다.
+- 새 orchestrator table이나 별도 queue를 추가하지 않는다.
+
+이번 단계에서 의도적으로 하지 않은 것:
+
+- NLU 내부 normalization 로직 분리
+- `ActionProposal`과 routing stage 도입
+- ML adapter 또는 shadow model 연결
+- relevance false-positive/false-negative annotation queue 자동화
 
 ## 참고 문서
 

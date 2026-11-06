@@ -48,22 +48,9 @@ import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
-import {
-  buildBaselinePipelineTrace,
-  linearPipelineVersion,
-  rulesNluVersion,
-  runRulesNluAdapter,
-  addRelevanceMetadata,
-} from "./nlp/rules-nlu-adapter";
-import {
-  buildNonActionableInterpretation,
-  runRelevanceGate,
-  relevanceVersion,
-} from "./nlp/relevance";
-import { buildPipelineTrace } from "./nlp/pipeline-trace";
+import { runInterpretationPipeline } from "./nlp/pipeline";
 import {
   resolveStoredTemporalGrounding,
-  resolveTemporalGrounding,
 } from "./nlp/temporal-grounding";
 import {
   AuthError,
@@ -119,8 +106,6 @@ interface ItemMediaRow {
 }
 
 const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
-const parserVersion = rulesNluVersion;
-const normalizerVersion = "normalizers-v1";
 const schemaVersion = "inference-v1";
 const kitchenProjectionKey = "kitchen_projection_v1";
 const annotationSchemaVersion = "annotation-v3";
@@ -553,33 +538,15 @@ async function handleInterpret(
     );
   }
 
-  const relevance = runRelevanceGate(parsed.data);
-  const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
-  const nlu = relevance.passesToNlu
-    ? runRulesNluAdapter({ ...parsed.data, ...temporalContext })
-    : null;
-  const result = nlu
-    ? addRelevanceMetadata(nlu.interpretation, {
-      relevance: relevance.relevance,
-      confidence: relevance.confidence,
-      version: relevanceVersion,
-    })
-    : buildNonActionableInterpretation(parsed.data, relevance);
-  const pipelineTrace = nlu
-    ? buildBaselinePipelineTrace(nlu, [relevance.trace])
-    : buildPipelineTrace(
-      linearPipelineVersion,
-      [relevance.trace],
-      "relevance",
-      "not_actionable",
-    );
+  const pipeline = runInterpretationPipeline(parsed.data, receivedAt);
+  const {
+    interpretation: result,
+    relevance,
+    temporalContext,
+    trace: pipelineTrace,
+  } = pipeline;
   const inferenceId = crypto.randomUUID();
   const latencyMs = Date.now() - startedAt;
-  const effectiveParserVersion = nlu ? parserVersion : "not-run";
-  const effectiveNormalizerVersion = nlu ? normalizerVersion : "not-run";
-  const inferenceOutcome = relevance.passesToNlu
-    ? "pending"
-    : "not_actionable";
   await env.DB.prepare(
     `INSERT INTO inference_logs (
       id, raw_utterance, request_context, predicted_interpretation,
@@ -601,16 +568,16 @@ async function handleInterpret(
       activation_mode: parsed.data.activation_mode ?? null,
     }),
     JSON.stringify(result),
-    effectiveParserVersion,
-    effectiveNormalizerVersion,
+    pipeline.parserVersion,
+    pipeline.normalizerVersion,
     schemaVersion,
-    linearPipelineVersion,
+    pipelineTrace.pipeline_version,
     JSON.stringify(pipelineTrace),
     relevance.relevance,
     relevance.confidence,
-    relevanceVersion,
+    pipeline.relevance.trace.version,
     "web",
-    inferenceOutcome,
+    pipeline.inferenceOutcome,
     latencyMs,
     new Date().toISOString(),
     scope?.householdId ?? null,
@@ -619,7 +586,7 @@ async function handleInterpret(
   return json(request, env, {
     ...result,
     inference_id: inferenceId,
-    parser_version: effectiveParserVersion,
+    parser_version: pipeline.parserVersion,
     latency_ms: latencyMs,
   });
 }
