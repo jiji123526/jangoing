@@ -204,6 +204,7 @@ describe("household consumer-data isolation", () => {
       "0020_support_multiple_households.sql",
       "0021_optimize_household_event_order.sql",
       "0022_add_pipeline_trace.sql",
+      "0023_add_inference_relevance.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -569,23 +570,35 @@ describe("household consumer-data isolation", () => {
     );
     const interpretation = await interpreted.json() as { inference_id: string };
     const inferenceLog = database.prepare(
-      `SELECT household_id, user_id, pipeline_version, stage_trace_json
+      `SELECT household_id, user_id, pipeline_version, stage_trace_json,
+              relevance_class, relevance_confidence, relevance_version, outcome
        FROM inference_logs WHERE id = ?`,
     ).get(interpretation.inference_id) as {
       household_id: string;
       user_id: string;
       pipeline_version: string;
       stage_trace_json: string;
+      relevance_class: string;
+      relevance_confidence: number;
+      relevance_version: string;
+      outcome: string;
     };
     expect(inferenceLog).toMatchObject({
       household_id: householdA,
       user_id: userA,
       pipeline_version: "linear-v1",
+      relevance_class: "actionable",
+      relevance_confidence: 0.96,
+      relevance_version: "rules-relevance-v1",
+      outcome: "pending",
     });
     expect(JSON.parse(inferenceLog.stage_trace_json)).toMatchObject({
       terminal_stage: "nlu",
       outcome: "proposal",
-      stages: [{ stage: "nlu", version: "rules-v2" }],
+      stages: [
+        { stage: "relevance", version: "rules-relevance-v1" },
+        { stage: "nlu", version: "rules-v2" },
+      ],
     });
 
     const wrongHousehold = await request(
@@ -613,6 +626,43 @@ describe("household consumer-data isolation", () => {
       tokenA,
     );
     expect(correctHousehold.status).toBe(200);
+  });
+
+  it("stops non-actionable relevance before NLU and mutation review", async () => {
+    const interpreted = await request(
+      "/commands/interpret",
+      { method: "POST", body: JSON.stringify({ text: "I prefer oat milk" }) },
+      tokenA,
+    );
+    expect(interpreted.status).toBe(200);
+    const interpretation = await interpreted.json() as {
+      inference_id: string;
+      intent: string;
+      relevance: string;
+    };
+    expect(interpretation).toMatchObject({
+      intent: "unknown",
+      relevance: "contextual_preference",
+      parser_version: "not-run",
+    });
+
+    const inferenceLog = database.prepare(
+      `SELECT relevance_class, outcome, stage_trace_json
+       FROM inference_logs WHERE id = ?`,
+    ).get(interpretation.inference_id) as {
+      relevance_class: string;
+      outcome: string;
+      stage_trace_json: string;
+    };
+    expect(inferenceLog).toMatchObject({
+      relevance_class: "contextual_preference",
+      outcome: "not_actionable",
+    });
+    expect(JSON.parse(inferenceLog.stage_trace_json)).toMatchObject({
+      terminal_stage: "relevance",
+      outcome: "not_actionable",
+      stages: [{ stage: "relevance", status: "rejected" }],
+    });
   });
 
   it("resolves quick-update item names to an existing household item variant", async () => {

@@ -870,6 +870,67 @@ orchestrator가 trace를 생성하고 저장하는 Step 2에서 migration과 함
 - 기존 public response와 confirmation/event path를 유지해 rollback 비용을
   낮춘다.
 
+### Step 3 — Runtime relevance gate
+
+상태: deterministic baseline을 Worker와 local development server에 연결 완료.
+
+추가된 구성:
+
+- `apps/api/src/nlp/relevance.ts`
+  - annotation과 동일한 네 가지 class를 사용한다.
+  - `actionable`은 NLU로 전달한다.
+  - `contextual_preference`, `domain_non_actionable`, `unrelated`는
+    NLU 전에 종료한다.
+  - 명확하지 않은 주방 관련 발화는 confidence `0.55`의 actionable
+    fallback으로 NLU에 전달한다.
+- `apps/api/migrations/0023_add_inference_relevance.sql`
+  - `inference_logs.relevance_class`
+  - `inference_logs.relevance_confidence`
+  - `inference_logs.relevance_version`
+- `apps/api/src/nlp/pipeline-contracts.ts`
+  - `not_actionable` pipeline outcome과 relevance reason code를 추가한다.
+- `packages/contracts/src/index.ts`
+  - `Interpretation`에 optional relevance metadata를 추가한다.
+  - `not_actionable`을 inference outcome vocabulary에 추가한다.
+
+실행 정책:
+
+```text
+high-confidence actionable
+-> relevance stage
+-> rules NLU stage
+-> 기존 proposal/confirmation path
+
+low-confidence kitchen language
+-> relevance fallback
+-> rules NLU stage
+-> parser 결과에 따라 clarification 또는 proposal
+
+high-confidence non-actionable
+-> relevance stage만 기록
+-> NLU와 mutation review path를 실행하지 않음
+-> inference outcome = not_actionable
+```
+
+효율·보안 결정:
+
+- relevance는 parser를 호출하지 않고 제한된 deterministic vocabulary와
+  pattern만 사용해 불필요한 NLU 비용을 줄인다.
+- `inference_logs`에 nullable column만 추가하고 별도 relevance table이나
+  index는 만들지 않는다.
+- raw utterance는 기존 `raw_utterance` 한 곳에만 저장하며 trace와 relevance
+  metadata에는 복제하지 않는다.
+- 명시적인 kitchen vocabulary 없는 `Add my dentist appointment` 같은
+  발화는 actionable pattern만으로 통과시키지 않는다.
+- `not_actionable`은 사용자가 proposal을 거부한 `rejected`와 분리한다.
+
+이번 단계에서 의도적으로 하지 않은 것:
+
+- ML relevance classifier 배포
+- 독립 frozen evaluation set 구축
+- relevance false-positive/false-negative annotation queue 자동화
+- 별도 pipeline orchestrator 도입
+
 ## 참고 문서
 
 - [선형 NLU 파이프라인 아키텍처 결정](../decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)

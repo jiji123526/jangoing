@@ -26,6 +26,13 @@ export const IntentSchema = z.enum([
   "unknown",
 ]);
 
+export const RelevanceSchema = z.enum([
+  "actionable",
+  "contextual_preference",
+  "domain_non_actionable",
+  "unrelated",
+]);
+
 export const LocationSchema = z.enum(["fridge", "freezer", "pantry"]);
 
 export const SpeakerRoleSchema = z.enum(["user", "assistant", "system"]);
@@ -85,6 +92,9 @@ export const InterpretationSchema = z
     confidence: z.number().min(0).max(1),
     requires_confirmation: z.boolean(),
     raw_utterance: z.string(),
+    relevance: RelevanceSchema.optional(),
+    relevance_confidence: z.number().min(0).max(1).optional(),
+    relevance_version: z.string().trim().min(1).max(80).optional(),
   })
   .strict();
 
@@ -96,6 +106,7 @@ export const LoggedInterpretationSchema = InterpretationSchema.extend({
 
 export const InferenceOutcomeSchema = z.enum([
   "pending",
+  "not_actionable",
   "confirmed",
   "corrected",
   "cancelled",
@@ -325,13 +336,6 @@ export const EntityAnnotationSchema = z
 export const DatasetPurposeSchema = z.enum([
   "train_candidate",
   "evaluation_candidate",
-]);
-
-export const RelevanceSchema = z.enum([
-  "actionable",
-  "contextual_preference",
-  "domain_non_actionable",
-  "unrelated",
 ]);
 
 export const AnnotationStatsSchema = z.object({

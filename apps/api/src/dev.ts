@@ -61,7 +61,14 @@ import {
   linearPipelineVersion,
   rulesNluVersion,
   runRulesNluAdapter,
+  addRelevanceMetadata,
 } from "./nlp/rules-nlu-adapter";
+import {
+  buildNonActionableInterpretation,
+  runRelevanceGate,
+  relevanceVersion,
+} from "./nlp/relevance";
+import { buildPipelineTrace } from "./nlp/pipeline-trace";
 import {
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
@@ -163,6 +170,10 @@ const householdEventOrderMigrationPath = resolve(
 const pipelineTraceMigrationPath = resolve(
   apiDirectory,
   "migrations/0022_add_pipeline_trace.sql",
+);
+const inferenceRelevanceMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0023_add_inference_relevance.sql",
 );
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
@@ -316,6 +327,12 @@ const inferenceColumns = database.prepare(
 ).all() as Array<{ name: string }>;
 if (!inferenceColumns.some((column) => column.name === "pipeline_version")) {
   database.exec(readFileSync(pipelineTraceMigrationPath, "utf8"));
+}
+const updatedInferenceColumns = database.prepare(
+  "PRAGMA table_info(inference_logs)",
+).all() as Array<{ name: string }>;
+if (!updatedInferenceColumns.some((column) => column.name === "relevance_class")) {
+  database.exec(readFileSync(inferenceRelevanceMigrationPath, "utf8"));
 }
 database.prepare(
   `INSERT INTO households (
@@ -543,19 +560,41 @@ async function route(
       return;
     }
 
+    const relevance = runRelevanceGate(parsed.data);
     const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
-    const nlu = runRulesNluAdapter({ ...parsed.data, ...temporalContext });
-    const result = nlu.interpretation;
-    const pipelineTrace = buildBaselinePipelineTrace(nlu);
+    const nlu = relevance.passesToNlu
+      ? runRulesNluAdapter({ ...parsed.data, ...temporalContext })
+      : null;
+    const result = nlu
+      ? addRelevanceMetadata(nlu.interpretation, {
+        relevance: relevance.relevance,
+        confidence: relevance.confidence,
+        version: relevanceVersion,
+      })
+      : buildNonActionableInterpretation(parsed.data, relevance);
+    const pipelineTrace = nlu
+      ? buildBaselinePipelineTrace(nlu, [relevance.trace])
+      : buildPipelineTrace(
+        linearPipelineVersion,
+        [relevance.trace],
+        "relevance",
+        "not_actionable",
+      );
     const inferenceId = crypto.randomUUID();
     const latencyMs = Date.now() - startedAt;
+    const effectiveParserVersion = nlu ? parserVersion : "not-run";
+    const effectiveNormalizerVersion = nlu ? normalizerVersion : "not-run";
+    const inferenceOutcome = relevance.passesToNlu
+      ? "pending"
+      : "not_actionable";
     database.prepare(
       `INSERT INTO inference_logs (
         id, raw_utterance, request_context, predicted_interpretation,
         parser_version, normalizer_version, schema_version,
-        pipeline_version, stage_trace_json, source,
+        pipeline_version, stage_trace_json, relevance_class,
+        relevance_confidence, relevance_version, source,
         outcome, latency_ms, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       inferenceId, result.raw_utterance,
       JSON.stringify({
@@ -567,12 +606,13 @@ async function route(
         speaker_role: parsed.data.speaker_role ?? null,
         activation_mode: parsed.data.activation_mode ?? null,
       }),
-      JSON.stringify(result), parserVersion, normalizerVersion, schemaVersion,
+      JSON.stringify(result), effectiveParserVersion, effectiveNormalizerVersion, schemaVersion,
       linearPipelineVersion, JSON.stringify(pipelineTrace),
-      "web", latencyMs, new Date().toISOString(),
+      relevance.relevance, relevance.confidence, relevanceVersion,
+      "web", inferenceOutcome, latencyMs, new Date().toISOString(),
     );
     sendJson(response, origin, {
-      ...result, inference_id: inferenceId, parser_version: parserVersion, latency_ms: latencyMs,
+      ...result, inference_id: inferenceId, parser_version: effectiveParserVersion, latency_ms: latencyMs,
     });
     return;
   }

@@ -15,6 +15,11 @@ export const ReasonCodeSchema = z.enum([
   "confirmation_required",
   "legacy_parser_baseline",
   "rules_parser_baseline",
+  "relevance_actionable",
+  "relevance_contextual_preference",
+  "relevance_domain_non_actionable",
+  "relevance_unrelated",
+  "relevance_ambiguous",
 ]);
 
 const pipelineStageOrder = [
@@ -41,6 +46,7 @@ export const StageStatusSchema = z.enum([
 export const PipelineOutcomeSchema = z.enum([
   "proposal",
   "clarification",
+  "not_actionable",
   "rejected",
   "failed",
 ]);

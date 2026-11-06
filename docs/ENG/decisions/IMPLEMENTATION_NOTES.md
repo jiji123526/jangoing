@@ -70,7 +70,10 @@ with `apps/api/src/nlp/rules-nlu-adapter.ts`. Runtime trace persistence uses
 the existing `inference_logs` table through migration 0022. The public Web
 contract still does not expose internal telemetry types, and the parser's
 combined NLU/normalization behavior remains unchanged until the normalization
-separation phase.
+separation phase. Runtime relevance now runs before the adapter: high-confidence
+non-actionable utterances are recorded with `not_actionable` and do not reach
+the NLU or mutation review path, while ambiguous kitchen language remains a
+low-confidence NLU candidate.
 
 ## 4. Implemented Features
 

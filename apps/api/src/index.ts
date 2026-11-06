@@ -53,7 +53,14 @@ import {
   linearPipelineVersion,
   rulesNluVersion,
   runRulesNluAdapter,
+  addRelevanceMetadata,
 } from "./nlp/rules-nlu-adapter";
+import {
+  buildNonActionableInterpretation,
+  runRelevanceGate,
+  relevanceVersion,
+} from "./nlp/relevance";
+import { buildPipelineTrace } from "./nlp/pipeline-trace";
 import {
   resolveStoredTemporalGrounding,
   resolveTemporalGrounding,
@@ -546,19 +553,41 @@ async function handleInterpret(
     );
   }
 
+  const relevance = runRelevanceGate(parsed.data);
   const temporalContext = resolveTemporalGrounding(parsed.data, receivedAt);
-  const nlu = runRulesNluAdapter({ ...parsed.data, ...temporalContext });
-  const result = nlu.interpretation;
-  const pipelineTrace = buildBaselinePipelineTrace(nlu);
+  const nlu = relevance.passesToNlu
+    ? runRulesNluAdapter({ ...parsed.data, ...temporalContext })
+    : null;
+  const result = nlu
+    ? addRelevanceMetadata(nlu.interpretation, {
+      relevance: relevance.relevance,
+      confidence: relevance.confidence,
+      version: relevanceVersion,
+    })
+    : buildNonActionableInterpretation(parsed.data, relevance);
+  const pipelineTrace = nlu
+    ? buildBaselinePipelineTrace(nlu, [relevance.trace])
+    : buildPipelineTrace(
+      linearPipelineVersion,
+      [relevance.trace],
+      "relevance",
+      "not_actionable",
+    );
   const inferenceId = crypto.randomUUID();
   const latencyMs = Date.now() - startedAt;
+  const effectiveParserVersion = nlu ? parserVersion : "not-run";
+  const effectiveNormalizerVersion = nlu ? normalizerVersion : "not-run";
+  const inferenceOutcome = relevance.passesToNlu
+    ? "pending"
+    : "not_actionable";
   await env.DB.prepare(
     `INSERT INTO inference_logs (
       id, raw_utterance, request_context, predicted_interpretation,
       parser_version, normalizer_version, schema_version,
-      pipeline_version, stage_trace_json, source,
+      pipeline_version, stage_trace_json, relevance_class,
+      relevance_confidence, relevance_version, source,
       outcome, latency_ms, created_at, household_id, user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     inferenceId,
     result.raw_utterance,
@@ -572,12 +601,16 @@ async function handleInterpret(
       activation_mode: parsed.data.activation_mode ?? null,
     }),
     JSON.stringify(result),
-    parserVersion,
-    normalizerVersion,
+    effectiveParserVersion,
+    effectiveNormalizerVersion,
     schemaVersion,
     linearPipelineVersion,
     JSON.stringify(pipelineTrace),
+    relevance.relevance,
+    relevance.confidence,
+    relevanceVersion,
     "web",
+    inferenceOutcome,
     latencyMs,
     new Date().toISOString(),
     scope?.householdId ?? null,
@@ -586,7 +619,7 @@ async function handleInterpret(
   return json(request, env, {
     ...result,
     inference_id: inferenceId,
-    parser_version: parserVersion,
+    parser_version: effectiveParserVersion,
     latency_ms: latencyMs,
   });
 }

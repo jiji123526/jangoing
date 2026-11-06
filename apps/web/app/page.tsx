@@ -2278,6 +2278,12 @@ export function DashboardView({ view }: { view: DashboardViewName }) {
 
   async function handleCancel() {
     if (!interpretation) return;
+    if (interpretation.relevance && interpretation.relevance !== "actionable") {
+      setInterpretation(null);
+      setEdited(null);
+      setEditedBatch(null);
+      return;
+    }
     try {
       await updateInferenceOutcome({
         inference_id: interpretation.inference_id,

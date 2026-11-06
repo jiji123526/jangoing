@@ -9,9 +9,7 @@ import {
   type StageTrace,
 } from "./pipeline-contracts";
 import {
-  appendStageTrace,
-  createPipelineTrace,
-  finalizePipelineTrace,
+  buildPipelineTrace,
 } from "./pipeline-trace";
 
 export const rulesNluVersion = "rules-v2";
@@ -39,14 +37,29 @@ export function runRulesNluAdapter(
   return { interpretation, trace };
 }
 
+export function addRelevanceMetadata(
+  interpretation: Interpretation,
+  relevance: {
+    relevance: Interpretation["relevance"];
+    confidence: number;
+    version: string;
+  },
+): Interpretation {
+  return InterpretationSchema.parse({
+    ...interpretation,
+    relevance: relevance.relevance,
+    relevance_confidence: relevance.confidence,
+    relevance_version: relevance.version,
+  });
+}
+
 export function buildBaselinePipelineTrace(
   result: NluAdapterResult,
+  leadingStages: readonly StageTrace[] = [],
 ) {
-  return finalizePipelineTrace(
-    appendStageTrace(
-      createPipelineTrace(linearPipelineVersion),
-      result.trace,
-    ),
+  return buildPipelineTrace(
+    linearPipelineVersion,
+    [...leadingStages, result.trace],
     "nlu",
     result.interpretation.intent === "unknown" ||
       result.interpretation.intent === "needs_clarification"

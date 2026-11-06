@@ -349,7 +349,7 @@ The train was late.
 처음에는 deterministic rule 또는 TF-IDF classifier로 시작한다.
 
 ```text
-relevance-rules-v1
+rules-relevance-v1
 -> known actionable pattern이면 actionable
 -> 명시적 preference/domain negative pattern이면 해당 class
 -> 불확실하면 low-confidence actionable 후보로 NLU에 전달하거나
@@ -367,7 +367,7 @@ relevance가 `actionable`이 아닌 경우에는 inventory event를 생성하지
 {
   "relevance": "actionable",
   "relevance_confidence": 0.93,
-  "relevance_version": "rules-v1"
+  "relevance_version": "rules-relevance-v1"
 }
 ```
 
@@ -700,7 +700,7 @@ actions
   "resolution": {},
   "routing": {},
   "pipeline": {
-    "relevance_version": "rules-v1",
+    "relevance_version": "rules-relevance-v1",
     "nlu_version": "rules-v3",
     "normalizer_version": "normalizers-v1",
     "resolver_version": "resolver-v1",
@@ -833,11 +833,11 @@ shopping list, media key, annotation export가 동시에 영향을 받는다.
 ### Phase 0: 문서와 contract 고정
 
 - [ ] `Kitchen` domain과 기존 intent 목록을 공식화한다.
-- [ ] relevance 네 가지 class와 `unknown`의 의미를 분리한다.
+- [x] relevance 네 가지 class와 `unknown`의 의미를 분리한다.
 - [ ] multi-action에서 action별 intent 정책을 고정한다.
-- [ ] `Interpretation` additive fields를 설계한다.
-- [ ] stage 이름과 version 규칙을 고정한다.
-- [ ] stage별 error code 목록을 만든다.
+- [x] `Interpretation` additive fields를 설계한다.
+- [x] stage 이름과 version 규칙을 고정한다.
+- [x] stage별 reason code 목록을 만든다.
 
 완료 조건:
 
@@ -848,11 +848,11 @@ shopping list, media key, annotation export가 동시에 영향을 받는다.
 
 ### Phase 1: Runtime relevance gate
 
-- [ ] `apps/api/src/nlp/relevance.ts`를 추가한다.
-- [ ] 기존 annotation relevance convention을 runtime output에 연결한다.
-- [ ] actionable과 non-actionable을 inference log에 함께 기록한다.
-- [ ] non-actionable과 user-rejected outcome을 구분한다.
-- [ ] low-confidence relevance policy를 결정한다.
+- [x] `apps/api/src/nlp/relevance.ts`를 추가한다.
+- [x] 기존 annotation relevance convention을 runtime output에 연결한다.
+- [x] actionable과 non-actionable을 inference log에 함께 기록한다.
+- [x] non-actionable과 user-rejected outcome을 구분한다.
+- [x] low-confidence relevance policy를 결정한다.
 - [ ] relevance classifier의 독립 test set을 만든다.
 
 권장 initial behavior:

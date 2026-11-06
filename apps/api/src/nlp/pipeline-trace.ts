@@ -34,6 +34,19 @@ export function appendStageTrace(
   };
 }
 
+export function buildPipelineTrace(
+  pipelineVersion: string,
+  stages: readonly unknown[],
+  terminalStage: PipelineStage,
+  outcome: PipelineOutcome,
+): PipelineTrace {
+  let trace = createPipelineTrace(pipelineVersion);
+  for (const stage of stages) {
+    trace = appendStageTrace(trace, stage);
+  }
+  return finalizePipelineTrace(trace, terminalStage, outcome);
+}
+
 export function finalizePipelineTrace(
   trace: PipelineTraceBuilder,
   terminalStage: PipelineStage,

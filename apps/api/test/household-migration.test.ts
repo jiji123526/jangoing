@@ -18,6 +18,7 @@ describe("household ownership migration", () => {
     database.exec(migration("0001_create_events.sql"));
     database.exec(migration("0003_create_inference_logs.sql"));
     database.exec(migration("0022_add_pipeline_trace.sql"));
+    database.exec(migration("0023_add_inference_relevance.sql"));
     database.exec(migration("0010_create_app_state.sql"));
     database.exec(migration("0012_add_household_ownership.sql"));
     database.exec(migration("0013_enforce_single_household_membership.sql"));

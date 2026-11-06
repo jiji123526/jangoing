@@ -43,6 +43,8 @@ for dependencies and exit criteria.
 
 ### Phase 0: Contracts and trace
 
+- [x] Keep relevance classes distinct from the `unknown` intent.
+- [x] Add additive relevance metadata to `Interpretation`.
 - [x] Define the versioned interpretation request and NLU stage result
   contract. Keep `ActionProposal` for the later routing phase.
 - [x] Add `PipelineTrace` with stage status, version, latency, fallback, and
@@ -52,10 +54,11 @@ for dependencies and exit criteria.
 
 ### Phase 1: Relevance gate
 
-- [ ] Connect reviewed relevance labels to a runtime baseline.
-- [ ] Keep `actionable`, `preference_context`, `domain_non_actionable`, and
+- [x] Connect reviewed relevance labels to a runtime baseline.
+- [x] Keep `actionable`, `contextual_preference`, `domain_non_actionable`, and
   `unrelated` distinct.
-- [ ] Stop unrelated input before NLU/entity resolution/mutation.
+- [x] Stop unrelated input before NLU/entity resolution/mutation.
+- [x] Keep low-confidence kitchen language on the NLU path.
 - [ ] Record relevance false positives and false negatives for annotation.
 
 ### Phase 2: Orchestrator

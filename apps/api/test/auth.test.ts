@@ -200,6 +200,7 @@ describe("consumer auth boundary", () => {
       "0001_create_events.sql",
       "0003_create_inference_logs.sql",
       "0022_add_pipeline_trace.sql",
+      "0023_add_inference_relevance.sql",
       "0012_add_household_ownership.sql",
     ]) {
       database.exec(
