@@ -783,6 +783,48 @@ apps/api/src/
 이 순서를 지키면 새 구조가 현재 annotation과 event sourcing을 깨뜨리지
 않으면서 점진적으로 도입된다.
 
+## 10. 구현 상태
+
+### Step 1 — Stage contract와 PipelineTrace
+
+상태: 계약과 순수 trace helper 구현 완료.
+
+추가된 구성:
+
+- `packages/contracts/src/index.ts`
+  - `PipelineStageSchema`
+  - `StageStatusSchema`
+  - `PipelineOutcomeSchema`
+  - `StageTraceSchema`
+  - `PipelineTraceSchema`
+- `apps/api/src/nlp/pipeline-trace.ts`
+  - trace builder 생성
+  - stage append
+  - 최종 trace 검증
+- `apps/api/test/pipeline-trace.test.ts`
+  - 정상 trace
+  - 불변 append
+  - version 길이 제한
+  - reason code 길이 제한
+
+이번 단계에서는 현재 `/commands/interpret` 동작을 변경하지 않는다. 따라서
+기존 parser의 결과와 public API response는 그대로 유지된다.
+
+또한 `inference_logs`에 trace column을 아직 추가하지 않는다. 실제 runtime
+orchestrator가 trace를 생성하고 저장하는 Step 2에서 migration과 함께
+연결한다. 사용되지 않는 nullable column과 빈 trace row를 먼저 배포하지
+않기 위한 결정이다.
+
+보안·비용 제한:
+
+- trace에는 raw utterance, access token, household profile, arbitrary JSON을
+  저장하지 않는다.
+- stage metadata는 version, status, latency, confidence, 짧은 reason code로
+  제한한다.
+- 배열은 최대 20 stage로 제한한다.
+- reason code와 version의 길이를 제한해 로그 부풀리기와 accidental PII
+  저장 위험을 줄인다.
+
 ## 참고 문서
 
 - [선형 NLU 파이프라인 아키텍처 결정](../decisions/LINEAR_NLU_PIPELINE_ARCHITECTURE.md)

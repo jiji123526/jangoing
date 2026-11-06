@@ -94,6 +94,55 @@ export const LoggedInterpretationSchema = InterpretationSchema.extend({
   latency_ms: z.number().nonnegative(),
 });
 
+export const PipelineStageSchema = z.enum([
+  "activation",
+  "relevance",
+  "correction_hint",
+  "nlu",
+  "normalization",
+  "entity_resolution",
+  "routing",
+  "proposal",
+  "confirmation",
+  "execution",
+]);
+
+export const StageStatusSchema = z.enum([
+  "completed",
+  "skipped",
+  "fallback",
+  "clarify",
+  "rejected",
+  "failed",
+]);
+
+export const PipelineOutcomeSchema = z.enum([
+  "proposal",
+  "clarification",
+  "rejected",
+  "failed",
+]);
+
+export const StageTraceSchema = z
+  .object({
+    stage: PipelineStageSchema,
+    status: StageStatusSchema,
+    version: z.string().trim().min(1).max(80),
+    latency_ms: z.number().nonnegative(),
+    confidence: z.number().min(0).max(1).optional(),
+    reason_code: z.string().trim().min(1).max(100).optional(),
+  })
+  .strict();
+
+export const PipelineTraceSchema = z
+  .object({
+    pipeline_version: z.string().trim().min(1).max(80),
+    stages: z.array(StageTraceSchema).max(20),
+    terminal_stage: PipelineStageSchema,
+    outcome: PipelineOutcomeSchema,
+  })
+  .strict();
+
 export const InferenceOutcomeSchema = z.enum([
   "pending",
   "confirmed",
@@ -807,6 +856,11 @@ export type InterpretCommandRequest = z.infer<
 export type InterpretationAction = z.infer<typeof InterpretationActionSchema>;
 export type Interpretation = z.infer<typeof InterpretationSchema>;
 export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
+export type PipelineStage = z.infer<typeof PipelineStageSchema>;
+export type StageStatus = z.infer<typeof StageStatusSchema>;
+export type PipelineOutcome = z.infer<typeof PipelineOutcomeSchema>;
+export type StageTrace = z.infer<typeof StageTraceSchema>;
+export type PipelineTrace = z.infer<typeof PipelineTraceSchema>;
 export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
 export type EntityLabel = z.infer<typeof EntityLabelSchema>;
 export type EntityAnnotation = z.infer<typeof EntityAnnotationSchema>;
