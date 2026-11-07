@@ -996,12 +996,32 @@ normalizeNluResult()
 
 ### Phase 5: FLARE-style correction layer
 
-- [ ] correction history에서 반복 오류를 집계한다.
-- [ ] reviewed correction만 candidate rule로 만든다.
-- [ ] household scope를 적용한다.
+- [x] correction history에서 반복 오류를 집계하는 pure helper를 추가한다.
+- [x] reviewed correction만 candidate rule로 만든다.
+- [x] household scope를 적용한다.
 - [ ] rewrite 전/후와 적용 version을 기록한다.
-- [ ] shadow mode에서 acceptance/correction rate를 측정한다.
+- [x] shadow mode에서 hint를 candidate resolution에만 전달할 수 있게
+  한다.
 - [ ] 충분한 evidence가 있는 rule만 runtime 적용한다.
+
+현재 구현:
+
+- `apps/api/src/nlp/personal-adapter.ts`의 `buildCorrectionHints()`는
+  corrected interpretation을 catalog canonical key로 확인한 뒤, 같은
+  household에서 최소 2회 반복된 correction만 hint로 만든다.
+- `apps/api/migrations/0024_create_household_entity_aliases.sql`은
+  household-scoped alias의 source, confidence, evidence count, creator,
+  timestamp를 저장한다.
+- `entity-resolution.ts`는 aliases와 correction hints를 명시적으로 전달받을
+  때만 사용한다. household ID가 없거나 일치하지 않으면 개인 데이터를
+  무시한다.
+- hint는 원문을 rewrite하지 않고 resolution candidate로만 추가된다.
+  shared catalog의 canonical truth를 덮어쓰지 않는다.
+
+현재 실사용자가 없으므로 D1 correction 조회와 자동 hint 적용은 연결하지
+않았다. 이를 연결하면 모든 interpretation 요청에 추가 DB 조회가 발생하고,
+검증되지 않은 correction이 즉시 runtime behavior를 바꿀 수 있다. 다음
+evaluation/shadow 단계에서 evidence와 acceptance metric을 확인한 뒤 연결한다.
 
 초기에는 원문을 실제로 변형하기보다 NLU에 alias 또는 candidate hint를
 제공하는 방식이 더 안전하다. 이렇게 하면 원문 span의 provenance를

@@ -987,6 +987,39 @@ high-confidence non-actionable
   연결하지 않는다. 다음 routing 단계에서 정책을 결정한다.
 - catalog를 D1에 복제하지 않아 migration, index, 동기화 비용을 만들지
   않는다.
+
+### Step 6 — Household aliases와 correction reuse
+
+상태: 저장 schema와 안전한 shadow hint builder 적용 완료. D1 자동 조회는
+evaluation 단계까지 보류한다.
+
+구현:
+
+- `apps/api/migrations/0024_create_household_entity_aliases.sql`
+  - household별 alias namespace
+  - source, confidence, evidence count, creator, timestamp
+  - household 삭제 시 cascade와 lookup index
+- `apps/api/src/nlp/personal-adapter.ts`
+  - correction evidence에서 반복 mapping만 추출
+  - 최소 2회 동일 household evidence 요구
+  - catalog canonical key로 검증된 correction만 hint 생성
+- `apps/api/src/nlp/entity-resolution.ts`
+  - household alias와 correction hint를 optional context로 수용
+  - household ID가 일치하지 않는 context는 무시
+  - 원문 rewrite 없이 candidate source와 confidence만 추가
+- `apps/api/src/nlp/pipeline.ts`
+  - `entityResolutionContext` 주입 경계 추가
+  - 기본 runtime은 context 없이 shared catalog만 사용
+
+안전·효율 정책:
+
+- 한 번의 correction으로 alias를 만들지 않는다.
+- personal alias를 shared catalog에 기록하지 않는다.
+- 매 요청마다 D1을 조회하지 않는다.
+- correction hint는 baseline을 대체하지 않고 candidate resolution에만
+  참여한다.
+- 실제 runtime 적용 전에는 hint 적용/미적용 exact match와 ambiguity를
+  비교한다.
 - relevance false-positive/false-negative annotation queue 자동화
 
 ### Phase 2 — Linear pipeline orchestrator

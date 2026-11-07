@@ -82,15 +82,18 @@ for dependencies and exit criteria.
 ### Phase 4: Entity resolution
 
 - [x] Add shared catalog candidate lookup.
-- [ ] Define household-scoped aliases without changing shared catalog truth.
+- [x] Define household-scoped alias storage and authorization boundary without
+  changing shared catalog truth.
 - [x] Return candidate scores and ambiguity instead of silently selecting the
   first match.
-- [ ] Add household-isolation and clarification tests.
+- [x] Add household-isolation tests for alias lookup.
+- [ ] Connect ambiguity to clarification routing.
 
 ### Phase 5: Correction reuse
 
-- [ ] Store correction evidence separately from the original prediction.
-- [ ] Run FLARE-style correction hints in shadow mode first.
+- [x] Store correction evidence separately from the original prediction.
+- [x] Build repeated, household-scoped FLARE-style correction hints in shadow
+  mode.
 - [ ] Compare hint-applied and baseline metrics.
 - [ ] Fall back to the baseline when a hint lowers confidence or increases
   ambiguity.

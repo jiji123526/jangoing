@@ -162,6 +162,10 @@ const inferenceRelevanceMigrationPath = resolve(
   apiDirectory,
   "migrations/0023_add_inference_relevance.sql",
 );
+const householdEntityAliasesMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0024_create_household_entity_aliases.sql",
+);
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
 const localMediaDirectory = resolve(apiDirectory, ".local/item-media");
@@ -320,6 +324,12 @@ const updatedInferenceColumns = database.prepare(
 ).all() as Array<{ name: string }>;
 if (!updatedInferenceColumns.some((column) => column.name === "relevance_class")) {
   database.exec(readFileSync(inferenceRelevanceMigrationPath, "utf8"));
+}
+const householdEntityAliasesTable = database.prepare(
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'household_entity_aliases'",
+).get() as { name?: string } | undefined;
+if (!householdEntityAliasesTable?.name) {
+  database.exec(readFileSync(householdEntityAliasesMigrationPath, "utf8"));
 }
 database.prepare(
   `INSERT INTO households (

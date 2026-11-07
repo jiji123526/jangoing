@@ -22,6 +22,7 @@ describe("household ownership migration", () => {
     database.exec(migration("0010_create_app_state.sql"));
     database.exec(migration("0012_add_household_ownership.sql"));
     database.exec(migration("0013_enforce_single_household_membership.sql"));
+    database.exec(migration("0024_create_household_entity_aliases.sql"));
   });
 
   afterEach(() => {
@@ -73,6 +74,68 @@ describe("household ownership migration", () => {
         "SELECT household_id, user_id FROM inference_logs WHERE id = ?",
       ).get("legacy-inference"),
     ).toEqual({ household_id: null, user_id: null });
+  });
+
+  it("stores aliases with household-scoped uniqueness and bounded confidence", () => {
+    const createdAt = "2026-09-02T00:00:00.000Z";
+    database.prepare(
+      `INSERT INTO households (id, name, created_at, updated_at)
+       VALUES (?, ?, ?, ?)`,
+    ).run("household-alias", "Alias Home", createdAt, createdAt);
+
+    database.prepare(
+      `INSERT INTO household_entity_aliases (
+        id, household_id, surface, normalized_surface, entity_type,
+        canonical_key, category_id, source, confidence, evidence_count,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "alias-1",
+      "household-alias",
+      "white milk",
+      "white milk",
+      "ITEM",
+      "milk",
+      "dairy",
+      "manual",
+      0.99,
+      1,
+      createdAt,
+      createdAt,
+    );
+
+    expect(
+      database.prepare(
+        `SELECT household_id, canonical_key, confidence
+         FROM household_entity_aliases WHERE id = ?`,
+      ).get("alias-1"),
+    ).toEqual({
+      household_id: "household-alias",
+      canonical_key: "milk",
+      confidence: 0.99,
+    });
+    expect(() => {
+      database.prepare(
+        `INSERT INTO household_entity_aliases (
+          id, household_id, surface, normalized_surface, entity_type,
+          canonical_key, category_id, source, confidence, evidence_count,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        "alias-duplicate",
+        "household-alias",
+        "white milk",
+        "white milk",
+        "ITEM",
+        "milk",
+        "dairy",
+        "manual",
+        0.99,
+        1,
+        createdAt,
+        createdAt,
+      );
+    }).toThrow();
   });
 
   it("enforces membership roles and household references", () => {

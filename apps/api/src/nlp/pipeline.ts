@@ -33,6 +33,7 @@ import {
   catalogResolverVersion,
   resolveInterpretationEntities,
   type EntityResolutionResult,
+  type EntityResolutionContext,
 } from "./entity-resolution";
 import {
   resolveTemporalGrounding,
@@ -65,7 +66,9 @@ export interface InterpretationPipelineDependencies {
   ) => NormalizationResult;
   resolveEntities?: (
     interpretation: Interpretation,
+    context?: EntityResolutionContext,
   ) => EntityResolutionResult;
+  entityResolutionContext?: EntityResolutionContext;
 }
 
 function withRelevance(
@@ -198,7 +201,10 @@ export function runInterpretationPipeline(
 
     const resolutionStartedAt = Date.now();
     try {
-      const resolved = runEntityResolution(normalized.interpretation);
+      const resolved = runEntityResolution(
+        normalized.interpretation,
+        dependencies.entityResolutionContext,
+      );
       const interpretation = withRelevance(
         resolved.interpretation,
         relevance,

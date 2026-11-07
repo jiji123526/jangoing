@@ -66,7 +66,11 @@ export const EntityResolutionCandidateSchema = z
     category_id: z.string().trim().min(1).max(80),
     matched_alias: z.string().trim().min(1).max(120),
     score: z.number().min(0).max(1),
-    source: z.literal("shared_catalog"),
+    source: z.enum([
+      "shared_catalog",
+      "household_alias",
+      "correction_hint",
+    ]),
   })
   .strict();
 

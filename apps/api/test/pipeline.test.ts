@@ -142,4 +142,36 @@ describe("interpretation pipeline", () => {
     });
     expect(JSON.stringify(result.trace)).not.toContain("do not persist");
   });
+
+  it("accepts a household-scoped alias without changing the item name", () => {
+    const result = runInterpretationPipeline(
+      { text: "Add white milk" },
+      new Date("2026-11-06T12:00:00.000Z"),
+      {
+        entityResolutionContext: {
+          household_id: "household-a",
+          aliases: [{
+            household_id: "household-a",
+            surface: "white milk",
+            normalized_surface: "white milk",
+            entity_type: "ITEM",
+            canonical_key: "milk",
+            category_id: "dairy",
+            source: "manual",
+            confidence: 0.99,
+            evidence_count: 1,
+          }],
+        },
+      },
+    );
+
+    expect(result.interpretation).toMatchObject({
+      slots: { item_name: "white milk" },
+      entity_resolution: {
+        status: "resolved",
+        canonical_key: "milk",
+        candidates: [{ source: "household_alias" }],
+      },
+    });
+  });
 });
