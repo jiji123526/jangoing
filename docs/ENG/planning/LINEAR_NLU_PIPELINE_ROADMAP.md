@@ -1022,6 +1022,55 @@ evaluation 단계까지 보류한다.
   비교한다.
 - relevance false-positive/false-negative annotation queue 자동화
 
+### Step 7 — Routing과 ActionProposal
+
+상태: deterministic routing과 confirmation-bound proposal 적용 완료.
+
+구현:
+
+- `apps/api/src/nlp/routing.ts`
+  - intent를 허용된 event type으로 명시적으로 매핑한다.
+  - mutation, read-only, clarification, reject를 구분한다.
+  - destructive mutation risk와 clarification reason을 계산한다.
+  - action별 proposal을 유지하고 batch event 순서를 검증한다.
+- `apps/api/src/nlp/pipeline.ts`
+  - entity resolution 뒤에 `routing`과 `proposal` stage를 추가한다.
+  - `PipelineTrace`의 terminal stage를 proposal로 기록한다.
+- `packages/contracts/src/index.ts`
+  - `RoutingResultSchema`
+  - `ActionProposalSchema`
+  - `LoggedInterpretation`의 routing/proposal 응답 필드
+- `/events`, `/events/batch`
+  - browser의 원래 interpretation과 parser version을 신뢰하지 않는다.
+  - pending inference에 저장된 interpretation에서 proposal을 재계산한다.
+  - action count와 event type 순서가 일치할 때만 event를 append한다.
+
+정책:
+
+- ambiguous entity와 필수 품목명 누락은 clarification으로 보낸다.
+- catalog에 없는 unresolved 품목은 metadata를 보존한 mutation proposal로
+  보낼 수 있지만, confirmation 없이는 event를 만들지 않는다.
+- proposal은 state를 변경하지 않는다.
+- proposal 전용 table, queue, learned ranker는 추가하지 않는다. 현재는
+  저장된 inference에서 결정론적으로 재구성하는 편이 중복 상태와 비용이
+  적다.
+
+남은 안전성 작업:
+
+- event insertion transaction
+- 명시적 idempotency key
+- routing/clarification slice의 offline evaluation
+
+검증:
+
+- routing unit test
+- 정상 mutation의 routing/proposal trace
+- read-only query가 mutation으로 변환되지 않는지 검증
+- unresolved custom item의 confirmation 경계 검증
+- household batch event proposal 검증
+
+---
+
 ### Phase 2 — Linear pipeline orchestrator
 
 상태: Worker와 local development server가 공통 orchestrator를 사용하도록

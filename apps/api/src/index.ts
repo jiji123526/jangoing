@@ -50,6 +50,11 @@ import {
 } from "./domain/fridge-setup";
 import { runInterpretationPipeline } from "./nlp/pipeline";
 import {
+  buildActionProposal,
+  confirmedEventTypesMatchProposal,
+  routeInterpretation,
+} from "./nlp/routing";
+import {
   resolveStoredTemporalGrounding,
 } from "./nlp/temporal-grounding";
 import {
@@ -588,6 +593,10 @@ async function handleInterpret(
     inference_id: inferenceId,
     parser_version: pipeline.parserVersion,
     latency_ms: latencyMs,
+    ...(pipeline.routing ? { routing: pipeline.routing } : {}),
+    ...(pipeline.proposal
+      ? { proposal: { ...pipeline.proposal, proposal_id: inferenceId } }
+      : {}),
   });
 }
 
@@ -885,7 +894,7 @@ async function handleCreateEvent(
 
   const submission = parsed.data;
   const pendingInference = await env.DB.prepare(
-    `SELECT id FROM inference_logs
+    `SELECT id, predicted_interpretation, parser_version FROM inference_logs
      WHERE id = ? AND outcome = 'pending'
        AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
@@ -894,6 +903,23 @@ async function handleCreateEvent(
   ).first();
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
+  }
+  const storedInterpretation = parseStoredInterpretation(
+    String(pendingInference.predicted_interpretation),
+  );
+  const proposal = buildActionProposal(
+    storedInterpretation,
+    routeInterpretation(storedInterpretation),
+  );
+  if (
+    !confirmedEventTypesMatchProposal(proposal, [submission.event.event_type])
+  ) {
+    return json(
+      request,
+      env,
+      { error: "Event does not match the pending action proposal" },
+      409,
+    );
   }
 
   const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
@@ -934,10 +960,10 @@ async function handleCreateEvent(
 
   const correctedInterpretation = buildCorrectedInterpretation([event]);
   const predicted = {
-    intent: submission.original_interpretation.intent,
-    slots: submission.original_interpretation.slots,
-    ...(submission.original_interpretation.actions
-      ? { actions: submission.original_interpretation.actions }
+    intent: storedInterpretation.intent,
+    slots: storedInterpretation.slots,
+    ...(storedInterpretation.actions
+      ? { actions: storedInterpretation.actions }
       : {}),
   };
 
@@ -953,7 +979,7 @@ async function handleCreateEvent(
       event.raw_utterance,
       JSON.stringify(predicted),
       JSON.stringify(correctedInterpretation),
-      submission.parser_version,
+      String(pendingInference.parser_version),
       JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
       event.created_at,
     )
@@ -994,7 +1020,7 @@ async function handleCreateEvents(
 
   const submission = parsed.data;
   const pendingInference = await env.DB.prepare(
-    `SELECT id FROM inference_logs
+    `SELECT id, predicted_interpretation, parser_version FROM inference_logs
      WHERE id = ? AND outcome = 'pending'
        AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
@@ -1003,6 +1029,26 @@ async function handleCreateEvents(
   ).first();
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
+  }
+  const storedInterpretation = parseStoredInterpretation(
+    String(pendingInference.predicted_interpretation),
+  );
+  const proposal = buildActionProposal(
+    storedInterpretation,
+    routeInterpretation(storedInterpretation),
+  );
+  if (
+    !confirmedEventTypesMatchProposal(
+      proposal,
+      submission.events.map((event) => event.event_type),
+    )
+  ) {
+    return json(
+      request,
+      env,
+      { error: "Events do not match the pending action proposal" },
+      409,
+    );
   }
 
   const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
@@ -1043,10 +1089,10 @@ async function handleCreateEvents(
 
   const correctedInterpretation = buildCorrectedInterpretation(events);
   const predicted = {
-    intent: submission.original_interpretation.intent,
-    slots: submission.original_interpretation.slots,
-    ...(submission.original_interpretation.actions
-      ? { actions: submission.original_interpretation.actions }
+    intent: storedInterpretation.intent,
+    slots: storedInterpretation.slots,
+    ...(storedInterpretation.actions
+      ? { actions: storedInterpretation.actions }
       : {}),
   };
 
@@ -1061,7 +1107,7 @@ async function handleCreateEvents(
     events[0].raw_utterance,
     JSON.stringify(predicted),
     JSON.stringify(correctedInterpretation),
-    submission.parser_version,
+    String(pendingInference.parser_version),
     JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
     events[0].created_at,
   ).run();

@@ -609,6 +609,66 @@ Action Executor
 서버는 `inference_logs.predicted_interpretation`을 기준으로 원래 prediction을
 확인해야 한다. browser payload는 사용자의 수정 결과로만 취급한다.
 
+#### Step 7 현재 구현
+
+별도 proposal 테이블이나 queue를 만들지 않고, 이미 저장된
+`inference_logs.predicted_interpretation`과 pending outcome을 proposal의
+source of truth로 사용한다.
+
+```text
+interpretation
+  -> entity resolution metadata
+  -> routeInterpretation()
+  -> buildActionProposal()
+  -> 사용자 확인
+  -> 서버가 저장된 interpretation으로 proposal 재계산
+  -> event type / action count 검증
+  -> event append
+```
+
+추가된 계약은 다음과 같다.
+
+- `RoutingResult`: `routable`, `read_only`, `clarify`, `reject` 상태와
+  reason, mutation risk, 허용 event type을 표현한다.
+- `ActionProposal`: mutation/read-only/clarification/rejected 결과를 표현하며,
+  mutation proposal은 action별 `event_type`과 confirmation을 요구한다.
+- `LoggedInterpretation`: API 응답에서 routing과 proposal을 함께 전달할 수
+  있다.
+
+초기 정책은 의도적으로 작게 유지한다.
+
+- 지원되는 mutation intent만 명시적으로 event type에 매핑한다.
+- `query_inventory`는 read-only proposal이며 event를 만들지 않는다.
+- `ambiguous` entity, 필수 품목명 누락, unknown intent는 clarification으로
+  보낸다.
+- catalog에 없는 품목은 `unresolved` metadata를 보존한 채 mutation proposal로
+  보낼 수 있다. 최종 변경은 confirmation 뒤에만 수행하므로 사용자 고유
+  품목을 catalog에 강제로 등록하지 않으면서 기능을 막지 않는다.
+- event executor 매핑이 없는 `update_expiry` 같은 intent는 reject한다.
+
+확인 executor의 보안 규칙:
+
+- 클라이언트의 `original_interpretation`을 prediction의 source로 사용하지
+  않는다.
+- 클라이언트의 `parser_version`을 사용하지 않고 pending inference에 저장된
+  값을 사용한다.
+- `/events`와 `/events/batch` 모두 서버 proposal의 action 수와 event type
+  순서를 비교한다.
+- pending inference가 아니거나 household scope가 다르면 실행하지 않는다.
+- routing/proposal은 state를 변경하지 않으며 event append는 confirmation
+  executor에서만 수행한다.
+
+의도적으로 추가하지 않은 것:
+
+- proposal 전용 DB table과 별도 lifecycle 상태
+- routing queue, service, learned ranker
+- unresolved 품목의 자동 catalog 등록
+
+현재 단일 event와 batch event는 동일한 pure proposal 검증 helper를 공유한다.
+event insertion transaction과 명시적 idempotency key는 다음 안전성 작업으로
+남겨 둔다. 실제 사용자가 없는 현재 단계에서 더 큰 실행 계층을 만들면
+중복 상태와 복잡성만 먼저 증가하기 때문이다.
+
 ### 4.9 Confirmation / Correction
 
 모든 state-changing action은 confidence가 높아도 확인한다.
@@ -1029,20 +1089,22 @@ evaluation/shadow 단계에서 evidence와 acceptance metric을 확인한 뒤 �
 
 ### Phase 6: Dynamic routing과 proposal
 
-- [ ] `RoutingResult`와 `ActionProposal` contract를 추가한다.
-- [ ] single candidate, ambiguous candidate, unsupported request,
-  non-actionable 결과를 구분한다.
-- [ ] routing confidence와 clarification reason을 기록한다.
-- [ ] browser가 제출한 prediction을 신뢰하지 않고 서버의 pending
+- [x] `RoutingResult`와 `ActionProposal` contract를 추가한다.
+- [x] supported mutation, read-only query, ambiguous candidate,
+  unsupported request를 구분한다.
+- [x] mutation risk와 clarification reason을 기록한다.
+- [x] browser가 제출한 prediction을 신뢰하지 않고 서버의 pending
   inference를 source of truth로 사용한다.
-- [ ] 단일 event와 batch event의 executor를 공통화한다.
+- [x] 단일 event와 batch event가 동일한 proposal 검증 helper를 사용한다.
+- [ ] event insertion transaction과 idempotency를 강화한다.
 
 완료 조건:
 
-- proposal 생성은 state를 변경하지 않는다.
-- confirmation이 없으면 event가 생성되지 않는다.
-- 동일 inference를 두 번 commit할 수 없다.
-- 모든 event는 proposal/inference와 추적 가능하게 연결된다.
+- [x] proposal 생성은 state를 변경하지 않는다.
+- [x] confirmation이 없으면 event가 생성되지 않는다.
+- [x] 동일 inference는 pending 상태 검증을 통과해야만 commit할 수 있다.
+- [x] 모든 event는 inference와 추적 가능하게 연결된다.
+- [ ] event insertion transaction과 명시적 idempotency key를 추가한다.
 
 ### Phase 7: Stage-level evaluation
 

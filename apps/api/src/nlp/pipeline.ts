@@ -3,6 +3,8 @@ import {
   type InferenceOutcome,
   type InterpretCommandRequest,
   type Interpretation,
+  type ActionProposal,
+  type RoutingResult,
 } from "@jangoing/contracts";
 import {
   buildNonActionableInterpretation,
@@ -22,6 +24,7 @@ import {
 } from "./pipeline-trace";
 import {
   StageTraceSchema,
+  type StageTrace,
   type PipelineTrace,
 } from "./pipeline-contracts";
 import {
@@ -39,6 +42,12 @@ import {
   resolveTemporalGrounding,
   type TemporalGroundingContext,
 } from "./temporal-grounding";
+import {
+  buildActionProposal,
+  buildProposalTrace,
+  buildRoutingTrace,
+  routeInterpretation,
+} from "./routing";
 
 export type PipelineControl =
   | "continue"
@@ -56,6 +65,8 @@ export interface InterpretationPipelineResult {
   inferenceOutcome: InferenceOutcome;
   parserVersion: string;
   normalizerVersion: string;
+  routing?: RoutingResult;
+  proposal?: ActionProposal;
 }
 
 export interface InterpretationPipelineDependencies {
@@ -162,9 +173,6 @@ export function runInterpretationPipeline(
   const normalizationStartedAt = Date.now();
   try {
     const normalized = runNormalization(nlu.nlu, temporalContext);
-    const isClarification =
-      normalized.interpretation.intent === "unknown" ||
-      normalized.interpretation.intent === "needs_clarification";
     const hasEntityToResolve = Boolean(
       normalized.interpretation.slots.item_name ||
       normalized.interpretation.actions?.some((action) =>
@@ -172,88 +180,83 @@ export function runInterpretationPipeline(
       ),
     );
 
-    if (!hasEntityToResolve) {
-      const interpretation = withRelevance(
-        normalized.interpretation,
-        relevance,
-      );
+    let interpreted = normalized.interpretation;
+    const stages: StageTrace[] = [relevance.trace, nlu.trace, normalized.trace];
 
-      return {
-        relevance,
-        interpretation,
-        trace: buildPipelineTrace(
-          linearPipelineVersion,
-          [relevance.trace, nlu.trace, normalized.trace],
-          "normalization",
-          isClarification ? "clarification" : "proposal",
-        ),
-        temporalContext,
-        control: isClarification
-          ? "clarify"
-          : relevance.trace.status === "fallback"
-            ? "fallback"
-            : "continue",
-        inferenceOutcome: "pending",
-        parserVersion: rulesNluVersion,
-        normalizerVersion,
-      };
+    if (hasEntityToResolve) {
+      const resolutionStartedAt = Date.now();
+      try {
+        const resolved = runEntityResolution(
+          normalized.interpretation,
+          dependencies.entityResolutionContext,
+        );
+        interpreted = resolved.interpretation;
+        stages.push(resolved.trace);
+      } catch {
+        const failedStage = StageTraceSchema.parse({
+          stage: "entity_resolution",
+          status: "failed",
+          version: catalogResolverVersion,
+          latency_ms: Date.now() - resolutionStartedAt,
+          reason_code: "catalog_resolution_failure",
+        });
+
+        return {
+          relevance,
+          interpretation: failedInterpretation(request, relevance),
+          trace: buildPipelineTrace(
+            linearPipelineVersion,
+            [...stages, failedStage],
+            "entity_resolution",
+            "failed",
+          ),
+          temporalContext,
+          control: "fail",
+          inferenceOutcome: "failed",
+          parserVersion: rulesNluVersion,
+          normalizerVersion,
+        };
+      }
     }
 
-    const resolutionStartedAt = Date.now();
-    try {
-      const resolved = runEntityResolution(
-        normalized.interpretation,
-        dependencies.entityResolutionContext,
-      );
-      const interpretation = withRelevance(
-        resolved.interpretation,
-        relevance,
-      );
+    const interpretation = withRelevance(interpreted, relevance);
+    const routingStartedAt = Date.now();
+    const routing = routeInterpretation(interpretation);
+    const routingTrace = buildRoutingTrace(routing, routingStartedAt);
+    const proposalStartedAt = Date.now();
+    const proposal = buildActionProposal(interpretation, routing);
+    const proposalTrace = buildProposalTrace(routing, proposalStartedAt);
+    const outcome =
+      routing.status === "clarify"
+        ? "clarification"
+        : routing.status === "reject"
+          ? "rejected"
+          : "proposal";
 
-      return {
-        relevance,
-        interpretation,
-        trace: buildPipelineTrace(
-          linearPipelineVersion,
-          [relevance.trace, nlu.trace, normalized.trace, resolved.trace],
-          "entity_resolution",
-          isClarification ? "clarification" : "proposal",
-        ),
-        temporalContext,
-        control: isClarification
+    return {
+      relevance,
+      interpretation,
+      trace: buildPipelineTrace(
+        linearPipelineVersion,
+        [...stages, routingTrace, proposalTrace],
+        "proposal",
+        outcome,
+      ),
+      temporalContext,
+      control:
+        routing.status === "clarify"
           ? "clarify"
-          : relevance.trace.status === "fallback"
-            ? "fallback"
-            : "continue",
-        inferenceOutcome: "pending",
-        parserVersion: rulesNluVersion,
-        normalizerVersion,
-      };
-    } catch {
-      const failedStage = StageTraceSchema.parse({
-        stage: "entity_resolution",
-        status: "failed",
-        version: catalogResolverVersion,
-        latency_ms: Date.now() - resolutionStartedAt,
-        reason_code: "catalog_resolution_failure",
-      });
-
-      return {
-        relevance,
-        interpretation: failedInterpretation(request, relevance),
-        trace: buildPipelineTrace(
-          linearPipelineVersion,
-          [relevance.trace, nlu.trace, normalized.trace, failedStage],
-          "entity_resolution",
-          "failed",
-        ),
-        temporalContext,
-        control: "fail",
-        inferenceOutcome: "failed",
-        parserVersion: rulesNluVersion,
-        normalizerVersion,
-      };
-    }
+          : routing.status === "reject"
+            ? "reject"
+            : relevance.trace.status === "fallback"
+              ? "fallback"
+              : "continue",
+      inferenceOutcome: routing.status === "reject" ? "rejected" : "pending",
+      parserVersion: rulesNluVersion,
+      normalizerVersion,
+      routing,
+      proposal,
+    };
   } catch {
     const failedStage = StageTraceSchema.parse({
       stage: "normalization",

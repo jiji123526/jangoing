@@ -58,6 +58,11 @@ import {
 } from "./domain/fridge-setup";
 import { runInterpretationPipeline } from "./nlp/pipeline";
 import {
+  buildActionProposal,
+  confirmedEventTypesMatchProposal,
+  routeInterpretation,
+} from "./nlp/routing";
+import {
   resolveStoredTemporalGrounding,
 } from "./nlp/temporal-grounding";
 import {
@@ -590,6 +595,10 @@ async function route(
     );
     sendJson(response, origin, {
       ...result, inference_id: inferenceId, parser_version: pipeline.parserVersion, latency_ms: latencyMs,
+      ...(pipeline.routing ? { routing: pipeline.routing } : {}),
+      ...(pipeline.proposal
+        ? { proposal: { ...pipeline.proposal, proposal_id: inferenceId } }
+        : {}),
     });
     return;
   }
@@ -871,10 +880,30 @@ async function route(
 
     const submission = parsed.data;
     const pendingInference = database.prepare(
-      "SELECT id FROM inference_logs WHERE id = ? AND outcome = 'pending'",
+      "SELECT id, predicted_interpretation, parser_version FROM inference_logs WHERE id = ? AND outcome = 'pending'",
     ).get(submission.inference_id);
     if (!pendingInference) {
       sendJson(response, origin, { error: "Pending inference not found" }, 409);
+      return;
+    }
+    const storedInterpretation = parseStoredInterpretation(
+      String((pendingInference as {
+        predicted_interpretation: string;
+      }).predicted_interpretation),
+    );
+    const proposal = buildActionProposal(
+      storedInterpretation,
+      routeInterpretation(storedInterpretation),
+    );
+    if (
+      !confirmedEventTypesMatchProposal(proposal, [submission.event.event_type])
+    ) {
+      sendJson(
+        response,
+        origin,
+        { error: "Event does not match the pending action proposal" },
+        409,
+      );
       return;
     }
     const event: EventRecord = {
@@ -920,8 +949,11 @@ async function route(
       item_low_threshold_set: "set_low_threshold",
     } as const;
     const predicted = {
-      intent: submission.original_interpretation.intent,
-      slots: submission.original_interpretation.slots,
+      intent: storedInterpretation.intent,
+      slots: storedInterpretation.slots,
+      ...(storedInterpretation.actions
+        ? { actions: storedInterpretation.actions }
+        : {}),
     };
     const corrected = {
       intent: Object.entries(intentByEventType).find(
@@ -948,7 +980,7 @@ async function route(
     ).run(
       crypto.randomUUID(), event.id, event.raw_utterance,
       JSON.stringify(predicted), JSON.stringify(corrected),
-      submission.parser_version,
+      String((pendingInference as { parser_version: string }).parser_version),
       JSON.stringify(predicted) === JSON.stringify(corrected) ? 0 : 1,
       event.created_at,
     );

@@ -22,14 +22,24 @@ describe("interpretation pipeline", () => {
         },
       },
       trace: {
-        terminal_stage: "entity_resolution",
+        terminal_stage: "proposal",
         outcome: "proposal",
         stages: [
           { stage: "relevance", status: "completed" },
           { stage: "nlu", status: "completed" },
           { stage: "normalization", status: "completed" },
           { stage: "entity_resolution", status: "completed" },
+          { stage: "routing", status: "completed" },
+          { stage: "proposal", status: "completed" },
         ],
+      },
+      routing: {
+        status: "routable",
+        event_types: ["item_added"],
+      },
+      proposal: {
+        kind: "mutation",
+        requires_confirmation: true,
       },
     });
   });
@@ -68,12 +78,18 @@ describe("interpretation pipeline", () => {
       control: "clarify",
       inferenceOutcome: "pending",
       trace: {
-        terminal_stage: "normalization",
+        terminal_stage: "proposal",
         stages: [
           { stage: "relevance", status: "fallback" },
           { stage: "nlu", status: "completed" },
           { stage: "normalization", status: "completed" },
+          { stage: "routing", status: "clarify" },
+          { stage: "proposal", status: "clarify" },
         ],
+      },
+      proposal: {
+        kind: "clarification",
+        clarification_reason: "unknown_intent",
       },
     });
   });

@@ -100,10 +100,13 @@ for dependencies and exit criteria.
 
 ### Phase 6: Routing and proposal safety
 
-- [ ] Define mutation risk and confirmation policy by action type.
-- [ ] Add proposal states from draft through confirmed/cancelled/executed.
-- [ ] Preserve per-action structure for multi-action requests.
-- [ ] Ensure event execution accepts only confirmed proposals.
+- [x] Define mutation risk and confirmation policy by action type.
+- [ ] Add a proposal table; the current implementation derives proposals from
+  pending inferences to avoid duplicate state.
+- [x] Preserve per-action structure for multi-action requests.
+- [x] Ensure event execution accepts only event types from the server-derived
+  confirmed proposal.
+- [ ] Add transaction/idempotency guarantees around event insertion.
 
 ### Phase 7: Stage evaluation
 

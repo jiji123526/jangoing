@@ -154,12 +154,6 @@ export const InterpretationSchema = z
   })
   .strict();
 
-export const LoggedInterpretationSchema = InterpretationSchema.extend({
-  inference_id: z.string().uuid(),
-  parser_version: z.string(),
-  latency_ms: z.number().nonnegative(),
-});
-
 export const InferenceOutcomeSchema = z.enum([
   "pending",
   "not_actionable",
@@ -559,6 +553,78 @@ export const EventTypeSchema = z.enum([
   "item_removed",
 ]);
 
+export const RoutingResultSchema = z
+  .object({
+    status: z.enum(["routable", "read_only", "clarify", "reject"]),
+    reason_code: z.enum([
+      "supported_mutation",
+      "read_only_query",
+      "missing_item",
+      "ambiguous_entity",
+      "unresolved_entity",
+      "unknown_intent",
+      "unsupported_intent",
+    ]),
+    mutation_risk: z.enum(["none", "reversible", "destructive"]),
+    event_types: z.array(EventTypeSchema).max(8),
+    router_version: z.string().trim().min(1).max(80),
+  })
+  .strict();
+
+export const ActionProposalActionSchema = InterpretationActionSchema.extend({
+  event_type: EventTypeSchema.optional(),
+}).strict();
+
+export const ActionProposalSchema = z
+  .object({
+    proposal_id: z.string().uuid().optional(),
+    kind: z.enum(["mutation", "read_only", "clarification", "rejected"]),
+    requires_confirmation: z.boolean(),
+    mutation_risk: z.enum(["none", "reversible", "destructive"]),
+    actions: z.array(ActionProposalActionSchema).max(8),
+    clarification_reason: z
+      .enum([
+        "missing_item",
+        "ambiguous_entity",
+        "unresolved_entity",
+        "unknown_intent",
+      ])
+      .optional(),
+    proposal_version: z.string().trim().min(1).max(80),
+  })
+  .strict()
+  .superRefine((proposal, context) => {
+    if (
+      proposal.kind === "mutation" &&
+      (proposal.actions.length === 0 ||
+        proposal.actions.some((action) => !action.event_type))
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["actions"],
+        message: "Mutation proposals require an event type for every action",
+      });
+    }
+    if (
+      proposal.kind === "clarification" &&
+      proposal.clarification_reason === undefined
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["clarification_reason"],
+        message: "Clarification proposals require a reason",
+      });
+    }
+  });
+
+export const LoggedInterpretationSchema = InterpretationSchema.extend({
+  inference_id: z.string().uuid(),
+  parser_version: z.string(),
+  latency_ms: z.number().nonnegative(),
+  routing: RoutingResultSchema.optional(),
+  proposal: ActionProposalSchema.optional(),
+});
+
 export const InventoryCategorySchema = z.enum([
   "leftovers",
   "frozen",
@@ -871,6 +937,8 @@ export type InterpretCommandRequest = z.infer<
 >;
 export type InterpretationAction = z.infer<typeof InterpretationActionSchema>;
 export type Interpretation = z.infer<typeof InterpretationSchema>;
+export type RoutingResult = z.infer<typeof RoutingResultSchema>;
+export type ActionProposal = z.infer<typeof ActionProposalSchema>;
 export type LoggedInterpretation = z.infer<typeof LoggedInterpretationSchema>;
 export type InferenceOutcome = z.infer<typeof InferenceOutcomeSchema>;
 export type EntityLabel = z.infer<typeof EntityLabelSchema>;
