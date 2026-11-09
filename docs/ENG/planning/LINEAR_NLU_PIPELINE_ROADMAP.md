@@ -1044,6 +1044,13 @@ evaluation 단계까지 보류한다.
   - browser의 원래 interpretation과 parser version을 신뢰하지 않는다.
   - pending inference에 저장된 interpretation에서 proposal을 재계산한다.
   - action count와 event type 순서가 일치할 때만 event를 append한다.
+- `apps/api/migrations/0025_add_inference_commit_keys.sql`
+  - `events(inference_id, action_index)` composite idempotency key
+  - unique index로 single/batch 중복 commit을 차단한다.
+- Worker D1 batch와 local SQLite transaction으로 event, correction,
+  inference outcome, projection 갱신을 함께 commit한다.
+- 동일 confirmation retry는 기존 event를 `200`으로 반환하고 event를
+  추가하지 않는다.
 
 정책:
 
@@ -1057,8 +1064,6 @@ evaluation 단계까지 보류한다.
 
 남은 안전성 작업:
 
-- event insertion transaction
-- 명시적 idempotency key
 - routing/clarification slice의 offline evaluation
 
 검증:

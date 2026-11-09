@@ -106,7 +106,9 @@ for dependencies and exit criteria.
 - [x] Preserve per-action structure for multi-action requests.
 - [x] Ensure event execution accepts only event types from the server-derived
   confirmed proposal.
-- [ ] Add transaction/idempotency guarantees around event insertion.
+- [x] Add transaction/idempotency guarantees around event insertion.
+- [x] Persist `events(inference_id, action_index)` with a unique commit key.
+- [x] Return the already committed event(s) for safe confirmation retries.
 
 ### Phase 7: Stage evaluation
 

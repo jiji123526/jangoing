@@ -205,6 +205,7 @@ describe("household consumer-data isolation", () => {
       "0021_optimize_household_event_order.sql",
       "0022_add_pipeline_trace.sql",
       "0023_add_inference_relevance.sql",
+      "0025_add_inference_commit_keys.sql",
     ]) {
       database.exec(
         readFileSync(resolve(import.meta.dirname, `../migrations/${name}`), "utf8"),
@@ -700,48 +701,59 @@ describe("household consumer-data isolation", () => {
     };
     expect(interpretation.slots.item_name).toBe("egg");
 
+    const confirmationPayload = {
+      inference_id: interpretation.inference_id,
+      event: {
+        event_type: "item_marked_low",
+        item_name: interpretation.slots.item_name,
+        quantity: null,
+        unit: null,
+        location: null,
+        expiration_date: null,
+        low_threshold: null,
+        raw_utterance: interpretation.raw_utterance,
+        confidence: interpretation.confidence,
+        source: "web",
+      },
+      original_interpretation: {
+        intent: interpretation.intent,
+        slots: interpretation.slots,
+        confidence: interpretation.confidence,
+        requires_confirmation: interpretation.requires_confirmation,
+        raw_utterance: interpretation.raw_utterance,
+      },
+      parser_version: "rules-v2",
+    };
     const confirmed = await request(
       "/events",
       {
         method: "POST",
-        body: JSON.stringify({
-          inference_id: interpretation.inference_id,
-          event: {
-            event_type: "item_marked_low",
-            item_name: interpretation.slots.item_name,
-            quantity: null,
-            unit: null,
-            location: null,
-            expiration_date: null,
-            low_threshold: null,
-            raw_utterance: interpretation.raw_utterance,
-            confidence: interpretation.confidence,
-            source: "web",
-          },
-          original_interpretation: {
-            intent: interpretation.intent,
-            slots: interpretation.slots,
-            confidence: interpretation.confidence,
-            requires_confirmation: interpretation.requires_confirmation,
-            raw_utterance: interpretation.raw_utterance,
-          },
-          parser_version: "rules-v2",
-        }),
+        body: JSON.stringify(confirmationPayload),
       },
       tokenA,
     );
 
     expect(confirmed.status).toBe(201);
     expect(await confirmed.json()).toMatchObject({ item_name: "eggs" });
+    const retry = await request(
+      "/events",
+      {
+        method: "POST",
+        body: JSON.stringify(confirmationPayload),
+      },
+      tokenA,
+    );
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ item_name: "eggs" });
     expect(
       database.prepare(
-        `SELECT item_name
+        `SELECT COUNT(*) AS count
          FROM events
          WHERE household_id = ? AND event_type = 'item_marked_low'
          ORDER BY created_at DESC
          LIMIT 1`,
       ).get(householdA),
-    ).toEqual({ item_name: "eggs" });
+    ).toEqual({ count: 1 });
   });
 
   it("creates multiple shopping events from one interpreted command", async () => {
@@ -817,6 +829,39 @@ describe("household consumer-data isolation", () => {
         { item_name: "ice cream", event_type: "item_added_to_buy", quantity: 1 },
       ],
     });
+    const retry = await request(
+      "/events/batch",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          inference_id: interpretation.inference_id,
+          events: interpretation.actions?.map((action) => ({
+            event_type: "item_added_to_buy",
+            item_name: action.slots.item_name,
+            quantity: action.slots.quantity ?? null,
+            unit: action.slots.unit ?? null,
+            location: action.slots.location ?? null,
+            expiration_date: action.slots.expiration_date ?? null,
+            low_threshold: null,
+            raw_utterance: interpretation.raw_utterance,
+            confidence: interpretation.confidence,
+            source: "web",
+          })),
+          original_interpretation: {
+            intent: interpretation.intent,
+            slots: interpretation.slots,
+            actions: interpretation.actions,
+            confidence: interpretation.confidence,
+            requires_confirmation: interpretation.requires_confirmation,
+            raw_utterance: interpretation.raw_utterance,
+          },
+          parser_version: "rules-v2",
+        }),
+      },
+      tokenA,
+    );
+    expect(retry.status).toBe(200);
+    expect((await retry.json() as { events: unknown[] }).events).toHaveLength(4);
     expect(
       database.prepare(
         `SELECT item_name, quantity

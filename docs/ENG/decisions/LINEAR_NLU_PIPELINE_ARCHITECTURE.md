@@ -665,9 +665,21 @@ interpretation
 - unresolved 품목의 자동 catalog 등록
 
 현재 단일 event와 batch event는 동일한 pure proposal 검증 helper를 공유한다.
-event insertion transaction과 명시적 idempotency key는 다음 안전성 작업으로
-남겨 둔다. 실제 사용자가 없는 현재 단계에서 더 큰 실행 계층을 만들면
-중복 상태와 복잡성만 먼저 증가하기 때문이다.
+추가로 `0025_add_inference_commit_keys.sql`에서
+`events(inference_id, action_index)`를 저장하고 unique index를 적용한다.
+이 composite key가 확인 commit의 명시적 idempotency key다. 기존 event에는
+nullable로 추가되어 과거 event replay를 깨지 않는다.
+
+event insert, correction insert, inference outcome 변경, projection
+write/invalidation은 Worker에서 하나의 D1 batch로 실행한다. local SQLite도
+동일한 commit을 transaction으로 감싼다. 중복 retry는 저장된 event를
+재사용해 `200`으로 반환하고, 새로운 event를 만들지 않는다. 최초 commit은
+`201`을 반환한다.
+
+이 방식은 별도 proposal table이나 queue를 추가하지 않으면서도 double-click,
+network retry, concurrent request의 중복 event 생성을 DB unique constraint로
+막는다. 명시적 confirmation key를 request body에 추가하는 것은 향후 여러
+confirmation attempt를 허용해야 할 때 검토한다.
 
 ### 4.9 Confirmation / Correction
 
@@ -1096,15 +1108,16 @@ evaluation/shadow 단계에서 evidence와 acceptance metric을 확인한 뒤 �
 - [x] browser가 제출한 prediction을 신뢰하지 않고 서버의 pending
   inference를 source of truth로 사용한다.
 - [x] 단일 event와 batch event가 동일한 proposal 검증 helper를 사용한다.
-- [ ] event insertion transaction과 idempotency를 강화한다.
+- [x] event insertion transaction과 idempotency를 강화한다.
 
 완료 조건:
 
 - [x] proposal 생성은 state를 변경하지 않는다.
 - [x] confirmation이 없으면 event가 생성되지 않는다.
-- [x] 동일 inference는 pending 상태 검증을 통과해야만 commit할 수 있다.
+- [x] 동일 inference는 pending 상태 검증과 unique commit key를 통과해야만
+  commit할 수 있다.
 - [x] 모든 event는 inference와 추적 가능하게 연결된다.
-- [ ] event insertion transaction과 명시적 idempotency key를 추가한다.
+- [x] event insertion transaction과 명시적 idempotency key를 추가한다.
 
 ### Phase 7: Stage-level evaluation
 
@@ -1249,9 +1262,9 @@ acceptance rate가 확인된 경우에만 자동 적용한다.
 proposal은 pending 상태로 존재할 수 있으므로 다음을 추가로 해결한다.
 
 - 오래된 pending inference의 timeout
-- 동일 inference의 중복 commit 방지
-- event/correction/inference outcome의 atomicity
-- 재시도 시 같은 event가 중복 생성되지 않는 idempotency key
+- [x] 동일 inference의 중복 commit 방지
+- [x] event/correction/inference outcome의 atomicity
+- [x] 재시도 시 같은 event가 중복 생성되지 않는 idempotency key
 
 ---
 

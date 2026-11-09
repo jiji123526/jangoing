@@ -171,6 +171,10 @@ const householdEntityAliasesMigrationPath = resolve(
   apiDirectory,
   "migrations/0024_create_household_entity_aliases.sql",
 );
+const inferenceCommitKeysMigrationPath = resolve(
+  apiDirectory,
+  "migrations/0025_add_inference_commit_keys.sql",
+);
 const localMediaHouseholdId = "00000000-0000-4000-8000-000000000001";
 const localMediaUserId = "00000000-0000-4000-8000-000000000002";
 const localMediaDirectory = resolve(apiDirectory, ".local/item-media");
@@ -336,6 +340,12 @@ const householdEntityAliasesTable = database.prepare(
 if (!householdEntityAliasesTable?.name) {
   database.exec(readFileSync(householdEntityAliasesMigrationPath, "utf8"));
 }
+const eventCommitColumns = database.prepare(
+  "PRAGMA table_info(events)",
+).all() as Array<{ name: string }>;
+if (!eventCommitColumns.some((column) => column.name === "inference_id")) {
+  database.exec(readFileSync(inferenceCommitKeysMigrationPath, "utf8"));
+}
 database.prepare(
   `INSERT INTO households (
     id, name, created_at, updated_at, profile_emoji, icon_color
@@ -417,11 +427,29 @@ function readBody(request: IncomingMessage): Promise<unknown> {
 }
 
 function events(limit?: number, since?: string): EventRecord[] {
+  const publicEventColumns = [
+    "id",
+    "event_type",
+    "item_name",
+    "quantity",
+    "unit",
+    "location",
+    "expiration_date",
+    "low_threshold",
+    "category",
+    "raw_utterance",
+    "confidence",
+    "source",
+    "created_at",
+  ].join(", ");
   const query = since
-    ? "SELECT * FROM events WHERE created_at >= ? ORDER BY created_at DESC, id DESC"
+    ? `SELECT ${publicEventColumns} FROM events
+       WHERE created_at >= ? ORDER BY created_at DESC, id DESC`
     : limit
-      ? "SELECT * FROM events ORDER BY created_at DESC, id DESC LIMIT ?"
-      : "SELECT * FROM events ORDER BY created_at ASC, id ASC";
+      ? `SELECT ${publicEventColumns} FROM events
+         ORDER BY created_at DESC, id DESC LIMIT ?`
+      : `SELECT ${publicEventColumns} FROM events
+         ORDER BY created_at ASC, id ASC`;
   const rows = since
     ? database.prepare(query).all(since)
     : limit
@@ -880,10 +908,24 @@ async function route(
 
     const submission = parsed.data;
     const pendingInference = database.prepare(
-      "SELECT id, predicted_interpretation, parser_version FROM inference_logs WHERE id = ? AND outcome = 'pending'",
+      "SELECT id, predicted_interpretation, parser_version, outcome FROM inference_logs WHERE id = ?",
     ).get(submission.inference_id);
     if (!pendingInference) {
       sendJson(response, origin, { error: "Pending inference not found" }, 409);
+      return;
+    }
+    if ((pendingInference as { outcome: string }).outcome !== "pending") {
+      const existing = database.prepare(
+        `SELECT id, event_type, item_name, quantity, unit, location,
+                expiration_date, low_threshold, category, raw_utterance,
+                confidence, source, created_at
+         FROM events WHERE inference_id = ? AND action_index = ?`,
+      ).get(submission.inference_id, 0);
+      if (existing) {
+        sendJson(response, origin, EventRecordSchema.parse(existing), 200);
+      } else {
+        sendJson(response, origin, { error: "Pending inference not found" }, 409);
+      }
       return;
     }
     const storedInterpretation = parseStoredInterpretation(
@@ -916,28 +958,6 @@ async function route(
       low_threshold: submission.event.low_threshold ?? null,
       created_at: new Date().toISOString(),
     };
-
-    database
-      .prepare(
-        `INSERT INTO events (
-          id, event_type, item_name, quantity, unit, location,
-          expiration_date, low_threshold, raw_utterance, confidence, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        event.id,
-        event.event_type,
-        event.item_name,
-        event.quantity ?? null,
-        event.unit ?? null,
-        event.location ?? null,
-        event.expiration_date ?? null,
-        event.low_threshold ?? null,
-        event.raw_utterance,
-        event.confidence,
-        event.source,
-        event.created_at,
-      );
 
     const intentByEventType = {
       item_added: "add_item",
@@ -972,29 +992,72 @@ async function route(
           : {}),
       },
     };
-    database.prepare(
-      `INSERT INTO corrections (
-        id, event_id, raw_utterance, predicted_interpretation,
-        corrected_interpretation, parser_version, was_corrected, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      crypto.randomUUID(), event.id, event.raw_utterance,
-      JSON.stringify(predicted), JSON.stringify(corrected),
-      String((pendingInference as { parser_version: string }).parser_version),
-      JSON.stringify(predicted) === JSON.stringify(corrected) ? 0 : 1,
-      event.created_at,
-    );
-
     const outcome = JSON.stringify(predicted) === JSON.stringify(corrected)
       ? "confirmed"
       : "corrected";
-    database.prepare(
-      `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
-       event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'`,
-    ).run(
-      JSON.stringify(corrected), outcome, event.id, event.created_at,
-      submission.inference_id,
-    );
+    try {
+      database.exec("BEGIN");
+      database.prepare(
+        `INSERT INTO events (
+          id, event_type, item_name, quantity, unit, location,
+          expiration_date, low_threshold, raw_utterance, confidence, source,
+          created_at, inference_id, action_index
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        event.id,
+        event.event_type,
+        event.item_name,
+        event.quantity ?? null,
+        event.unit ?? null,
+        event.location ?? null,
+        event.expiration_date ?? null,
+        event.low_threshold ?? null,
+        event.raw_utterance,
+        event.confidence,
+        event.source,
+        event.created_at,
+        submission.inference_id,
+        0,
+      );
+      database.prepare(
+        `INSERT INTO corrections (
+          id, event_id, raw_utterance, predicted_interpretation,
+          corrected_interpretation, parser_version, was_corrected, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        crypto.randomUUID(), event.id, event.raw_utterance,
+        JSON.stringify(predicted), JSON.stringify(corrected),
+        String((pendingInference as { parser_version: string }).parser_version),
+        JSON.stringify(predicted) === JSON.stringify(corrected) ? 0 : 1,
+        event.created_at,
+      );
+      const update = database.prepare(
+        `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+         event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'`,
+      ).run(
+        JSON.stringify(corrected), outcome, event.id, event.created_at,
+        submission.inference_id,
+      );
+      if (Number(update.changes) !== 1) {
+        throw new Error("Inference was no longer pending");
+      }
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      if (String(error).includes("UNIQUE")) {
+        const existing = database.prepare(
+          `SELECT id, event_type, item_name, quantity, unit, location,
+                  expiration_date, low_threshold, category, raw_utterance,
+                  confidence, source, created_at
+           FROM events WHERE inference_id = ? AND action_index = ?`,
+        ).get(submission.inference_id, 0);
+        if (existing) {
+          sendJson(response, origin, EventRecordSchema.parse(existing), 200);
+          return;
+        }
+      }
+      throw error;
+    }
 
     sendJson(response, origin, event, 201);
     return;

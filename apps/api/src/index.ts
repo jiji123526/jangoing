@@ -232,6 +232,65 @@ function buildResolvedEvents(
   });
 }
 
+function buildEventInsertStatement(
+  env: Env,
+  event: EventRecord,
+  scope: ConsumerScope | null,
+  inferenceId: string,
+  actionIndex: number,
+): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO events (
+      id, event_type, item_name, quantity, unit, location,
+      expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
+      household_id, created_by_user_id, inference_id, action_index
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    event.id,
+    event.event_type,
+    event.item_name,
+    event.quantity ?? null,
+    event.unit ?? null,
+    event.location ?? null,
+    event.expiration_date ?? null,
+    event.low_threshold ?? null,
+    event.raw_utterance,
+    event.confidence,
+    event.source,
+    event.created_at,
+    scope?.householdId ?? null,
+    scope?.userId ?? null,
+    inferenceId,
+    actionIndex,
+  );
+}
+
+async function readCommittedEvents(
+  env: Env,
+  scope: ConsumerScope | null,
+  inferenceId: string,
+  expectedCount: number,
+): Promise<EventRecord[]> {
+  const result = await env.DB.prepare(
+    `SELECT ${publicEventColumns}
+     FROM events
+     WHERE inference_id = ?
+       AND action_index IS NOT NULL
+       AND ${scope ? "household_id = ?" : "household_id IS NULL"}
+     ORDER BY action_index ASC`,
+  ).bind(
+    inferenceId,
+    ...(scope ? [scope.householdId] : []),
+  ).all<Record<string, unknown>>();
+
+  const events = result.results.map((row) => EventRecordSchema.parse(row));
+  return events.length === expectedCount ? events : [];
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return String(error).toLowerCase().includes("unique");
+}
+
 function buildCorrectedInterpretation(events: EventRecord[]): Partial<Interpretation> {
   const primary = events[0];
   const actions = events.map((event) => ({
@@ -407,13 +466,21 @@ async function writeKitchenProjection(
   scope: ConsumerScope | null,
   projection: KitchenProjection,
 ): Promise<void> {
+  await buildKitchenProjectionWriteStatement(env, scope, projection).run();
+}
+
+function buildKitchenProjectionWriteStatement(
+  env: Env,
+  scope: ConsumerScope | null,
+  projection: KitchenProjection,
+): D1PreparedStatement {
   const value = JSON.stringify({
     ...projection,
     projectedOn: utcDate(),
   });
   const updatedAt = new Date().toISOString();
   if (scope) {
-    await env.DB.prepare(
+    return env.DB.prepare(
       `INSERT INTO household_app_state (household_id, key, value, updated_at)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(household_id, key) DO UPDATE SET
@@ -424,17 +491,16 @@ async function writeKitchenProjection(
       kitchenProjectionKey,
       value,
       updatedAt,
-    ).run();
-    return;
+    );
   }
 
-  await env.DB.prepare(
+  return env.DB.prepare(
     `INSERT INTO app_state (key, value, updated_at)
      VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET
        value = excluded.value,
        updated_at = excluded.updated_at`,
-  ).bind(kitchenProjectionKey, value, updatedAt).run();
+  ).bind(kitchenProjectionKey, value, updatedAt);
 }
 
 async function loadKitchenProjection(
@@ -511,17 +577,23 @@ async function invalidateKitchenProjection(
   env: Env,
   scope: ConsumerScope | null,
 ): Promise<void> {
+  await buildKitchenProjectionInvalidationStatement(env, scope).run();
+}
+
+function buildKitchenProjectionInvalidationStatement(
+  env: Env,
+  scope: ConsumerScope | null,
+): D1PreparedStatement {
   if (scope) {
-    await env.DB.prepare(
+    return env.DB.prepare(
       `DELETE FROM household_app_state
        WHERE household_id = ? AND key = ?`,
-    ).bind(scope.householdId, kitchenProjectionKey).run();
-    return;
+    ).bind(scope.householdId, kitchenProjectionKey);
   }
 
-  await env.DB.prepare(
+  return env.DB.prepare(
     "DELETE FROM app_state WHERE key = ?",
-  ).bind(kitchenProjectionKey).run();
+  ).bind(kitchenProjectionKey);
 }
 
 async function handleInterpret(
@@ -894,8 +966,8 @@ async function handleCreateEvent(
 
   const submission = parsed.data;
   const pendingInference = await env.DB.prepare(
-    `SELECT id, predicted_interpretation, parser_version FROM inference_logs
-     WHERE id = ? AND outcome = 'pending'
+    `SELECT id, predicted_interpretation, parser_version, outcome FROM inference_logs
+     WHERE id = ?
        AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
     submission.inference_id,
@@ -903,6 +975,17 @@ async function handleCreateEvent(
   ).first();
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
+  }
+  if (String(pendingInference.outcome) !== "pending") {
+    const existing = await readCommittedEvents(
+      env,
+      scope,
+      submission.inference_id,
+      1,
+    );
+    return existing.length === 1
+      ? json(request, env, existing[0], 200)
+      : json(request, env, { error: "Pending inference not found" }, 409);
   }
   const storedInterpretation = parseStoredInterpretation(
     String(pendingInference.predicted_interpretation),
@@ -925,39 +1008,6 @@ async function handleCreateEvent(
   const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
   const [event] = buildResolvedEvents([submission.event], projectedState);
 
-  await env.DB.prepare(
-    `INSERT INTO events (
-      id, event_type, item_name, quantity, unit, location,
-      expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
-      household_id, created_by_user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      event.id,
-      event.event_type,
-      event.item_name,
-      event.quantity ?? null,
-      event.unit ?? null,
-      event.location ?? null,
-      event.expiration_date ?? null,
-      event.low_threshold ?? null,
-      event.raw_utterance,
-      event.confidence,
-      event.source,
-      event.created_at,
-      scope?.householdId ?? null,
-      scope?.userId ?? null,
-    )
-    .run();
-  if (projectedState?.sourceEvents) {
-    await writeKitchenProjectionFromEvents(env, scope, [
-      ...projectedState.sourceEvents,
-      event,
-    ]);
-  } else {
-    await invalidateKitchenProjection(env, scope);
-  }
-
   const correctedInterpretation = buildCorrectedInterpretation([event]);
   const predicted = {
     intent: storedInterpretation.intent,
@@ -967,36 +1017,68 @@ async function handleCreateEvent(
       : {}),
   };
 
-  await env.DB.prepare(
-    `INSERT INTO corrections (
-      id, event_id, raw_utterance, predicted_interpretation,
-      corrected_interpretation, parser_version, was_corrected, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      crypto.randomUUID(),
-      event.id,
-      event.raw_utterance,
-      JSON.stringify(predicted),
-      JSON.stringify(correctedInterpretation),
-      String(pendingInference.parser_version),
-      JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
-      event.created_at,
-    )
-    .run();
-
   const outcome = JSON.stringify(predicted) === JSON.stringify(correctedInterpretation)
     ? "confirmed"
     : "corrected";
-  await env.DB.prepare(
-    `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
-      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
-      AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
-  ).bind(
-    JSON.stringify(correctedInterpretation), outcome, event.id,
-    event.created_at, submission.inference_id,
-    ...(scope ? [scope.householdId] : []),
-  ).run();
+  const projectionStatement = projectedState?.sourceEvents
+    ? buildKitchenProjectionWriteStatement(env, scope, {
+        inventory: projectInventory([...projectedState.sourceEvents, event]),
+        shoppingList: projectShoppingList([...projectedState.sourceEvents, event]),
+      })
+    : buildKitchenProjectionInvalidationStatement(env, scope);
+
+  try {
+    await env.DB.batch([
+      buildEventInsertStatement(
+        env,
+        event,
+        scope,
+        submission.inference_id,
+        0,
+      ),
+      env.DB.prepare(
+        `INSERT INTO corrections (
+          id, event_id, raw_utterance, predicted_interpretation,
+          corrected_interpretation, parser_version, was_corrected, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        crypto.randomUUID(),
+        event.id,
+        event.raw_utterance,
+        JSON.stringify(predicted),
+        JSON.stringify(correctedInterpretation),
+        String(pendingInference.parser_version),
+        JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
+        event.created_at,
+      ),
+      env.DB.prepare(
+        `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+          event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
+          AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
+      ).bind(
+        JSON.stringify(correctedInterpretation),
+        outcome,
+        event.id,
+        event.created_at,
+        submission.inference_id,
+        ...(scope ? [scope.householdId] : []),
+      ),
+      projectionStatement,
+    ]);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const existing = await readCommittedEvents(
+        env,
+        scope,
+        submission.inference_id,
+        1,
+      );
+      if (existing.length === 1) {
+        return json(request, env, existing[0], 200);
+      }
+    }
+    throw error;
+  }
 
   return json(request, env, event, 201);
 }
@@ -1020,8 +1102,8 @@ async function handleCreateEvents(
 
   const submission = parsed.data;
   const pendingInference = await env.DB.prepare(
-    `SELECT id, predicted_interpretation, parser_version FROM inference_logs
-     WHERE id = ? AND outcome = 'pending'
+    `SELECT id, predicted_interpretation, parser_version, outcome FROM inference_logs
+     WHERE id = ?
        AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
   ).bind(
     submission.inference_id,
@@ -1029,6 +1111,17 @@ async function handleCreateEvents(
   ).first();
   if (!pendingInference) {
     return json(request, env, { error: "Pending inference not found" }, 409);
+  }
+  if (String(pendingInference.outcome) !== "pending") {
+    const existing = await readCommittedEvents(
+      env,
+      scope,
+      submission.inference_id,
+      submission.events.length,
+    );
+    return existing.length === submission.events.length
+      ? json(request, env, { events: existing }, 200)
+      : json(request, env, { error: "Pending inference not found" }, 409);
   }
   const storedInterpretation = parseStoredInterpretation(
     String(pendingInference.predicted_interpretation),
@@ -1054,39 +1147,6 @@ async function handleCreateEvents(
   const projectedState = scope ? await loadKitchenProjection(env, scope) : null;
   const events = buildResolvedEvents(submission.events, projectedState);
 
-  for (const event of events) {
-    await env.DB.prepare(
-      `INSERT INTO events (
-        id, event_type, item_name, quantity, unit, location,
-        expiration_date, low_threshold, raw_utterance, confidence, source, created_at,
-        household_id, created_by_user_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(
-      event.id,
-      event.event_type,
-      event.item_name,
-      event.quantity ?? null,
-      event.unit ?? null,
-      event.location ?? null,
-      event.expiration_date ?? null,
-      event.low_threshold ?? null,
-      event.raw_utterance,
-      event.confidence,
-      event.source,
-      event.created_at,
-      scope?.householdId ?? null,
-      scope?.userId ?? null,
-    ).run();
-  }
-  if (projectedState?.sourceEvents) {
-    await writeKitchenProjectionFromEvents(env, scope, [
-      ...projectedState.sourceEvents,
-      ...events,
-    ]);
-  } else {
-    await invalidateKitchenProjection(env, scope);
-  }
-
   const correctedInterpretation = buildCorrectedInterpretation(events);
   const predicted = {
     intent: storedInterpretation.intent,
@@ -1096,37 +1156,70 @@ async function handleCreateEvents(
       : {}),
   };
 
-  await env.DB.prepare(
-    `INSERT INTO corrections (
-      id, event_id, raw_utterance, predicted_interpretation,
-      corrected_interpretation, parser_version, was_corrected, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(
-    crypto.randomUUID(),
-    events[0].id,
-    events[0].raw_utterance,
-    JSON.stringify(predicted),
-    JSON.stringify(correctedInterpretation),
-    String(pendingInference.parser_version),
-    JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
-    events[0].created_at,
-  ).run();
-
   const outcome = JSON.stringify(predicted) === JSON.stringify(correctedInterpretation)
     ? "confirmed"
     : "corrected";
-  await env.DB.prepare(
-    `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
-      event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
-      AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
-  ).bind(
-    JSON.stringify(correctedInterpretation),
-    outcome,
-    events[0].id,
-    events[0].created_at,
-    submission.inference_id,
-    ...(scope ? [scope.householdId] : []),
-  ).run();
+  const projectionStatement = projectedState?.sourceEvents
+    ? buildKitchenProjectionWriteStatement(env, scope, {
+        inventory: projectInventory([...projectedState.sourceEvents, ...events]),
+        shoppingList: projectShoppingList([...projectedState.sourceEvents, ...events]),
+      })
+    : buildKitchenProjectionInvalidationStatement(env, scope);
+
+  try {
+    await env.DB.batch([
+      ...events.map((event, actionIndex) =>
+        buildEventInsertStatement(
+          env,
+          event,
+          scope,
+          submission.inference_id,
+          actionIndex,
+        )
+      ),
+      env.DB.prepare(
+        `INSERT INTO corrections (
+          id, event_id, raw_utterance, predicted_interpretation,
+          corrected_interpretation, parser_version, was_corrected, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        crypto.randomUUID(),
+        events[0].id,
+        events[0].raw_utterance,
+        JSON.stringify(predicted),
+        JSON.stringify(correctedInterpretation),
+        String(pendingInference.parser_version),
+        JSON.stringify(predicted) === JSON.stringify(correctedInterpretation) ? 0 : 1,
+        events[0].created_at,
+      ),
+      env.DB.prepare(
+        `UPDATE inference_logs SET corrected_interpretation = ?, outcome = ?,
+          event_id = ?, resolved_at = ? WHERE id = ? AND outcome = 'pending'
+          AND ${scope ? "household_id = ?" : "household_id IS NULL"}`,
+      ).bind(
+        JSON.stringify(correctedInterpretation),
+        outcome,
+        events[0].id,
+        events[0].created_at,
+        submission.inference_id,
+        ...(scope ? [scope.householdId] : []),
+      ),
+      projectionStatement,
+    ]);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const existing = await readCommittedEvents(
+        env,
+        scope,
+        submission.inference_id,
+        events.length,
+      );
+      if (existing.length === events.length) {
+        return json(request, env, { events: existing }, 200);
+      }
+    }
+    throw error;
+  }
 
   return json(request, env, { events }, 201);
 }
