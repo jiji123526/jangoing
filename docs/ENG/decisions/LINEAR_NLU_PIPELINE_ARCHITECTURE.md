@@ -1127,8 +1127,18 @@ evaluation/shadow 단계에서 evidence와 acceptance metric을 확인한 뒤 �
 - [ ] normalization accuracy를 field별로 계산한다.
 - [ ] resolution accuracy와 ambiguity rate를 계산한다.
 - [ ] routing/clarification precision을 계산한다.
-- [ ] multi-action exact match를 별도 계산한다.
+- [x] multi-action exact match를 별도 계산한다.
 - [ ] stage별 p50/p95 latency를 기록한다.
+
+현재는 `apps/api/src/nlp/pipeline-evaluation.ts`의 순수 replay evaluator와
+작은 deterministic smoke fixture를 먼저 추가했다. 이 evaluator는 legacy
+parser+normalizer와 current linear pipeline을 같은 입력으로 비교하고,
+relevance·resolution·routing·proposal 및 stage status/average latency를
+계산한다. DB/event write와 원문 출력은 없다. 실제 사용자 traffic이 없는
+현재는 이것을 offline shadow 단계로 취급한다.
+
+이 fixture는 frozen human evaluation set이 아니다. 다음 단계에서 reviewed
+set과 leakage 검사를 추가하기 전까지는 regression signal로만 사용한다.
 
 최소 평가 축:
 

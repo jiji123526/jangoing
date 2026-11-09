@@ -599,10 +599,12 @@ observability layer.
 
 ### Atomicity
 
-Events, corrections, and inference outcomes are logically linked, but they are
-not all wrapped in one explicit database transaction yet. Before traffic and
-recovery requirements grow, D1 batch/transaction strategy and idempotency keys
-should be added.
+Events, corrections, and inference outcomes are committed together through the
+Worker D1 batch path and the local SQLite transaction path. Migration 0025 adds
+the explicit `(inference_id, action_index)` uniqueness key so confirmation
+retries cannot append duplicate events. The remaining operational work is
+pending-inference timeout and recovery observability, not a second proposal
+store or queue.
 
 ## 8. How to Run It
 

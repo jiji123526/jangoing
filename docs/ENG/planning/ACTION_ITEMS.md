@@ -1,6 +1,6 @@
 # Jangoing Action Items
 
-Last updated: 2026-09-01
+Last updated: 2026-11-09
 
 This document is the operational checklist for moving from annotation
 infrastructure to an English NLP MVP. [PLAN.md](./PLAN.md) describes the
@@ -112,10 +112,16 @@ for dependencies and exit criteria.
 
 ### Phase 7: Stage evaluation
 
-- [ ] Add stage-level metrics to the model evaluation workflow.
+- [x] Add initial stage-level metrics to the model evaluation workflow.
 - [ ] Separate phrase-family, household, input-source, and context slices.
-- [ ] Build offline replay for comparing pipeline versions.
+- [x] Build deterministic offline replay for comparing the parser baseline with
+  the current pipeline.
 - [ ] Define shadow, canary, rollback, latency, and safety gates.
+
+The current replay is intentionally fixture-based and side-effect free. It
+reports stage count/status/average latency and multi-action exact match, but it
+is not yet a human-approved frozen set and does not claim p50/p95 production
+latency.
 
 ### Phase 8: Conversation state
 

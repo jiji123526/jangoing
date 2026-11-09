@@ -29,7 +29,7 @@ export const ReasonCodeSchema = z.enum([
   "relevance_ambiguous",
 ]);
 
-const pipelineStageOrder = [
+export const pipelineStageOrder = [
   "relevance",
   "correction_hint",
   "nlu",

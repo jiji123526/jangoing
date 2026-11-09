@@ -129,3 +129,43 @@ release must preserve safety constraints, show no material regression on critica
 slices, meet latency limits, and include a rollback target. Production outcomes
 are monitored by model version so development-over-development changes remain
 visible.
+
+## Linear Pipeline Replay and Shadow Evaluation
+
+Until real user traffic exists, Jangoing uses a deterministic offline replay as
+the first shadow step. The evaluator runs the legacy parser-plus-normalizer
+baseline and the current linear pipeline against the same fixed cases. It does
+not call a database, create events, persist inference logs, or print raw
+utterances.
+
+Run it from the repository root:
+
+```bash
+npm run evaluate:pipeline
+npm run evaluate:pipeline -- --json
+```
+
+The smoke fixture is intentionally small and lives in
+`apps/api/src/nlp/pipeline-evaluation-fixtures.ts`. It is a regression fixture,
+not a human-approved frozen test set and must not be used as a production
+quality claim.
+
+The current report includes:
+
+- baseline/current intent, normalized-slot, and multi-action exact match;
+- current relevance, catalog resolution, routing, and proposal-kind accuracy;
+- per-stage count, status distribution, and average latency;
+- explicit safety counters proving zero database and event writes.
+
+The report contains mismatch case IDs only. It does not contain the original
+text, credentials, household identifiers, or model output dumps. Input is
+bounded to 1,000 cases and each request is revalidated with the public request
+contract before replay.
+
+This is deliberately not an online shadow service. Adding a second request path,
+database table, queue, or model endpoint before there is traffic would duplicate
+state and increase operational cost without producing useful evidence. When a
+reviewed evaluation set is available, the same pure evaluator can be extended
+to load that local artifact. Before promotion, add frozen-set approval,
+phrase-family leakage checks, p50/p95 latency, safety gates, and a rollback
+target.

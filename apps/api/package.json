@@ -16,6 +16,7 @@
     "annotation:import-generated": "node --import tsx scripts/import-generated-review-dataset.ts",
     "household:backfill-bootstrap": "node --import tsx scripts/backfill-bootstrap-household.ts",
     "dataset:export": "tsx scripts/export-dataset.ts",
+    "evaluate:pipeline": "node --import tsx scripts/evaluate-pipeline.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

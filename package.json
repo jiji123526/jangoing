@@ -19,6 +19,7 @@
     "annotation:import-generated": "npm run annotation:import-generated --workspace @jangoing/api --",
     "household:backfill-bootstrap": "npm run household:backfill-bootstrap --workspace @jangoing/api --",
     "dataset:export": "npm run dataset:export --workspace @jangoing/api --",
+    "evaluate:pipeline": "npm run evaluate:pipeline --workspace @jangoing/api --",
     "seed:local-sample": "npm run seed:local-sample --workspace @jangoing/api",
     "dev:api": "npm run dev --workspace @jangoing/api",
     "dev:web": "npm run dev --workspace @jangoing/web",

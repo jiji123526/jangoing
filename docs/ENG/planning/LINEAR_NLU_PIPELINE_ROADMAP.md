@@ -1076,6 +1076,55 @@ evaluation 단계까지 보류한다.
 
 ---
 
+### Step 8 — Stage-level evaluation과 offline shadow replay
+
+상태: deterministic smoke fixture를 이용한 side-effect-free replay 구현
+완료. 실제 사용자 traffic이 없으므로 online shadow service나 별도
+database/queue는 추가하지 않는다.
+
+추가된 구성:
+
+- `apps/api/src/nlp/pipeline-evaluation.ts`
+  - 기존 parser+normalizer를 baseline으로 실행한다.
+  - 현재 `runInterpretationPipeline`을 같은 request와 고정된
+    `receivedAt`으로 실행한다.
+  - intent, normalized slot, multi-action exact match와 relevance,
+    entity resolution, routing, proposal kind을 비교한다.
+  - stage별 count, status 분포, 평균 latency를 집계한다.
+- `apps/api/src/nlp/pipeline-evaluation-fixtures.ts`
+  - actionable, unrelated, contextual preference,
+    domain-non-actionable, ambiguity, unresolved item, expiry, multi-action을
+    포함하는 작은 deterministic smoke set이다.
+  - human-approved frozen evaluation set이 아니므로 품질 수치의 근거로
+    사용하지 않는다.
+- `apps/api/scripts/evaluate-pipeline.ts`
+  - `npm run evaluate:pipeline`
+  - `npm run evaluate:pipeline -- --json`
+
+안전·비용 경계:
+
+- evaluator는 `/events`, `/events/batch`, D1, inference log를 호출하지 않는다.
+- report에는 raw utterance를 넣지 않고 case ID와 구조화된 metric만 남긴다.
+- 입력 case 수는 1,000개로 제한하고 public request contract로 재검증한다.
+- 온라인 shadow endpoint, proposal table, 별도 queue, model service는
+  traffic과 reviewed dataset이 생기기 전까지 만들지 않는다.
+
+남은 작업:
+
+- reviewed human frozen set과 phrase-family leakage 검사
+- field별 normalization 및 entity span metric
+- ambiguity/clarification slice와 confirmation outcome
+- p50/p95 stage latency와 safety/rollback gate
+- 실제 traffic이 생긴 뒤에만 online shadow/canary rollout
+
+검증:
+
+- evaluator unit test 3개
+- API typecheck
+- deterministic replay smoke run
+
+---
+
 ### Phase 2 — Linear pipeline orchestrator
 
 상태: Worker와 local development server가 공통 orchestrator를 사용하도록
