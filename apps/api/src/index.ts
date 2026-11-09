@@ -48,7 +48,12 @@ import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
-import { runInterpretationPipeline } from "./nlp/pipeline";
+import {
+  buildLatestConversationTurnQuery,
+  pendingConversationStateFromRow,
+  runConversationAwarePipeline,
+  type ConversationTurnRow,
+} from "./nlp/conversation-state";
 import {
   buildActionProposal,
   confirmedEventTypesMatchProposal,
@@ -615,7 +620,21 @@ async function handleInterpret(
     );
   }
 
-  const pipeline = runInterpretationPipeline(parsed.data, receivedAt);
+  const conversationQuery = buildLatestConversationTurnQuery(
+    parsed.data,
+    { householdId: scope?.householdId ?? null },
+    receivedAt,
+  );
+  const previousConversationTurn = conversationQuery
+    ? await env.DB.prepare(conversationQuery.query)
+      .bind(...conversationQuery.bindings)
+      .first<ConversationTurnRow>()
+    : null;
+  const conversationState = previousConversationTurn
+    ? pendingConversationStateFromRow(previousConversationTurn, receivedAt)
+    : null;
+  const { pipeline, context: conversationContext } =
+    runConversationAwarePipeline(parsed.data, receivedAt, conversationState);
   const {
     interpretation: result,
     relevance,
@@ -643,6 +662,9 @@ async function handleInterpret(
       turn_index: parsed.data.turn_index ?? null,
       speaker_role: parsed.data.speaker_role ?? null,
       activation_mode: parsed.data.activation_mode ?? null,
+      conversation_resumed: conversationContext.resumed,
+      conversation_source_inference_id:
+        conversationContext.source_inference_id,
     }),
     JSON.stringify(result),
     pipeline.parserVersion,
@@ -656,7 +678,7 @@ async function handleInterpret(
     "web",
     pipeline.inferenceOutcome,
     latencyMs,
-    new Date().toISOString(),
+    receivedAt.toISOString(),
     scope?.householdId ?? null,
     scope?.userId ?? null,
   ).run();

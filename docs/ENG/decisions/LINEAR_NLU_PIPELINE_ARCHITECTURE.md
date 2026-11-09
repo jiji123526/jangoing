@@ -1168,16 +1168,23 @@ confirmation outcome
 
 ### Phase 8: Conversation context와 DST
 
-- [ ] `conversation_states`를 추가한다.
-- [ ] 최근 turn의 허용된 context snapshot을 만든다.
+- [x] 최근 turn의 허용된 clarification context snapshot을 만든다.
 - [ ] pronoun/reference 후보를 명시적 구조로 저장한다.
-- [ ] clarification state를 저장하고 다음 turn에서 소비한다.
-- [ ] context evidence turn을 prediction에 기록한다.
-- [ ] TTL, household isolation, stale context policy를 구현한다.
+- [x] clarification state를 기존 pending inference에서 파생하고 다음 turn에서
+  제한적으로 소비한다.
+- [x] context evidence inference request context에 기록한다.
+- [x] TTL, household isolation, stale context policy를 구현한다.
+
+현재는 별도 `conversation_states` table을 추가하지 않는다. pending
+clarification은 기존 `inference_logs`의 동일 conversation 최신 turn에서
+파생한다. 이렇게 하면 inference와 state가 서로 다른 source of truth가 되지
+않고, 실제 traffic이 없는 단계에서 cleanup job과 추가 저장 비용을 피할 수
+있다. 장기 대화나 명시적인 pronoun/reference resolution이 필요해질 때만
+별도 state 저장소를 재검토한다.
 
 완료 조건:
 
-- `Put it on the list`가 이전 turn의 실제 entity를 근거로 resolve된다.
+- 제한된 clarification 응답이 이전 turn의 pending intent를 근거로 resolve된다.
 - 후보가 없거나 여러 개면 clarification이 생성된다.
 - 다른 household 또는 만료된 conversation state가 사용되지 않는다.
 

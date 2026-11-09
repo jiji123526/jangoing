@@ -56,7 +56,12 @@ import {
   buildFridgeSetupEvents,
   fridgeSetupCompletedKey,
 } from "./domain/fridge-setup";
-import { runInterpretationPipeline } from "./nlp/pipeline";
+import {
+  buildLatestConversationTurnQuery,
+  pendingConversationStateFromRow,
+  runConversationAwarePipeline,
+  type ConversationTurnRow,
+} from "./nlp/conversation-state";
 import {
   buildActionProposal,
   confirmedEventTypesMatchProposal,
@@ -588,7 +593,21 @@ async function route(
       return;
     }
 
-    const pipeline = runInterpretationPipeline(parsed.data, receivedAt);
+    const conversationQuery = buildLatestConversationTurnQuery(
+      parsed.data,
+      { householdId: null },
+      receivedAt,
+    );
+    const previousConversationTurn = conversationQuery
+      ? database.prepare(conversationQuery.query).get(
+          ...conversationQuery.bindings,
+        ) as ConversationTurnRow | undefined
+      : undefined;
+    const conversationState = previousConversationTurn
+      ? pendingConversationStateFromRow(previousConversationTurn, receivedAt)
+      : null;
+    const { pipeline, context: conversationContext } =
+      runConversationAwarePipeline(parsed.data, receivedAt, conversationState);
     const {
       interpretation: result,
       relevance,
@@ -615,11 +634,14 @@ async function route(
         turn_index: parsed.data.turn_index ?? null,
         speaker_role: parsed.data.speaker_role ?? null,
         activation_mode: parsed.data.activation_mode ?? null,
+        conversation_resumed: conversationContext.resumed,
+        conversation_source_inference_id:
+          conversationContext.source_inference_id,
       }),
       JSON.stringify(result), pipeline.parserVersion, pipeline.normalizerVersion, schemaVersion,
       pipelineTrace.pipeline_version, JSON.stringify(pipelineTrace),
       relevance.relevance, relevance.confidence, pipeline.relevance.trace.version,
-      "web", pipeline.inferenceOutcome, latencyMs, new Date().toISOString(),
+      "web", pipeline.inferenceOutcome, latencyMs, receivedAt.toISOString(),
     );
     sendJson(response, origin, {
       ...result, inference_id: inferenceId, parser_version: pipeline.parserVersion, latency_ms: latencyMs,

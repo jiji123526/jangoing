@@ -1125,6 +1125,56 @@ database/queue는 추가하지 않는다.
 
 ---
 
+### Step 9 — Conversation state와 제한적 DST
+
+상태: 짧은 clarification state를 기존 inference log에서 파생하고, 다음
+turn에서 제한적으로 소비하는 구현 완료.
+
+추가된 구성:
+
+- `apps/api/src/nlp/conversation-state.ts`
+  - conversation ID, turn index, household scope를 이용해 최신 이전 turn을
+    조회한다.
+  - `pending`이면서 clarification proposal인 경우에만 state 후보로 만든다.
+  - state TTL은 5분이고, 최대 turn gap은 8이다.
+  - 지원되는 intent에 대해서만 후속 짧은 item 응답을 기존 intent에 결합한다.
+  - 원래 입력을 보존하고, 합성된 parser 입력은 내부 처리에만 사용한다.
+- Worker와 local API
+  - resumed 여부와 source inference ID를 `request_context`에 기록한다.
+  - resumed 결과도 기존 proposal/confirmation/event path를 사용한다.
+
+의도적으로 하지 않은 것:
+
+- 전체 transcript 저장
+- 장기 user memory, vector DB, learned dialogue policy
+- 별도 `conversation_states` table
+- 상태에서 직접 event 생성
+- 명시적인 pronoun/reference resolution
+
+안전 경계:
+
+- 다른 household의 inference는 조회하지 않는다.
+- 최신 turn이 clarification이 아니면 이전 clarification을 재사용하지 않는다.
+- 만료된 state와 순서가 맞지 않는 turn은 무시한다.
+- 후속 입력이 독립적인 command처럼 보이면 기존 pipeline으로 처리한다.
+- state resume은 proposal을 확정하지 않으며, mutation은 기존 confirmation이
+  필요하다.
+
+남은 작업:
+
+- stale state와 distractor turn 평가
+- ambiguous entity 후속 clarification
+- cancel/대화 종료 state
+- 실제 multi-turn traffic이 생긴 뒤 별도 state table 필요성 재평가
+
+검증:
+
+- conversation-state unit test 4개
+- API typecheck
+- 기존 pipeline/confirmation tests 유지
+
+---
+
 ### Phase 2 — Linear pipeline orchestrator
 
 상태: Worker와 local development server가 공통 orchestrator를 사용하도록

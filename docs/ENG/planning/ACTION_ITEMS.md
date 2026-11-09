@@ -125,10 +125,17 @@ latency.
 
 ### Phase 8: Conversation state
 
-- [ ] Add expiring `conversation_states` for unresolved slots and active goals.
+- [x] Derive an expiring clarification state from the latest pending inference.
+- [x] Consume a bounded item clarification response on the next turn.
+- [x] Record the source inference ID and resume decision in request context.
 - [ ] Resolve references only when the context is relevant and permitted.
 - [ ] Add stale-state and distractor-turn evaluation sets.
 - [ ] Prefer clarification over mutation when state remains ambiguous.
+
+The first implementation intentionally does not add a `conversation_states`
+table. Existing `inference_logs` are the source of truth for the short-lived
+pending clarification, avoiding duplicated state and cleanup work before real
+traffic exists.
 
 ### Phase 9: Voice insertion
 
